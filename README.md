@@ -9,7 +9,7 @@ Features
 
 * Batcher Sorting and Merging - based upon _[Sorting Networks and their Applications](http://www.cs.kent.edu/~batcher/sort.pdf)_
 * Big Integer math
-	* Division via Knuth's Algorithm D - based upon The Art of Computer Programming Vol 2, Section 4.3.1
+	* Division via Algorithm D - based upon _The Art of Computer Programming_ Vol 2, Section 4.3.1 (Knuth, 1969)
 	* Karatsuba-Comba Multiplication
 	* Square Root via Newton's Method
 * Binary Search
