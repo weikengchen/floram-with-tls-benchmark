@@ -5,15 +5,103 @@ struct oaes_ctx {
 	obliv uint8_t * iv;
 };
 
+// Much of the following is taken from An ASIC Implementation of the AES S-boxes, by J. Wolkerstorfer, E. Oswald, and M. Lamberger
+
+typedef struct gf24{
+	obliv bool bits[4];
+} gf24;
+
+typedef struct gf242{
+	gf24 h;
+	gf24 l;
+} gf242;
+
+gf242 maptogf242(obliv uint8_t a) {
+	gf242 res;
+	obliv bool aA = ((a >> 1) & 1) ^ ((a >> 7) & 1);
+	obliv bool aB = ((a >> 5) & 1) ^ ((a >> 7) & 1);
+	obliv bool aC = ((a >> 4) & 1) ^ ((a >> 6) & 1);
+	res.l.bits[0] = aC ^ (a & 1) ^ ((a >> 5) & 1);
+	res.l.bits[1] = ((a >> 1) & 1) ^ ((a >> 2) & 1);
+	res.l.bits[2] = aA;
+	res.l.bits[3] = ((a >> 2) & 1) ^ ((a >> 4) & 1);
+	res.h.bits[0] = aC ^ ((a >> 5) & 1);
+	res.h.bits[1] = aA ^ aC;
+	res.h.bits[2] = aB ^ ((a >> 2) & 1) ^ ((a >> 3) & 1);
+	res.h.bits[3] = aB;
+	return res;
+}
+
+obliv uint8_t unmapfromgf242(gf242 a) {
+	obliv uint8_t res;
+	obliv bool aA = a.l.bits[1] ^ a.h.bits[3];
+	obliv bool aB = a.h.bits[0] ^ a.h.bits[1];
+	res = a.l.bits[0] ^ a.h.bits[0];
+	res ^= (aB ^ a.h.bits[3]) << 1;
+	res ^= (aA ^ aB) << 2;
+	res ^= (aB ^ a.l.bits[1] ^ a.h.bits[2]) << 3;
+	res ^= (aA ^ aB ^ a.l.bits[3]) << 4;
+	res ^= (aB ^ a.l.bits[2]) << 5;
+	res ^= (aA ^ a.l.bits[2] ^ a.l.bits[3] ^ a.h.bits[0]) << 6;
+	res ^= (aB ^ a.l.bits[2] ^ a.h.bits[3]) << 7;
+	return res;
+}
+
+gf24 gf24add(gf24 a, gf24 b) {
+	gf24 s;
+	for (int ii = 0; ii < 4; ii++) s.bits[ii] = a.bits[ii] ^ b.bits[ii];
+	return s;
+}
+
+gf24 gf24mul(gf24 a, gf24 b) {
+	gf24 q;
+	obliv bool aA = a.bits[0] ^ a.bits[3];
+	obliv bool aB = a.bits[2] ^ a.bits[3];
+	q.bits[0] = (a.bits[0]&b.bits[0]) ^ (a.bits[3]&b.bits[1]) ^ (a.bits[2]&b.bits[2]) ^ (a.bits[1]&b.bits[3]);
+	q.bits[1] = (a.bits[1]&b.bits[0]) ^ (aA&b.bits[1]) ^ (aB&b.bits[2]) ^ ((a.bits[1]^a.bits[2])&b.bits[3]);
+	q.bits[2] = (a.bits[2]&b.bits[0]) ^ (a.bits[1]&b.bits[1]) ^ (aA&b.bits[2]) ^ (aB&b.bits[3]);
+	q.bits[3] = (a.bits[3]&b.bits[0]) ^ (a.bits[2]&b.bits[1]) ^ (a.bits[1]&b.bits[2]) ^ (aA&b.bits[3]);
+	return q;
+}
+
+gf24 gf24sq(gf24 a) {
+	gf24 q;
+	q.bits[0] = a.bits[0] ^ a.bits[2];
+	q.bits[1] = a.bits[2];
+	q.bits[2] = a.bits[1] ^ a.bits[3];
+	q.bits[3] = a.bits[3];
+	return q;
+}
+
+gf24 gf24inv(gf24 a) {
+	gf24 q;
+	obliv bool aA = a.bits[1] ^ a.bits[2] ^ a.bits[3] ^ (a.bits[1]&a.bits[2]&a.bits[3]);
+	q.bits[0] = aA ^ a.bits[0] ^ (a.bits[0]&a.bits[2]) ^ (a.bits[1]&a.bits[2]) ^ (a.bits[0]&a.bits[1]&a.bits[2]);
+	q.bits[1] = (a.bits[0]&a.bits[1]) ^ (a.bits[0]&a.bits[2]) ^ (a.bits[1]&a.bits[2]) ^ a.bits[3] ^ (a.bits[1]&a.bits[3]) ^ (a.bits[0]&a.bits[1]&a.bits[3]);
+	q.bits[2] = (a.bits[0]&a.bits[1]) ^ a.bits[2] ^ (a.bits[0]&a.bits[2]) ^ a.bits[3] ^ (a.bits[0]&a.bits[3]) ^ (a.bits[0]&a.bits[2]&a.bits[3]);
+	q.bits[3] = aA ^ (a.bits[0]&a.bits[3]) ^ (a.bits[1]&a.bits[3]) ^ (a.bits[2]&a.bits[3]);
+	return q;
+}
+
+gf242 gf242inv(gf242 a) {
+	gf24 e;
+	gf242 res;
+	e.bits[3] = 1; e.bits[2] = 1; e.bits[1] = 1; e.bits[0] = 0;
+	gf24 d = gf24inv(gf24add(gf24mul(gf24sq(a.h), e), gf24add(gf24mul(a.h,a.l), gf24sq(a.l))));
+	res.h = gf24mul(a.h, d);
+	res.l = gf24mul(gf24add(a.h, a.l), d);
+	return res;
+}
+
+
 obliv uint8_t addrj(obliv uint8_t a,obliv uint8_t b) {
 	return a^b;
 }
 
 obliv uint8_t mulrj(obliv uint8_t a,obliv uint8_t b) {
 	obliv uint8_t p=0,a2;
-	for(int i=0;i<8;++i)
-	{ obliv if((b&(1<<i))!=0) p^=a; // FIXME int conditions don't work
-		obliv int res;
+	for(int i=0;i<8;++i) {
+		obliv if((b&(1<<i))!=0) p^=a; // FIXME int conditions don't work
 		a2=(a<<1);
 		obliv if((a&(1<<7))!=0) a2^=0x1b; // TODO bit-level identities should have made this free
 		a=a2;
@@ -26,7 +114,28 @@ obliv uint8_t exprj(obliv uint8_t a,int pow) {
 }
 
 obliv uint8_t invrj(obliv uint8_t a) {
-	return exprj(a,254);
+	//return exprj(a,254);
+	
+	//this more efficient layout is borrowed from Damgard and Keller
+	//https://pdfs.semanticscholar.org/c871/3ed52f0987e2663ef0870d19260dfe2ac805.pdf
+	//obliv uint8_t b = a;
+	//b = mulrj(b,b); //2
+	//b = mulrj(b,b); //4
+	//b = mulrj(b,b); //8
+	//b = mulrj(a,b); //9
+	//b = mulrj(b,b); //18
+	//a = mulrj(a,b); //19
+	//b = mulrj(b,b); //36
+	//a = mulrj(a,b); //55
+	//b = mulrj(b,b); //72
+	//b = mulrj(a,b); //127
+	//b = mulrj(b,b); //254
+
+	gf242 a242 = maptogf242(a);
+	gf242 b242 = gf242inv(a242);
+	obliv uint8_t res = unmapfromgf242(b242);
+
+	return res;
 }
 
 typedef struct {
@@ -45,13 +154,29 @@ void aesShiftRows(AesState* s) {
 		for(j=0;j<4;++j) *mat(s,i,j)=t[(i+j)%4];
 	}
 }
+
+obliv uint8_t mulTwoXor(obliv uint8_t x) {
+	return ((x << 1) & 0xFE) ^ ((x >> 3) & 0x10) ^ ((x >> 4) & 0x08) ^ ((x >> 6) & 0x02) ^ ((x >> 7) & 0x01);
+}
+
 void aesMixCols(AesState* s) {
+	//this algorithm is borrowed from Huang, Evans, Katz, and Malka
+	//https://www.cs.umd.edu/~jkatz/papers/usenix2011.pdf
+
 	AesState res;
 	int i,j,k;
-	const uint8_t mixer[4]={2,3,1,1};
+	obliv uint8_t twotimes[4];
 	for(i=0;i<4;++i) res.state[i]=0;
-	for(i=0;i<4;++i) for(j=0;j<4;++j) for(k=0;k<4;++k)
-		*mat(&res,j,i) ^= mulrj(*mat(s,k,i),mixer[(k+4-j)%4]);
+	for(i=0;i<4;++i) {
+		for (j=0;j<4;++j) twotimes[j] = mulTwoXor(*mat(s,j,i));
+		for (j=0;j<4;++j) {
+			*mat(&res,j,i) = twotimes[j]
+						^ twotimes[(j+1)%4]
+						^ *mat(s,(j+1)%4,i)
+						^ *mat(s,(j+2)%4,i)
+						^ *mat(s,(j+3)%4,i);
+		}
+	}
 	*s=res;
 }
 
@@ -74,7 +199,7 @@ obliv unsigned aesKeyCore(obliv unsigned x,int iter) {
 	obliv int rv=0;
 	x=((x<<24)^(x>>8));
 	for(int i=3;i>=0;--i) rv=(rv<<8)^aesSbox((x>>i*8)&0xff);
-	return rv^exprj(2,iter-1);
+	return rv^exprj(2,iter);
 }
 
 obliv unsigned packBytes(const obliv uint8_t* buf) {
@@ -90,7 +215,7 @@ void unpackBytes(obliv uint8_t* buf,obliv unsigned r) {
 
 // Input is in first 16 bytes of buf. Output expands it to 176 bytes
 void aesKeyExpand(obliv uint8_t* buf) {
-	int i=1,j,k,n=16;
+	int i=0,j,k,n=16;
 	for(j=16;j<176;++i,j+=16) {
 		unpackBytes(buf+j, aesKeyCore(packBytes(buf+j-4),i) ^ packBytes(buf+j-n));
 		for(k=4;k<16;++k) buf[j+k] = buf[j+k-4]^buf[j+k-n];

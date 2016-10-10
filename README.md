@@ -7,7 +7,7 @@ This project seeks to develop a comprehensive Cryptographic SDK for use in secur
 Features
 =====
 
-* Batcher Sorting and Merging - based upon [Sorting Networks and their Applications](http://www.cs.kent.edu/~batcher/sort.pdf)
+* Batcher Sorting and Merging - based upon _[Sorting Networks and their Applications](http://www.cs.kent.edu/~batcher/sort.pdf)_
 * Big Integer math
 	* Division via Knuth's Algorithm D - based upon The Art of Computer Programming Vol 2, Section 4.3.1
 	* Karatsuba-Comba Multiplication
@@ -16,21 +16,21 @@ Features
 * Graph Algorithms
 	* Breadth First Search (Naive Method)
 * Hash Functions
-	* Scrypt - based upon [Stronger Key Derivation via Sequential Memory-hard Functions](https://www.tarsnap.com/scrypt/scrypt.pdf)
+	* Scrypt - based upon _[Stronger Key Derivation via Sequential Memory-hard Functions](https://www.tarsnap.com/scrypt/scrypt.pdf)_
 	* SHA256 and SHA512
 * Oblivious Data Structures
-	* Queue - based upon [Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)
+	* Queue - based upon _[Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)_
 * ORAM
-	* Circuit ORAM - based upon [Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf); code contributed by Xiao Wang
+	* Circuit ORAM - based upon _[Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf)_; code contributed by Xiao Wang
 	* Linear Scan ORAM
-	* Square Root ORAM - based upon [Revisiting Square-Root ORAM: Efficient Random Access in Multi-Party Computation](https://oblivc.org/docs/sqoram.pdf); code contributed by Samee Zahur
+	* Square Root ORAM - based upon _[Revisiting Square-Root ORAM: Efficient Random Access in Multi-Party Computation](https://oblivc.org/docs/sqoram.pdf)_; code contributed by Samee Zahur
 * Stable Matching
-	* Gale-Shapley - based upon [Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)
-	* Roth-Peranson - based upon [Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)
+	* Gale-Shapley - based upon _[Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)_
+	* Roth-Peranson - based upon _[Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)_
 * Symmetric Encryption
-	* AES128 - code contributed by Samee Zahur
-	* ChaCha20 - based upon [ChaCha, a Variant of Salsa20](https://cr.yp.to/chacha/chacha-20080128.pdf)
-	* Salsa20 - based upon [The Salsa20 Family of Stream Ciphers](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)
+	* AES128 - based upon _An ASIC Implementation of the AES SBoxes_ (Wolkenstorfer et al., 2002) and _[Faster Secure Two-Party Computation Using Garbled Circuits](https://www.cs.umd.edu/~jkatz/papers/usenix2011.pdf)_
+	* ChaCha20 - based upon _[ChaCha, a Variant of Salsa20](https://cr.yp.to/chacha/chacha-20080128.pdf)_
+	* Salsa20 - based upon _[The Salsa20 Family of Stream Ciphers](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)_
 
 
 Installing
