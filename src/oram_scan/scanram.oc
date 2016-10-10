@@ -1,0 +1,24 @@
+#include <obliv.oh>
+#include "scanram.oh"
+#include "../oaes.oh"
+
+struct scanram {
+  
+};
+
+void scanram_read(void* data, scanram* ram, obliv int index) obliv {
+
+}
+
+void scanram_write(scanram* ram, void* data, obliv int index) obliv {
+
+}
+
+scanram* scanram_new(OcCopy* cpy, void* data, int n) {
+	scanram * ram = malloc(sizeof(scanram));
+	return ram;
+}
+
+void scanram_free(scanram* ram) {
+
+}

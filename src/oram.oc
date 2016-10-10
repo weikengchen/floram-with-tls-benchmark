@@ -1,6 +1,7 @@
 #include "oram.oh"
 #include "oram_sqrt/sqrtoram.oh"
 #include "oram_ckt/circuit_oram.oh"
+#include "oram_scan/scanram.oh"
 
 struct oram {
 	oram_type mode;
@@ -110,7 +111,10 @@ obliv bool oram_read(void * output, oram * o, obliv size_t index) obliv {
 			success = true;
 		}
 	} else {
-		// TODO: scanram
+		obliv if ((index < o->size) & (index >= 0)) {
+			scanram_read(output, o->data, index % o->size);
+			success = true;
+		}
 	}
 
 	return success;
@@ -139,7 +143,10 @@ obliv bool oram_write(oram * o, void * input, obliv size_t index) obliv {
 			success = true;
 		}
 	} else {
-		// TODO: scanram
+		obliv if ((index < o->size) & (index >= 0)) {
+			scanram_write(o->data, input, index % o->size);
+			success = true;
+		}
 	}
 
 	return success;
@@ -168,7 +175,16 @@ obliv bool oram_apply(oram * o, void * input, block_access_function fn, obliv si
 			success = true;
 		}
 	} else {
-		// TODO: scanram
+		// scanram does not have a native function application ability, so we have to emulate it.
+		void * temp;
+		~obliv() temp = calloc(1, o->cpy->eltsize);
+		obliv if ((index < o->size) & (index >= 0)) {
+			scanram_read(temp, o->data, index % o->size);
+			fn(o->cpy, temp, input);
+			scanram_write(o->data, temp, index % o->size);
+			success = true;
+		}
+		~obliv() free(temp);
 	}
 
 	return success;

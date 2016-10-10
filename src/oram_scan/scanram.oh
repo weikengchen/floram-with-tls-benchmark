@@ -1,0 +1,13 @@
+#ifndef SCANRAM_OH
+#define SCANRAM_OH
+#include "copy.oh"
+
+typedef struct scanram scanram;
+
+void scanram_read(void* data, scanram* ram, obliv int index) obliv;
+void scanram_write(scanram* ram, void* data, obliv int index) obliv;
+
+scanram* scanram_new(OcCopy* cpy, void* data, int n);
+void scanram_free(scanram* ram);
+
+#endif

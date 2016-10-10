@@ -4,12 +4,12 @@
 #include<assert.h>
 #include<stdlib.h>
 #include<math.h>
-#include"waksman.h"
+#include"../waksman.h"
 #include<bcrandom.h>
 #include<obliv.oh>
 #include"decoder.oh"
 #include"sqrtoram.oh"
-#include"shuffle.oh"
+#include"../shuffle.oh"
 
 /* Positionmaps export the following interface:
    They store logical->physical index mapping, as well as a "used" flag

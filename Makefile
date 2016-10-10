@@ -6,8 +6,8 @@ CFLAGS+= -O3 -I/usr/include -I . -I $(SRC_PATH)
 SRC_PATH=src/
 LIB_OUT_PATH=build/lib/
 ACKLIB = $(LIB_OUT_PATH)/liback.a
-DEPS=ackutil.o copy.o copy.oo endian.oo
-SQRT_ORAM_DEPS=decoder.oo shuffle.oo sqrtoram.oo waksman.o
+DEPS=ackutil.o copy.o copy.oo endian.oo shuffle.oo waksman.o
+SQRT_ORAM_DEPS=decoder.oo sqrtoram.oo
 CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo utils.oo
 SCAN_ORAM_DEPS=scanram.oo scanram.o
 ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) $(SCAN_ORAM_DEPS:%=oram_scan/%) oram.oo
