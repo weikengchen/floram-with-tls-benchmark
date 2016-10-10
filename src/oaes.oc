@@ -1,0 +1,151 @@
+#include "oaes.oh"
+
+struct oaes_ctx {
+	obliv uint8_t * expandedkey;
+	obliv uint8_t * iv;
+};
+
+obliv uint8_t addrj(obliv uint8_t a,obliv uint8_t b) {
+	return a^b;
+}
+
+obliv uint8_t mulrj(obliv uint8_t a,obliv uint8_t b) {
+	obliv uint8_t p=0,a2;
+	for(int i=0;i<8;++i)
+	{ obliv if((b&(1<<i))!=0) p^=a; // FIXME int conditions don't work
+		obliv int res;
+		a2=(a<<1);
+		obliv if((a&(1<<7))!=0) a2^=0x1b; // TODO bit-level identities should have made this free
+		a=a2;
+	}
+	return p;
+}
+
+obliv uint8_t exprj(obliv uint8_t a,int pow) {
+	return pow!=0?mulrj(exprj(mulrj(a,a),pow/2),(pow%2?a:1)):1;
+}
+
+obliv uint8_t invrj(obliv uint8_t a) {
+	return exprj(a,254);
+}
+
+typedef struct {
+	obliv uint8_t state[16];
+} AesState;
+
+obliv uint8_t* mat(AesState* s,int i,int j) {
+	return s->state+i+j*4;
+}
+
+void aesShiftRows(AesState* s) {
+	int i,j;
+	for(i=1;i<4;++i) {
+		obliv uint8_t t[4];
+		for(j=0;j<4;++j) t[j]=*mat(s,i,j);
+		for(j=0;j<4;++j) *mat(s,i,j)=t[(i+j)%4];
+	}
+}
+void aesMixCols(AesState* s) {
+	AesState res;
+	int i,j,k;
+	const uint8_t mixer[4]={2,3,1,1};
+	for(i=0;i<4;++i) res.state[i]=0;
+	for(i=0;i<4;++i) for(j=0;j<4;++j) for(k=0;k<4;++k)
+		*mat(&res,j,i) ^= mulrj(*mat(s,k,i),mixer[(k+4-j)%4]);
+	*s=res;
+}
+
+obliv uint8_t rotl(obliv uint8_t x) {
+	return (x<<1)^(x>>7);
+}
+
+obliv uint8_t aesSbox(obliv uint8_t x) {
+	obliv uint8_t s=0;
+	x=invrj(x);
+	for(int i=0;i<5;++i) { s^=x; x=rotl(x); }
+	return s^0x63;
+}
+
+void aesSubBytes(AesState* s) {
+	for(int i=0;i<16;++i) s->state[i]=aesSbox(s->state[i]);
+}
+
+obliv unsigned aesKeyCore(obliv unsigned x,int iter) {
+	obliv int rv=0;
+	x=((x<<24)^(x>>8));
+	for(int i=3;i>=0;--i) rv=(rv<<8)^aesSbox((x>>i*8)&0xff);
+	return rv^exprj(2,iter-1);
+}
+
+obliv unsigned packBytes(const obliv uint8_t* buf) {
+	return buf[0]^(buf[1]<<8)^(buf[2]<<16)^(buf[3]<<24);
+}
+
+void unpackBytes(obliv uint8_t* buf,obliv unsigned r) {
+	buf[0] = (r&0xff);
+	buf[1] = ((r>> 8)&0xff);
+	buf[2] = ((r>>16)&0xff);
+	buf[3] = ((r>>24)&0xff);
+}
+
+// Input is in first 16 bytes of buf. Output expands it to 176 bytes
+void aesKeyExpand(obliv uint8_t* buf) {
+	int i=1,j,k,n=16;
+	for(j=16;j<176;++i,j+=16) {
+		unpackBytes(buf+j, aesKeyCore(packBytes(buf+j-4),i) ^ packBytes(buf+j-n));
+		for(k=4;k<16;++k) buf[j+k] = buf[j+k-4]^buf[j+k-n];
+	}
+}
+
+void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t buf[176],const obliv uint8_t block[16]) {
+	int i,r;
+	AesState s;
+	for(i=0;i<16;++i) s.state[i]=block[i];
+	for(i=0;i<16;++i) s.state[i]^=buf[i];
+	for(r=1;r<=10;++r) {
+		aesSubBytes(&s);
+		aesShiftRows(&s);
+		if(r<10) aesMixCols(&s);
+		for(i=0;i<16;++i) s.state[i]^=buf[i+r*16];
+	}
+	for(i=0;i<16;++i) out[i]=s.state[i];
+}
+
+void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16],const obliv uint8_t block[16]) {
+	obliv uint8_t buf[176];
+	memcpy(buf, key, 16 * sizeof(obliv uint8_t));
+	aesKeyExpand(buf);
+	oaes_128_from_expanded(out,buf,block);
+}
+
+oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t iv[16]) {
+	oaes_ctx * output = malloc(sizeof(oaes_ctx));	
+	
+	output->expandedkey = calloc(176, sizeof(obliv uint8_t));
+	memcpy(output->expandedkey, key, 16 * sizeof(obliv uint8_t));
+	aesKeyExpand(output->expandedkey);
+
+	output->iv = calloc(16, sizeof(obliv uint8_t));
+	memcpy(output->iv, iv, 16 * sizeof(obliv uint8_t));
+	return output;
+}
+
+void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) {
+	oaes_128_from_expanded(out, ctx->expandedkey, ctx->iv);
+	obliv uint16_t rem = 1;
+	for (int ii = 15; ii >=0 ;ii--) {
+		//increment the IV (which is considered little endian for compatibility with openssl)
+		rem += ctx->iv[ii];
+		ctx->iv[ii] = rem;
+		rem >>= 8;
+
+		//and XOR for encryption
+		out[ii] ^= block[ii];
+	}
+}
+
+void oaes_128_ctx_free(oaes_ctx * ctx) {
+	free(ctx->expandedkey);
+	free(ctx->iv);
+	free(ctx);
+}

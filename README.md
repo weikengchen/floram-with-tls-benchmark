@@ -15,26 +15,28 @@ Features
 * Binary Search
 * Graph Algorithms
 	* Breadth First Search (Naive Method)
+* Hash Functions
+	* Scrypt - based upon [Stronger Key Derivation via Sequential Memory-hard Functions](https://www.tarsnap.com/scrypt/scrypt.pdf)
+	* SHA256 and SHA512
 * Oblivious Data Structures
 	* Queue - based upon [Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)
 * ORAM
 	* Circuit ORAM - based upon [Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf); code contributed by Xiao Wang
 	* Linear Scan ORAM
 	* Square Root ORAM - based upon [Revisiting Square-Root ORAM: Efficient Random Access in Multi-Party Computation](https://oblivc.org/docs/sqoram.pdf); code contributed by Samee Zahur
-* Hash Functions
-	* ChaCha20 - based upon [ChaCha, a Variant of Salsa20](https://cr.yp.to/chacha/chacha-20080128.pdf)
-	* Salsa20 - based upon [The Salsa20 Family of Stream Ciphers](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)
-	* Scrypt - based upon [Stronger Key Derivation via Sequential Memory-hard Functions](https://www.tarsnap.com/scrypt/scrypt.pdf)
-	* SHA256 and SHA512
 * Stable Matching
 	* Gale-Shapley - based upon [Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)
 	* Roth-Peranson - based upon [Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)
+* Symmetric Encryption
+	* AES128 - code contributed by Samee Zahur
+	* ChaCha20 - based upon [ChaCha, a Variant of Salsa20](https://cr.yp.to/chacha/chacha-20080128.pdf)
+	* Salsa20 - based upon [The Salsa20 Family of Stream Ciphers](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)
 
 
 Installing
 =====
 
-1. You must first build [obliv-c](https://github.com/samee/obliv-c/), though it need not be installed in any particular location. In addition to obliv-c, you will need to install the package `openssl-dev` (or your distribution's equivalent). This is necessary only for test cases for SHA256 and SHA512.
+1. You must first build [obliv-c](https://github.com/samee/obliv-c/), though it need not be installed in any particular location. In addition to obliv-c, you will need to install the package `openssl-dev` (or your distribution's equivalent). This is necessary only for test cases for SHA256, SHA512, and AES.
 
 2. To compile ACK, set the path to obliv-c's main project directory via `export OBLIVC_PATH=<path to obliv-c>`, then run `make`.
 

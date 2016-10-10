@@ -62,9 +62,12 @@ int main(int argc,char* argv[])
 			default:
 				args_pass.argv[args_pass.argc] = alloca(3*sizeof(char));
 				sprintf(args_pass.argv[args_pass.argc], "-%c", arg);
-				args_pass.argv[args_pass.argc + 1] = alloca(strlen(optarg)+1);
-				strcpy(args_pass.argv[args_pass.argc + 1],optarg);
-				args_pass.argc += 2;
+				args_pass.argc++;
+				if (optarg) {
+					args_pass.argv[args_pass.argc] = alloca(strlen(optarg)+1);
+					strcpy(args_pass.argv[args_pass.argc],optarg);
+					args_pass.argc++;
+				}
 		}
 	}
 

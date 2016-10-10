@@ -11,13 +11,15 @@ SQRT_ORAM_DEPS=decoder.oo shuffle.oo sqrtoram.oo waksman.o
 CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo utils.oo
 ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) oram.oo
 OBJS=$(DEPS) $(ORAM_DEPS) obig.oo ochacha.oo ograph.oo omatch.oo oqueue.oo\
-		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo
+		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo oaes.oo
 
 TEST_PATH=tests/
 TEST_OUT_PATH=build/tests/
 TEST_DEPS=test_main.o
-TEST_BINS = test_obig test_osha256 test_osha512 test_osalsa test_ochacha test_oqueue test_oram test_oscrypt test_ograph test_omatch test_osearch\
-		bench_oram bench_oram_init bench_oscrypt bench_bfs bench_bst bench_gs bench_rp
+TEST_BINS = test_obig test_osha256 test_osha512 test_osalsa test_ochacha test_oaes\
+		test_oqueue test_oram test_oscrypt test_ograph test_omatch test_osearch\
+		bench_oram bench_oram_init bench_oscrypt bench_bfs bench_bst bench_gs bench_rp\
+		bench_oaes
 
 default: $(ACKLIB) tests
 

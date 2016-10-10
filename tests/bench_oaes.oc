@@ -1,0 +1,137 @@
+#include <obliv.oh>
+#include "oaes.oh"
+#include "test_generic.h"
+
+static const char TESTNAME[] = "oaes_benchmark";
+
+#define TEXT_HELP_SUPPLEMENTARY "\
+  -e perform an AES key expansion for every block\n\n\
+  -b \x1b[4mNUMBER\x1b[0m \n\t\tencrypt \x1b[4mNUMBER\x1b[0m AES blocks per iteration\n\n\
+  -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
+
+static const char options_string[] = "eb:i:";
+static struct option long_options[] = {
+	{"expand-on-all", no_argument, NULL, 'e'},
+	{"blocks", required_argument, NULL, 'b'},
+	{"samples", required_argument, NULL, 'i'},
+	{0, 0, 0, 0}
+};
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return options_string;
+}
+
+struct option* get_long_options() {
+	return long_options;
+}
+
+void print_supplementary_help() {
+	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
+}
+
+void test_main(void*varg) {
+
+	int blocks = 64;
+	bool expand_on_all = false;
+	int samples = 1;
+
+	args_t * args_pass = varg;
+	int arg;
+	optind = 0; // this allows us to getopt a second time
+	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
+		if (arg == 'e') {
+			expand_on_all = true;
+		} else if (arg == 'b') {
+			blocks = atoi(optarg);
+			if (blocks <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 'i') {
+			samples = atoi(optarg);
+			if (samples <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == '?' || arg == ':') {
+			if (optopt == 'b' || optopt == 'o' || optopt == 'i') {
+				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				return;
+			} else {
+				fprintf (stderr, "Option -%c not recognized.\n", optopt);
+				return;
+			}
+		} else {
+			abort();
+		}
+	}
+
+	{
+
+		fprintf(stdout, "# AES (block count, expand on all, sample 1, sample 2, ... sample n)\n");
+		fflush(stdout);
+
+		obliv uint8_t * input = calloc(blocks, 16 * sizeof(obliv uint8_t));
+		obliv uint8_t iv[16];
+		obliv uint8_t key[16];
+
+		for (int ii = 0; ii < 16*blocks/sizeof(uint32_t); ii++) {
+			input[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 1);
+		}
+
+		fprintf(stdout, "%d, %d", blocks, expand_on_all);
+		fflush(stdout);
+
+		uint64_t tally = 0;
+
+		for (int ii = 0; ii < samples; ii++) {
+
+			uint64_t startTime, endTime;
+
+			if (expand_on_all) {
+
+				for (int ii = 0; ii < 16/sizeof(uint32_t); ii++) {
+					key[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+				}
+
+				startTime = current_timestamp();
+				for (int jj = 0; jj < blocks; jj++) {
+					oaes_128(&input[jj*16], key, &input[jj*16]);
+				}
+				endTime = current_timestamp();
+				
+			} else {
+
+				for (int ii = 0; ii < 16/sizeof(uint32_t); ii++) {
+					key[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+					iv[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+				}
+
+				startTime = current_timestamp();
+				oaes_ctx * ctx = oaes_128_ctx_ctr_new(key, iv);
+				for (int jj = 0; jj < blocks; jj++) {
+					oaes_128_encdec(&input[jj*16], ctx, &input[jj*16]);
+				}
+				oaes_128_ctx_free(ctx);
+				endTime = current_timestamp();
+
+			}
+
+			fprintf(stdout, ",%d", endTime - startTime);
+			fflush(stdout);
+			tally += endTime - startTime;
+
+		}
+
+		fprintf(stdout, "\n");
+		fflush(stdout);
+		fprintf(stderr, "AES (blocks:%d, expand on all: %d): %d microseconds avg\n", blocks, expand_on_all, tally / samples);
+
+		free(input);
+	}
+
+}

@@ -1,0 +1,202 @@
+#include <openssl/conf.h>
+#include <openssl/evp.h>
+#include <openssl/err.h>
+
+#include <obliv.oh>
+#include "oaes.oh"
+#include "test_generic.h"
+
+#define BLOCKCOUNT 64
+
+static const char TESTNAME[] = "oaes";
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return NULL;
+}
+
+struct option* get_long_options() {
+	return NULL;
+}
+
+void print_supplementary_help() {}
+
+void handleErrors(void) {
+	ERR_print_errors_fp(stderr);
+	abort();
+}
+
+void test_main(void*varg) {
+
+	/* test vectors in this file are taken from http://csrc.nist.gov/groups/STM/cavp/documents/aes/AESAVS.pdf */
+
+	{
+		// inputs from the bottom of Page 20
+		obliv uint8_t input[16];
+		obliv uint8_t key[16];
+		obliv uint8_t output[16];
+		uint8_t input_raw[16] = {
+			0xff,0xff,0xff,0xff,0xfc,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+		};
+		uint8_t key_raw[16] = {
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+		};
+		uint8_t expected_output[16] = {
+			0x21,0x5a,0x41,0xee,0x44,0x2f,0xa9,0x92,0xa6,0xe3,0x23,0x98,0x6d,0xed,0x3f,0x68
+		};
+
+		for (int ii = 0; ii < 16; ii++) {
+			input[ii] = feedOblivChar(input_raw[ii], 1);
+			key[ii] = feedOblivChar(key_raw[ii], 2);
+		}
+
+		oaes_128(output, key, input);
+
+		bool success = true;
+		for (int ii = 0; ii < 16; ii++) {
+			uint8_t temp;
+			revealOblivChar(&temp, output[ii], 0);
+			success &= (temp == expected_output[ii]);
+		}
+
+		fprintf(stderr, "Test Item: %-70s %s\n", "oaes_128 - Test Case 1", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+		if (!success) {
+			fprintf(stderr, "\tExpected Output:\t");
+			for (int ii = 0; ii < 16; ii++) {
+				fprintf(stderr, "%02hhX", expected_output[ii]);
+			}
+			fprintf(stderr, "\n\tActual Output: \t\t");
+			for (int ii = 0; ii < 16; ii++) {
+				uint8_t temp;
+				revealOblivChar(&temp, output[ii], 0);
+				fprintf(stderr, "%02hhX", temp);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
+
+	{
+		// inputs from the bottom of Page 29
+		obliv uint8_t input[16];
+		obliv uint8_t key[16];
+		obliv uint8_t output[16];
+		uint8_t input_raw[16] = {
+			0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+		};
+		uint8_t key_raw[16] = {
+			0xff,0xff,0xff,0xff,0xfc,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+		};
+		uint8_t expected_output[16] = {
+			0x82,0x40,0x85,0x71,0xc3,0xe2,0x42,0x45,0x40,0x20,0x7f,0x83,0x3b,0x6d,0xda,0x69
+		};
+
+		for (int ii = 0; ii < 16; ii++) {
+			input[ii] = feedOblivChar(input_raw[ii], 1);
+			key[ii] = feedOblivChar(key_raw[ii], 2);
+		}
+
+		oaes_128(output, key, input);
+
+		bool success = true;
+		for (int ii = 0; ii < 16; ii++) {
+			uint8_t temp;
+			revealOblivChar(&temp, output[ii], 0);
+			success &= (temp == expected_output[ii]);
+		}
+
+		fprintf(stderr, "Test Item: %-70s %s\n", "oaes_128 - Test Case 2", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+		if (!success) {
+			fprintf(stderr, "\tExpected Output:\t");
+			for (int ii = 0; ii < 16; ii++) {
+				fprintf(stderr, "%02hhX", expected_output[ii]);
+			}
+			fprintf(stderr, "\n\tActual Output: \t\t");
+			for (int ii = 0; ii < 16; ii++) {
+				uint8_t temp;
+				revealOblivChar(&temp, output[ii], 0);
+				fprintf(stderr, "%02hhX", temp);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
+
+	{
+		// test agains OpenSSL
+		obliv uint8_t input[16*BLOCKCOUNT];
+		obliv uint8_t iv[16];
+		obliv uint8_t key[16];
+		obliv uint8_t output[16*BLOCKCOUNT];
+		uint8_t input_raw[16*BLOCKCOUNT];
+		uint8_t iv_raw[16];
+		uint8_t key_raw[16];
+		uint8_t expected_output[16*BLOCKCOUNT];
+
+		
+
+		for (int ii = 0; ii < 16*BLOCKCOUNT/sizeof(uint32_t); ii++) {
+			input[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 1);
+			revealOblivInt(&input_raw[ii*sizeof(uint32_t)], input[ii*sizeof(uint32_t)], 0);
+		}
+		
+		for (int ii = 0; ii < 16/sizeof(uint32_t); ii++) {
+			key[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+			revealOblivInt(&key_raw[ii*sizeof(uint32_t)], key[ii*sizeof(uint32_t)], 0);
+			iv[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+			revealOblivInt(&iv_raw[ii*sizeof(uint32_t)], iv[ii*sizeof(uint32_t)], 0);
+		}
+
+		// OpenSSL setup
+		ERR_load_crypto_strings();
+		OpenSSL_add_all_algorithms();
+		OPENSSL_config(NULL);
+		EVP_CIPHER_CTX *ctx;
+		if(!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
+		if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, key_raw, iv_raw)) handleErrors();
+		if(1 != EVP_CIPHER_CTX_set_padding(ctx, 0)) handleErrors();
+
+		int len;
+		for (int ii = 0; ii < BLOCKCOUNT; ii ++) if(1 != EVP_EncryptUpdate(ctx, &expected_output[16*ii], &len, &input_raw[16*ii], 16)) handleErrors();
+
+		// OpenSSL Cleanup
+		EVP_CIPHER_CTX_free(ctx);
+		CONF_modules_unload(1);
+		EVP_cleanup();
+		CRYPTO_cleanup_all_ex_data();
+		ERR_remove_state(0);
+		ERR_free_strings();
+
+		oaes_ctx * ctx2 = oaes_128_ctx_ctr_new(key, iv);
+		for (int ii = 0; ii < BLOCKCOUNT; ii++) oaes_128_encdec(&output[16*ii], ctx2, &input[16*ii]);
+		oaes_128_ctx_free(ctx2);
+
+		bool success = true;
+		for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+			uint8_t temp;
+			revealOblivChar(&temp, output[ii], 0);
+			success &= (temp == expected_output[ii]);
+		}
+
+		fprintf(stderr, "Test Item: %-70s %s\n", "oaes_128_encdec - 64 random blocks", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+		if (!success) {
+			fprintf(stderr, "\tExpected Output:\t");
+			for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+				fprintf(stderr, "%02hhX", expected_output[ii]);
+			}
+			fprintf(stderr, "\n\tActual Output: \t\t");
+			for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+				uint8_t temp;
+				revealOblivChar(&temp, output[ii], 0);
+				fprintf(stderr, "%02hhX", temp);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
+
+	
+
+	fprintf(stderr, "\n");
+
+}
