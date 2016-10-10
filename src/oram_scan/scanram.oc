@@ -2,23 +2,88 @@
 #include "scanram.oh"
 #include "../oaes.oh"
 
+#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+
 struct scanram {
-  
+	OcCopy* cpy;
+	OcCopy* blockcpy;
+	OcCopy* leafcpy;
+	void * local_data;
+	void * branch_keys;
+	void * temp;
+	void * zero;
+	void * localtemp;
+	void * localzero;
+	size_t blocksize;
+	size_t blockcount;
+	size_t elementsperblock;
+	bool expandLeaves;
+	aes_ctx seedctx;
 };
 
-void scanram_read(void* data, scanram* ram, obliv int index) obliv {
+static void* element(OcCopy* cpy,void* arr,int x) obliv { return x*cpy->eltsize+(char*)arr; }
+
+void online_expand(scanram* ram, void * dest, void * src, size_t n) obliv {
+	for (size_t ii = 0; ii < n; ii++) {
+		oaes_128_encdec(element(ram->blockcpy, dest, ii), ram->seedctx, src);
+	}
+}
+
+void scanram_access(scanram* ram, void* data, obliv int index, obliv bool write) obliv {
 
 }
 
-void scanram_write(scanram* ram, void* data, obliv int index) obliv {
+void scanram_read(void* data, scanram* ram, obliv int index) obliv {
+	scanram_access(ram, data, index, false);
+}
 
+void scanram_write(scanram* ram, void* data, obliv int index) obliv {
+	scanram_access(ram, data, index, true);
 }
 
 scanram* scanram_new(OcCopy* cpy, void* data, int n) {
 	scanram * ram = malloc(sizeof(scanram));
+	ram->cpy = cpy;
+	ram->blockcpy = OcCopyCharN(16);
+	size_t elementsize = cpy->eltsize/sizeof(obliv uint8_t);
+	if (elementsize >= 8) {
+		ram->expandLeaves = elementsize == 16;
+		ram->blockcount = n;
+		ram->blocksize = 16*((elementsize / 16) + (elementsize%16?1:0));
+		ram->elementsperblock = 1;
+	} else {
+		ram->expandLeaves = false;
+		ram->blocksize = 16;
+		ram->elementsperblock = 16/elementsize;
+		ram->blockcount = (n/ram->elementsperblock) + (n%ram->elementsperblock?1:0);
+	}
+	ram->leafcpy = OcCopyCharN(blocksize);
+	ram->local_data = malloc(ram->blocksize * ram->blockcount);
+	ram->branch_keys = malloc(16 * LOG2(ram->blockcount));
+	ram->temp = calloc(5, 16*sizeof(obliv uint8_t));
+	ram->zero = calloc(1, 16*sizeof(obliv uint8_t));
+	ram->localtemp = malloc(5*16);
+	ram->localzero = calloc(16);
+
+	get_random_bytes(ram->localtemp, 32); //local op
+	for (int ii = 0; ii < 32; ii++) {
+		*(obliv uint8_t *)element(&ocCopyChar, ram->temp, ii) = feedOblivChar(ram->localtemp[ii], 1);
+		*(obliv uint8_t *)element(&ocCopyChar, ram->temp, ii) ^= feedOblivChar(ram->localtemp[ii], 2);
+	}
+	ram->seedctx = oaes_128_ctx_ctr_new(ram->temp, element(ram->cpy,ram->temp,16));
+
 	return ram;
 }
 
 void scanram_free(scanram* ram) {
-
+	oaes_128_ctx_free(ram->seedctx);
+	free(ram->blockcpy);
+	free(ram->leafcpy);
+	free(ram->zero);
+	free(ram->localzero);
+	free(ram->local_data);
+	free(ram->branch_keys);
+	free(ram->temp);
+	free(ram->localtemp);
+	free(ram);
 }
