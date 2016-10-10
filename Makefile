@@ -9,7 +9,8 @@ ACKLIB = $(LIB_OUT_PATH)/liback.a
 DEPS=ackutil.o copy.o copy.oo endian.oo
 SQRT_ORAM_DEPS=decoder.oo shuffle.oo sqrtoram.oo waksman.o
 CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo utils.oo
-ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) oram.oo
+SCAN_ORAM_DEPS=scanram.oo scanram.o
+ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) $(SCAN_ORAM_DEPS:%=oram_scan/%) oram.oo
 OBJS=$(DEPS) $(ORAM_DEPS) obig.oo ochacha.oo ograph.oo omatch.oo oqueue.oo\
 		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo oaes.oo
 

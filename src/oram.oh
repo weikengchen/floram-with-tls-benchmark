@@ -10,7 +10,7 @@
 #endif
 
 typedef struct oram oram;
-typedef enum {ORAM_TYPE_AUTO, ORAM_TYPE_SQRT, ORAM_TYPE_CIRCUIT, ORAM_TYPE_LINEAR} oram_type;
+typedef enum {ORAM_TYPE_AUTO, ORAM_TYPE_SQRT, ORAM_TYPE_CIRCUIT, ORAM_TYPE_LINEAR, ORAM_TYPE_SCAN} oram_type;
 
 typedef void (* block_access_function)(OcCopy *, void * oram_block, void * external_block) obliv;
 
