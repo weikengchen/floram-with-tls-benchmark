@@ -1,6 +1,6 @@
 #ifndef SQRTORAM_OH
 #define SQRTORAM_OH
-#include "../copy.oh"
+#include <copy.oh>
 
 typedef struct OcSqrtOram OcSqrtOram;
 typedef void (*ocBlockAccessFunction)(OcCopy *, void *, void *) obliv;

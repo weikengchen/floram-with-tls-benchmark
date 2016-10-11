@@ -1,6 +1,6 @@
 #ifndef SCANRAM_OH
 #define SCANRAM_OH
-#include "copy.oh"
+#include <copy.oh>
 
 typedef struct scanram scanram;
 

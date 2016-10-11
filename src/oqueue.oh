@@ -2,7 +2,7 @@
 #define OBLIV_QUEUE
 
 #include <obliv.oh>
-#include "copy.oh"
+#include <copy.oh>
 //#include "oram.oh"
 
 /********************************************************************************

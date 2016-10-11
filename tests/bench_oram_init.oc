@@ -1,6 +1,6 @@
 #include <obliv.oh>
 #include "oram.oh"
-#include "copy.oh"
+#include <copy.oh>
 #include "test_generic.h"
 
 #define SAMPLES 30
