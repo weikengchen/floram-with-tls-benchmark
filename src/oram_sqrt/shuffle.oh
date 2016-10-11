@@ -1,7 +1,7 @@
 #ifndef SHUFFLE_OH
 #define SHUFFLE_OH
 
-#include"copy.oh"
+#include<copy.oh>
 
 // Utilities used for implementing variants of ocShuffleData
 typedef struct OcPermNetwork

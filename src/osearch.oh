@@ -4,7 +4,7 @@
 #include <stdbool.h>
 #include <obliv.oh>
 #include "oram.oh"
-#include "copy.oh"
+#include <copy.oh>
 
 typedef obliv int (* block_cmp_function)(OcCopy *, void * a, void * b) obliv;
 

@@ -1,6 +1,6 @@
 #include <obliv.oh>
 #include "oram.oh"
-#include "copy.oh"
+#include <copy.oh>
 #include "test_generic.h"
 
 static const char TESTNAME[] = "oram_benchmark";

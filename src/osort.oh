@@ -1,7 +1,7 @@
 #ifndef SORT_OH
 #define SORT_OH
 
-#include "copy.oh"
+#include <copy.oh>
 
 typedef obliv char (* osort_cmp_function)(OcCopy *, void * el1, void * el2);
 

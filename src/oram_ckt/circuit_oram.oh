@@ -3,7 +3,7 @@
 #include "linear_scan_oram.oh"
 #include <obliv.oh>
 #include <bcrandom.h>
-#include "copy.oh"
+#include <copy.oh>
 #ifndef ORAM_H__
 #define ORAM_H__
 

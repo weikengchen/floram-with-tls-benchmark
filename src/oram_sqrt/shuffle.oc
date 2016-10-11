@@ -4,7 +4,7 @@
 #include<stdlib.h>
 #include<bcrandom.h>
 #include<obliv_yao.h>
-#include"copy.oh"
+#include<copy.oh>
 #include"waksman.h"
 #include<stdio.h>
 
