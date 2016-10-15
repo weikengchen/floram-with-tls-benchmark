@@ -1,0 +1,19 @@
+#ifndef SCANROM_OH
+#define SCANROM_OH
+#include <copy.oh>
+
+typedef struct scanrom scanrom;
+
+void scanrom_read(void* data, scanram* rom, obliv int index) obliv;
+void scanrom_write(scanrom* rom, void* data, int index);
+
+scanrom* scanrom_new(OcCopy* cpy, void* data, int n);
+void scanrom_free(scanrom* rom);
+
+void scanwrom_read(void* data, scanram* rom, int index);
+void scanwrom_write(scanrom* rom, void* data, obliv int index);
+
+scanram* scanwrom_new(OcCopy* cpy, void* data, int n);
+void scanwrom_free(scanrom* rom);
+
+#endif

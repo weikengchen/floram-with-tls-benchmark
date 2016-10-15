@@ -1,0 +1,9 @@
+#include "bitpropagate.oh"
+
+void online_expand(scanram* ram, void * dest, void * src, size_t n) obliv {
+	~obliv() oaes_ctx * ctx = oaes_128_ctx_ctr_new(ram->temp, element(ram->cpy,ram->temp,16));
+	for (size_t ii = 0; ii < n; ii++) {
+		oaes_128_encdec(element(ram->blockcpy, dest, ii), ctx, src);
+	}
+	~obliv() oaes_128_ctx_free(ctx);
+}

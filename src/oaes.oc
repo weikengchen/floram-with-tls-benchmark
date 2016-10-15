@@ -16,7 +16,7 @@ typedef struct gf242{
 	gf24 l;
 } gf242;
 
-gf242 maptogf242(obliv uint8_t a) {
+gf242 maptogf242(obliv uint8_t a) obliv {
 	gf242 res;
 	obliv bool aA = ((a >> 1) & 1) ^ ((a >> 7) & 1);
 	obliv bool aB = ((a >> 5) & 1) ^ ((a >> 7) & 1);
@@ -32,7 +32,7 @@ gf242 maptogf242(obliv uint8_t a) {
 	return res;
 }
 
-obliv uint8_t unmapfromgf242(gf242 a) {
+obliv uint8_t unmapfromgf242(gf242 a) obliv {
 	obliv uint8_t res;
 	obliv bool aA = a.l.bits[1] ^ a.h.bits[3];
 	obliv bool aB = a.h.bits[0] ^ a.h.bits[1];
@@ -47,13 +47,13 @@ obliv uint8_t unmapfromgf242(gf242 a) {
 	return res;
 }
 
-gf24 gf24add(gf24 a, gf24 b) {
+gf24 gf24add(gf24 a, gf24 b) obliv {
 	gf24 s;
 	for (int ii = 0; ii < 4; ii++) s.bits[ii] = a.bits[ii] ^ b.bits[ii];
 	return s;
 }
 
-gf24 gf24mul(gf24 a, gf24 b) {
+gf24 gf24mul(gf24 a, gf24 b) obliv {
 	gf24 q;
 	obliv bool aA = a.bits[0] ^ a.bits[3];
 	obliv bool aB = a.bits[2] ^ a.bits[3];
@@ -64,7 +64,7 @@ gf24 gf24mul(gf24 a, gf24 b) {
 	return q;
 }
 
-gf24 gf24sq(gf24 a) {
+gf24 gf24sq(gf24 a) obliv {
 	gf24 q;
 	q.bits[0] = a.bits[0] ^ a.bits[2];
 	q.bits[1] = a.bits[2];
@@ -73,7 +73,7 @@ gf24 gf24sq(gf24 a) {
 	return q;
 }
 
-gf24 gf24inv(gf24 a) {
+gf24 gf24inv(gf24 a) obliv {
 	gf24 q;
 	obliv bool aA = a.bits[1] ^ a.bits[2] ^ a.bits[3] ^ (a.bits[1]&a.bits[2]&a.bits[3]);
 	q.bits[0] = aA ^ a.bits[0] ^ (a.bits[0]&a.bits[2]) ^ (a.bits[1]&a.bits[2]) ^ (a.bits[0]&a.bits[1]&a.bits[2]);
@@ -83,7 +83,7 @@ gf24 gf24inv(gf24 a) {
 	return q;
 }
 
-gf242 gf242inv(gf242 a) {
+gf242 gf242inv(gf242 a) obliv {
 	gf24 e;
 	gf242 res;
 	e.bits[3] = 1; e.bits[2] = 1; e.bits[1] = 1; e.bits[0] = 0;
@@ -94,11 +94,11 @@ gf242 gf242inv(gf242 a) {
 }
 
 
-obliv uint8_t addrj(obliv uint8_t a,obliv uint8_t b) {
+obliv uint8_t addrj(obliv uint8_t a,obliv uint8_t b) obliv {
 	return a^b;
 }
 
-obliv uint8_t mulrj(obliv uint8_t a,obliv uint8_t b) {
+obliv uint8_t mulrj(obliv uint8_t a,obliv uint8_t b) obliv {
 	obliv uint8_t p=0,a2;
 	for(int i=0;i<8;++i) {
 		obliv if((b&(1<<i))!=0) p^=a; // FIXME int conditions don't work
@@ -109,11 +109,11 @@ obliv uint8_t mulrj(obliv uint8_t a,obliv uint8_t b) {
 	return p;
 }
 
-obliv uint8_t exprj(obliv uint8_t a,int pow) {
+obliv uint8_t exprj(obliv uint8_t a,int pow) obliv {
 	return pow!=0?mulrj(exprj(mulrj(a,a),pow/2),(pow%2?a:1)):1;
 }
 
-obliv uint8_t invrj(obliv uint8_t a) {
+obliv uint8_t invrj(obliv uint8_t a) obliv {
 	//return exprj(a,254);
 	
 	//this more efficient layout is borrowed from Damgard and Keller
@@ -142,11 +142,11 @@ typedef struct {
 	obliv uint8_t state[16];
 } AesState;
 
-obliv uint8_t* mat(AesState* s,int i,int j) {
+obliv uint8_t* mat(AesState* s,int i,int j) obliv {
 	return s->state+i+j*4;
 }
 
-void aesShiftRows(AesState* s) {
+void aesShiftRows(AesState* s) obliv {
 	int i,j;
 	for(i=1;i<4;++i) {
 		obliv uint8_t t[4];
@@ -155,11 +155,11 @@ void aesShiftRows(AesState* s) {
 	}
 }
 
-obliv uint8_t mulTwoXor(obliv uint8_t x) {
+obliv uint8_t mulTwoXor(obliv uint8_t x) obliv {
 	return ((x << 1) & 0xFE) ^ ((x >> 3) & 0x10) ^ ((x >> 4) & 0x08) ^ ((x >> 6) & 0x02) ^ ((x >> 7) & 0x01);
 }
 
-void aesMixCols(AesState* s) {
+void aesMixCols(AesState* s) obliv {
 	//this algorithm is borrowed from Huang, Evans, Katz, and Malka
 	//https://www.cs.umd.edu/~jkatz/papers/usenix2011.pdf
 
@@ -180,33 +180,33 @@ void aesMixCols(AesState* s) {
 	*s=res;
 }
 
-obliv uint8_t rotl(obliv uint8_t x) {
+obliv uint8_t rotl(obliv uint8_t x) obliv {
 	return (x<<1)^(x>>7);
 }
 
-obliv uint8_t aesSbox(obliv uint8_t x) {
+obliv uint8_t aesSbox(obliv uint8_t x) obliv {
 	obliv uint8_t s=0;
 	x=invrj(x);
 	for(int i=0;i<5;++i) { s^=x; x=rotl(x); }
 	return s^0x63;
 }
 
-void aesSubBytes(AesState* s) {
+void aesSubBytes(AesState* s) obliv {
 	for(int i=0;i<16;++i) s->state[i]=aesSbox(s->state[i]);
 }
 
-obliv unsigned aesKeyCore(obliv unsigned x,int iter) {
+obliv unsigned aesKeyCore(obliv unsigned x,int iter) obliv {
 	obliv int rv=0;
 	x=((x<<24)^(x>>8));
 	for(int i=3;i>=0;--i) rv=(rv<<8)^aesSbox((x>>i*8)&0xff);
 	return rv^exprj(2,iter);
 }
 
-obliv unsigned packBytes(const obliv uint8_t* buf) {
+obliv unsigned packBytes(const obliv uint8_t* buf) obliv {
 	return buf[0]^(buf[1]<<8)^(buf[2]<<16)^(buf[3]<<24);
 }
 
-void unpackBytes(obliv uint8_t* buf,obliv unsigned r) {
+void unpackBytes(obliv uint8_t* buf,obliv unsigned r) obliv {
 	buf[0] = (r&0xff);
 	buf[1] = ((r>> 8)&0xff);
 	buf[2] = ((r>>16)&0xff);
@@ -214,7 +214,7 @@ void unpackBytes(obliv uint8_t* buf,obliv unsigned r) {
 }
 
 // Input is in first 16 bytes of buf. Output expands it to 176 bytes
-void aesKeyExpand(obliv uint8_t* buf) {
+void aesKeyExpand(obliv uint8_t* buf) obliv {
 	int i=0,j,k,n=16;
 	for(j=16;j<176;++i,j+=16) {
 		unpackBytes(buf+j, aesKeyCore(packBytes(buf+j-4),i) ^ packBytes(buf+j-n));
@@ -222,7 +222,7 @@ void aesKeyExpand(obliv uint8_t* buf) {
 	}
 }
 
-void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t buf[176],const obliv uint8_t block[16]) {
+void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t buf[176],const obliv uint8_t block[16]) obliv {
 	int i,r;
 	AesState s;
 	for(i=0;i<16;++i) s.state[i]=block[i];
@@ -236,7 +236,7 @@ void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t buf[176],const 
 	for(i=0;i<16;++i) out[i]=s.state[i];
 }
 
-void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16],const obliv uint8_t block[16]) {
+void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16],const obliv uint8_t block[16]) obliv {
 	obliv uint8_t buf[176];
 	memcpy(buf, key, 16 * sizeof(obliv uint8_t));
 	aesKeyExpand(buf);
@@ -255,7 +255,7 @@ oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t 
 	return output;
 }
 
-void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) {
+void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) obliv {
 	oaes_128_from_expanded(out, ctx->expandedkey, ctx->iv);
 	obliv uint16_t rem = 1;
 	for (int ii = 15; ii >=0 ;ii--) {

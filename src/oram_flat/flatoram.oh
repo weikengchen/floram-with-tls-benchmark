@@ -1,0 +1,16 @@
+#ifndef FLATORAM_OH
+#define FLATORAM_OH
+#include <copy.oh>
+
+typedef void (*flatoram_block_access_function)(OcCopy *, void *, void *) obliv;
+
+typedef struct flatoram flatoram;
+
+void flatoram_read(void* data, scanram* ram, obliv int index) obliv;
+void flatoram_write(scanram* ram, void* data, obliv int index) obliv;
+void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv int index);
+
+flatoram* flatoram_new(OcCopy* cpy, void* data, int n);
+void flatoram_free(flatoram* ram);
+
+#endif
