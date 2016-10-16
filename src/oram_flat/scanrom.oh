@@ -4,16 +4,19 @@
 
 typedef struct scanrom scanrom;
 
-void scanrom_read(void* data, scanram* rom, obliv int index) obliv;
+void scanrom_read_with_bitvector(void* data, scanram* rom, void * bitvector) obliv;
 void scanrom_write(scanrom* rom, void* data, int index);
+void scanrom_read(scanrom* rom, void* data, int index);
+void scanrom_set_key(scanrom* rom, void* key_local);
 
-scanrom* scanrom_new(OcCopy* cpy, void* data, int n);
+scanrom* scanrom_new(OcCopy* cpy, int n, void* key_local);
 void scanrom_free(scanrom* rom);
 
-void scanwrom_read(void* data, scanram* rom, int index);
-void scanwrom_write(scanrom* rom, void* data, obliv int index);
+obliv bool scanwrom_read(void* data, scanram* rom, int index);
+void scanwrom_write_with_bitvectors(scanrom* rom, void* data, void* old_data, void* bitvector_flags, void* bitvector_data) obliv;
+void scanwrom_set_key(scanrom* rom, void* key_local);
 
-scanram* scanwrom_new(OcCopy* cpy, void* data, int n);
+scanram* scanwrom_new(OcCopy* cpy, int n, void* key_local);
 void scanwrom_free(scanrom* rom);
 
 #endif

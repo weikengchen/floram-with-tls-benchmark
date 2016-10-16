@@ -1,0 +1,8 @@
+#include "flatoram_util.oh"
+#include <linux/random.h>
+
+void* element(OcCopy* cpy,void* arr,uint32_t x) obliv { return x*cpy->eltsize+(uint8_t*)arr; }
+
+void get_random_bytes(void *buf, size_t bytes) {
+	getrandom(buf, bytes, 0);
+}

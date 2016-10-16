@@ -1,4 +1,25 @@
 #include "bitpropagate.oh"
+#include "flatoram_util.oh"
+
+struct bitpropagator {
+
+};
+
+void bitpropagator_getonevector(void * output1, bitpropagator * bp, obliv uint32_t index) obliv {
+
+}
+
+void bitpropagator_gettwovectors(void * output1, void * output2, bitpropagator * bp, obliv uint32_t index, obliv bool output_2_disable) obliv{
+
+}
+
+bitpropagator * bitpropagator_new(uint32_t size, uint32_t truncated_levels) {
+
+}
+
+void bitpropagator_free(bitpropagator * bp) {
+	free(bp);
+}
 
 void online_expand(scanram* ram, void * dest, void * src, size_t n) obliv {
 	~obliv() oaes_ctx * ctx = oaes_128_ctx_ctr_new(ram->temp, element(ram->cpy,ram->temp,16));

@@ -2,20 +2,16 @@
 #include "scanrom.oh"
 #include "../oaes.oh"
 #include "bitpropogate.oh"
-
-#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+#include "flatoram_util.oh"
 
 struct scanrom {
 	OcCopy* blockcpy;
 	void * local_data;
 	size_t blocksize;
 	size_t blockcount;
-	size_t elementsperblock;
 };
 
-static void* element(OcCopy* cpy,void* arr,int x) obliv { return x*cpy->eltsize+(char*)arr; }
-
-void scanrom_read(void* data, scanram* rom, obliv int index) obliv {
+void scanrom_read_with_bitvector(void* data, scanram* rom, void * bitvector) obliv {
 
 }
 
@@ -23,7 +19,15 @@ void scanrom_write(scanrom* rom, void* data, int index) {
 	
 }
 
-scanrom* scanrom_new(OcCopy* cpy, void* data, int n) {
+void scanrom_read(void* data, scanrom* rom, int index) {
+
+}
+
+void scanrom_set_key(scanrom* rom, void* key_local) {
+
+}
+
+scanrom* scanrom_new(OcCopy* cpy, int n, void* key_local) {
 	
 }
 
@@ -33,15 +37,19 @@ void scanrom_free(scanrom* rom) {
 
 
 
-void scanwrom_read(void* data, scanram* rom, int index) {
+obliv bool scanwrom_read(void* data, scanram* rom, int index) {
 
 }
 
-void scanwrom_write(scanrom* rom, void* data, obliv int index) {
+void scanwrom_write_with_bitvectors(scanrom* rom, void* data, void* old_data, void* bitvector_flags, void* bitvector_data) obliv {
 	
 }
 
-scanrom* scanwrom_new(OcCopy* cpy, void* data, int n) {
+void scanwrom_set_key(scanrom* rom, void* key_local) {
+
+}
+
+scanrom* scanwrom_new(OcCopy* cpy, int n, void* key_local) {
 	
 }
 
