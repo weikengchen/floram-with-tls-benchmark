@@ -16,6 +16,7 @@ void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
 	memcpy(bpo->nextlevel_data, blocks, (1<<bpo->startlevel) * BLOCKSIZE);
 
 	size_t maxblocks = (bpo->size + (1<<(bpo->endlevel - bpo->lastlevel -1)) - 1) / (1<<(bpo->endlevel - bpo->lastlevel -1));
+	#pragma omp parallel for
 	for (size_t ii = 0; ii < maxblocks; ii += 2) {
 		if (ii+2 <= maxblocks) {
 			offline_expand(&bpo->lastlevel_data[ii*BLOCKSIZE], &bpo->nextlevel_data[ii/2*BLOCKSIZE], 2);
@@ -29,6 +30,7 @@ void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
 
 void bitpropagator_offline_nextlevel(bitpropagator_offline * bpo, void * Z, uint32_t advicebit) {
 	//First, apply the Z Block where appropriate.
+	#pragma omp parallel for
 	for (size_t ii = 0; ii < bpo->blocksout; ii++) {
 		uint8_t abyte = advicebit/8;
 		uint8_t abit = advicebit%8;
@@ -41,6 +43,7 @@ void bitpropagator_offline_nextlevel(bitpropagator_offline * bpo, void * Z, uint
 	bpo->lastlevel++;
 
 	size_t maxblocks = (bpo->size + (1<<(bpo->endlevel - bpo->lastlevel -1)) - 1) / (1<<(bpo->endlevel - bpo->lastlevel -1));
+	#pragma omp parallel for
 	for (size_t ii = 0; ii < maxblocks; ii += 2) {
 		if (ii+2 <= maxblocks) {
 			offline_expand(&bpo->nextlevel_data[ii*BLOCKSIZE], &bpo->lastlevel_data[ii/2*BLOCKSIZE], 2);
@@ -53,6 +56,7 @@ void bitpropagator_offline_nextlevel(bitpropagator_offline * bpo, void * Z, uint
 }
 
 void bitpropagator_offline_lastlevel(bitpropagator_offline * bpo, void * Z, uint32_t advicebit) {
+	#pragma omp parallel for
 	for (size_t ii = 0; ii < bpo->blocksout; ii++) {
 		uint8_t abyte = advicebit/8;
 		uint8_t abit = advicebit%8;

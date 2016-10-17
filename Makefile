@@ -1,7 +1,7 @@
 OBLIVCC = $(OBLIVC_PATH)/bin/oblivcc
 OBLIVCH = $(OBLIVC_PATH)/src/ext/oblivc
 OBLIVCA = $(OBLIVC_PATH)/_build/libobliv.a
-CFLAGS+= -O3 -I/usr/include -I . -I $(SRC_PATH) -std=c99
+CFLAGS+= -O3 -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp
 
 SRC_PATH=src/
 LIB_OUT_PATH=build/lib/
@@ -28,7 +28,7 @@ tests: $(TEST_BINS:%=$(TEST_OUT_PATH)/%)
 
 $(TEST_BINS:%=$(TEST_OUT_PATH)/%): $(TEST_OUT_PATH)/%: $(TEST_PATH)/%.oo $(TEST_DEPS:%=$(TEST_PATH)/%) $(ACKLIB)
 	mkdir -p $(TEST_OUT_PATH)
-	$(OBLIVCC) -o $@ $(OBLIVCA) $^ -lm -lssl -lcrypto
+	$(OBLIVCC) -o $@ $(OBLIVCA) $^ -lm -lssl -lcrypto -lgomp
 
 $(ACKLIB): $(OBJS:%=$(SRC_PATH)/%)
 	mkdir -p $(LIB_OUT_PATH)

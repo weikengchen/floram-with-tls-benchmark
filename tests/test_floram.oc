@@ -23,12 +23,20 @@ void print_supplementary_help() {}
 void test_main(void*varg) {
 
 	{
-		int propagatorblocks = 957;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks, 5);
+		int propagatorblocks = 50000000;
+		bitpropagator * bp = bitpropagator_new(propagatorblocks, 6);
 		void * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
 		void * local_output = malloc(propagatorblocks * 16);
+
+		int64_t runtime = -current_timestamp();
+		int64_t ygc = -yaoGateCount();
 		bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
+		runtime +=current_timestamp();
+		ygc += yaoGateCount();
 		bitpropagator_free(bp);
+
+		printf("runtime: %d\n",runtime);
+		printf("gates:   %d\n\b",ygc);
 
 		printf("active 1: ");
 		char temp;
@@ -44,13 +52,13 @@ void test_main(void*varg) {
 		printf("\n");
 			
 
-		for (int ii = 0; ii < propagatorblocks; ii++) {
+		/*for (int ii = 0; ii < propagatorblocks; ii++) {
 			printf("%02d: ",ii);
 			for (int jj = 0; jj< 16; jj++) {
 				printf("%02hhX",((char*)local_output)[ii*16+jj]);
 			}
 			printf("\n");
-		}
+		}*/
 
 		free(active_block_pair);
 		free(local_output);
