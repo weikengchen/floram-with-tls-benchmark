@@ -1,18 +1,27 @@
-#include <obliv.oh>
 #include "scanrom.oh"
+#include "scanrom.h"
 #include "../oaes.oh"
-#include "bitpropogate.oh"
 #include "flatoram_util.oh"
 
 struct scanrom {
 	OcCopy* blockcpy;
 	void * local_data;
-	size_t blocksize;
+	void * local_halfkey;
+	void * local_halfpad;
+	void * halfkey_a;
+	void * halfkey_b;
+	void * local_blocktemp;
+	size_t blockmultiple;
 	size_t blockcount;
 };
 
-void scanrom_read_with_bitvector(void* data, scanram* rom, void * bitvector) obliv {
-
+void scanrom_read_with_bitvector(void* data, scanram* rom, bool * bitvector) obliv {
+	memset(data, 0, rom->blockmultiple * BLOCKSIZE);
+	for (size_t ii = 0; ii < rom->blockcount; ii++) {
+		if (bitvector[ii]) {
+			for (size_t jj = 0; jj < rom->blockmultiple * BLOCKSIZE)
+		}
+	}
 }
 
 void scanrom_write(scanrom* rom, void* data, int index) {
@@ -24,15 +33,39 @@ void scanrom_read(void* data, scanrom* rom, int index) {
 }
 
 void scanrom_set_key(scanrom* rom, void* key_local) {
+	memcpy(rom->local_halfkey, key_local, KEYSIZE);
+	for (uint32_t ii = 0; ii < KEYSIZE; ii++) {
+		*element(&OcCopyChar, halfkey_a, ii) = feedOblivChar(rom->local_halfkey[ii], 1);
+		*element(&OcCopyChar, halfkey_b, ii) = feedOblivChar(rom->local_halfkey[ii], 2);
+	}
 
+	scanrom_create_local_halfpad(rom->local_halfpad, rom->local_halfkey, blockcount*blockmultiple);
 }
 
-scanrom* scanrom_new(OcCopy* cpy, int n, void* key_local) {
-	
+scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
+	scanrom * rom = malloc(sizeof(scanrom));
+	size_t fullblocksize = blockcpy->eltsize/sizeof(obliv uint8_t);
+	rom->blockmultiple = fullblocksize/BLOCKSIZE;
+	rom->blockcount = n;
+	rom->blockcpy = blockcpy;
+	rom->local_data = calloc(n, fullblocksize);
+	rom->local_halfpad = malloc(n, fullblocksize);
+	rom->local_halfkey = malloc(KEYSIZE);
+	rom->local_blocktemp = malloc(fullblocksize);
+	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
+	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
+	scanrom_set_key(rom, key_local);
+	return rom;
 }
 
 void scanrom_free(scanrom* rom) {
-	
+	free(rom->local_data);
+	free(rom->local_halfkey);
+	free(rom->local_halfpad);
+	free(rom->local_blocktemp);
+	free(rom->halfkey_a);
+	free(rom->halfkey_b)
+	free(rom);
 }
 
 
@@ -41,18 +74,18 @@ obliv bool scanwrom_read(void* data, scanram* rom, int index) {
 
 }
 
-void scanwrom_write_with_bitvectors(scanrom* rom, void* data, void* old_data, void* bitvector_flags, void* bitvector_data) obliv {
+void scanwrom_write_with_bitvectors(scanrom* rom, void* bitvector_flags, void* datavector) obliv {
 	
 }
 
 void scanwrom_set_key(scanrom* rom, void* key_local) {
-
+	scanrom_set_key(rom, key_local);
 }
 
-scanrom* scanwrom_new(OcCopy* cpy, int n, void* key_local) {
-	
+scanrom* scanwrom_new(OcCopy* blockcpy, int n, void* key_local) {
+	return scanrom_new(blockcpy, n, key_local);
 }
 
 void scanwrom_free(scanrom* rom) {
-	
+	scanrom_free(rom);
 }

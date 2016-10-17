@@ -1,11 +1,10 @@
-#ifndef FLATORAM_UTIL_H
-#define FLATORAM_UTIL_H
-#include <copy.oh>
+#ifndef FLATORAM_UTIL_OH
+#define FLATORAM_UTIL_OH
+#include "flatoram.oh"
+#include "flatoram_util.h"
 
-#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
+void* element(OcCopy* cpy,void* arr,uint32_t x) obliv;
 
-void* element(OcCopy* cpy,void* arr,uint32_t x);
-
-void get_random_bytes(void *buf, size_t bytes);
+void online_expand(void * dest, void * src, void* zero, size_t n) obliv;
 
 #endif

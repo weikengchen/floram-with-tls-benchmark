@@ -1,11 +1,11 @@
 #ifndef BITPRAPOGATE_OH
 #define BITPRAPOGATE_OH
+#include "flatoram.oh"
 
 typedef struct bitpropagator bitpropagator;
 
-void bitpropagator_getonevector(void * output1, bitpropagator * bp, obliv uint32_t index) obliv;
-void bitpropagator_gettwovectors(void * output1, void * output2, bitpropagator * bp, obliv uint32_t index, obliv bool output_2_disable) obliv;
-bitpropagator * bitpropagator_new(uint32_t size, uint32_t truncated_levels);
+void bitpropagator_getblockvector(void * active_block_pair, void * local_output, bitpropagator * bp, obliv uint32_t index);
+bitpropagator * bitpropagator_new(size_t size, uint32_t truncated_levels);
 void bitpropagator_free(bitpropagator * bp);
 
 #endif

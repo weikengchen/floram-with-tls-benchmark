@@ -1,0 +1,62 @@
+#include <obliv.oh>
+#include "oram_flat/bitpropagate.oh"
+#include "test_generic.h"
+
+#define BLOCKCOUNT 64
+
+static const char TESTNAME[] = "floram";
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return NULL;
+}
+
+struct option* get_long_options() {
+	return NULL;
+}
+
+void print_supplementary_help() {}
+
+void test_main(void*varg) {
+
+	{
+		int propagatorblocks = 957;
+		bitpropagator * bp = bitpropagator_new(propagatorblocks, 5);
+		void * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
+		void * local_output = malloc(propagatorblocks * 16);
+		bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
+		bitpropagator_free(bp);
+
+		printf("active 1: ");
+		char temp;
+		for (int ii = 0; ii < 16; ii++) {
+			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[ii],0);
+			printf("%02hhX",temp);
+		}
+		printf("\nactive 2: ");
+		for (int ii = 0; ii < 16; ii++) {
+			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[16+ii],0);
+			printf("%02hhX",temp);
+		}
+		printf("\n");
+			
+
+		for (int ii = 0; ii < propagatorblocks; ii++) {
+			printf("%02d: ",ii);
+			for (int jj = 0; jj< 16; jj++) {
+				printf("%02hhX",((char*)local_output)[ii*16+jj]);
+			}
+			printf("\n");
+		}
+
+		free(active_block_pair);
+		free(local_output);
+	}
+	
+
+	fprintf(stderr, "\n");
+
+}

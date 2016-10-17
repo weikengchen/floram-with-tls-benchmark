@@ -1,8 +1,19 @@
 #include "flatoram_util.oh"
-#include <linux/random.h>
+#include "../oaes.oh"
 
 void* element(OcCopy* cpy,void* arr,uint32_t x) obliv { return x*cpy->eltsize+(uint8_t*)arr; }
 
-void get_random_bytes(void *buf, size_t bytes) {
-	getrandom(buf, bytes, 0);
+void online_expand(void * dest, void * src, void * zero, size_t n) obliv {
+	OcCopy cpy;
+	oaes_ctx * ctx;
+	~obliv() {
+		ctx = oaes_128_ctx_ctr_new(src, zero);
+		cpy = ocCopyCharN(16);
+	}
+	for (size_t ii = 0; ii < n; ii++) {
+		oaes_128_encdec(element(&cpy, dest, ii), ctx, zero);
+	}
+	~obliv() {
+		oaes_128_ctx_free(ctx);
+	}
 }

@@ -1,10 +1,10 @@
 #ifndef SCANROM_OH
 #define SCANROM_OH
-#include <copy.oh>
+#include "flatoram.oh"
 
 typedef struct scanrom scanrom;
 
-void scanrom_read_with_bitvector(void* data, scanram* rom, void * bitvector) obliv;
+void scanrom_read_with_bitvector(void* data, scanram* rom, bool * bitvector) obliv;
 void scanrom_write(scanrom* rom, void* data, int index);
 void scanrom_read(scanrom* rom, void* data, int index);
 void scanrom_set_key(scanrom* rom, void* key_local);
@@ -13,7 +13,7 @@ scanrom* scanrom_new(OcCopy* cpy, int n, void* key_local);
 void scanrom_free(scanrom* rom);
 
 obliv bool scanwrom_read(void* data, scanram* rom, int index);
-void scanwrom_write_with_bitvectors(scanrom* rom, void* data, void* old_data, void* bitvector_flags, void* bitvector_data) obliv;
+void scanwrom_write_with_bitvectors(scanrom* rom, void* data, void* old_data, bool* bitvector_flags, bool* bitvector_data) obliv;
 void scanwrom_set_key(scanrom* rom, void* key_local);
 
 scanram* scanwrom_new(OcCopy* cpy, int n, void* key_local);

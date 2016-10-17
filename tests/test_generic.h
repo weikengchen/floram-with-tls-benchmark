@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <math.h>
+#include <alloca.h>
 
 #include "ackutil.h"
 

@@ -176,7 +176,7 @@ obliv bool oram_apply(oram * o, void * input, block_access_function fn, obliv si
 		}
 	} else {
 		obliv if ((index < o->size) & (index >= 0)) {
-			flatoram_apply(o->data, temp, fn, index % o->size);
+			flatoram_apply(o->data, input, fn, index % o->size);
 			success = true;
 		}
 	}

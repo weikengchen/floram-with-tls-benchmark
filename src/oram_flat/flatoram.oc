@@ -2,10 +2,6 @@
 #include "flatoram_util.oh"
 #include "scanrom.oh"
 #include "bitpropagate.oh"
-#include "math.h"
-
-#define BLOCKSIZE 16
-#define KEYSIZE 16
 
 struct flatoram {
 	OcCopy* cpy;
@@ -15,8 +11,8 @@ struct flatoram {
 	bitpropagator* bitpropagator;
 	void* stash;
 	obliv uint32_t* stashi;
-	obliv bool* bitvector_data_temp;
-	obliv bool* bitvector_flags_temp;
+	void* active_blocks_temp;
+	void* blockvector_local_temp;
 	void* romkey_local;
 	void* wromkey_local;
 	void* blocktemp;
@@ -31,7 +27,7 @@ struct flatoram {
 void flatoram_read(void* data, scanram* ram, obliv uint32_t index) obliv {
 	obliv uint32_t blockid = index / ram->elementsperblock;
 	obliv uint32_t subblockid = index % ram->elementsperblock;
-	bitpropagator_getonevector(ram->bitvector_data_temp, ram->bitpropagator, blockid);
+	~obliv() bitpropagator_getblockvector(ram->active_blocks_temp, ram->blockvector_local_temp, ram->bitpropagator, blockid);
 	scanrom_read_with_bitvector(ram->blocktemp, ram->readmem, ram->bitvector_data_temp);
 	for (uint32_t ii = 0; ii < ram->period; ii ++) {
 		obliv if (blockid == ram->stashi[ii]) ocCopy(ram->blockcpy, ram->blocktemp, element(ram->blockcpy, ram->stash, ii));
@@ -41,7 +37,7 @@ void flatoram_read(void* data, scanram* ram, obliv uint32_t index) obliv {
 	}
 }
 
-void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv uint32_t index) {
+void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv uint32_t index) obliv {
 	obliv uint32_t blockid = index / ram->elementsperblock;
 	obliv uint32_t subblockid = index % ram->elementsperblock;
 	obliv bool found = false;
@@ -59,7 +55,9 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 		}
 	}
 
-	bitpropagator_gettwovectors(ram->bitvector_data_temp, ram->bitvector_flags_temp, ram->bitpropagator, blockid, found);
+	~obliv() bitpropagator_getblockvector(ram->active_blocks_temp, ram->blockvector_local_temp, ram->bitpropagator, blockid);
+
+	//TODO: get two sets of advice bits
 
 	obliv if (~found) {
 		scanrom_read_with_bitvector(element(ram->blockcpy, ram->stash, 0), ram->readmem, ram->bitvector_data_temp);
@@ -72,7 +70,8 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, element(ram->blockcpy, ram->stash, 0), subblockid), data);
 	}
 
-	scanwrom_write_with_bitvectors(ram->writemem, element(ram->blockcpy, ram->stash, 0), ram->blocktemp, ram->bitvector_data_temp, ram->bitvector_flags_temp);
+
+	//scanwrom_write_with_bitvectors(ram->writemem, element(ram->blockcpy, ram->stash, 0), ram->blocktemp, ram->bitvector_data_temp, ram->bitvector_flags_temp);
 
 	ram->progress++;
 	if (ram->progress == ram->period) flatoram_refresh(ram);
@@ -90,14 +89,14 @@ void flatoram_refresh(flatoram* ram) {
 	ram->progress = 0;
 }
 
-flatoram* flatoram_new(OcCopy* cpy, void* data, uint32_t n) {
+flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	flatoram * ram = malloc(sizeof(flatoram));
 	ram->cpy = cpy;
 	ram->size = n;
 	ram->progress = 0;
 
 	size_t elementsize = cpy->eltsize/sizeof(obliv uint8_t);
-	if (elementsize >= 8) {
+	if (elementsize >= BLOCKSIZE/2) {
 		ram->blockcount = n;
 		ram->blockmultiple = ((elementsize / BLOCKSIZE) + (elementsize%BLOCKSIZE?1:0));
 		ram->elementsperblock = 1;
@@ -110,8 +109,8 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, uint32_t n) {
 	ram->blockcpy=ocCopyBoolN(ram->blockmultiple * BLOCKSIZE);
 
 	ram->bitpropagator = bitpropagator_new(ram->blockcount, 0);
-	ram->bitvector_data_temp = calloc(ram->blockcount, sizeof(obliv bool));
-	ram->bitvector_flags_temp = calloc(ram->blockcount, sizeof(obliv bool));
+	ram->blockvector_local_temp = malloc(ram->blockcount * BLOCKSIZE);
+	ram->active_blocks_temp = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 
 	ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
 	ram->blocktemp = calloc(1, ram->blockcpy->eltsize);
@@ -148,10 +147,10 @@ void flatoram_free(flatoram* ram) {
 	scanwrom_free(ram->writemem);
 	free(ram->blockcpy);
 	free(ram->blocktemp);
+	free(ram->active_blocks_temp);
+	free(ram->blockvector_local_temp);
 	free(ram->romkey_local);
 	free(ram->wromkey_local);
-	free(ram->bitvector_data_temp);
-	free(ram->bitvector_flags_temp);
 	free(ram->stashi);
 	free(ram->stash);
 	free(ram);

@@ -238,7 +238,7 @@ void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t buf[176],const 
 
 void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16],const obliv uint8_t block[16]) obliv {
 	obliv uint8_t buf[176];
-	memcpy(buf, key, 16 * sizeof(obliv uint8_t));
+	~obliv() { memcpy(buf, key, 16 * sizeof(obliv uint8_t)); }
 	aesKeyExpand(buf);
 	oaes_128_from_expanded(out,buf,block);
 }
