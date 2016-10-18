@@ -30,7 +30,7 @@ void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, uint32_
 void bitpropagator_offline_readblockvector(void * local_output, bitpropagator_offline * bpo) {
 	
 	for (uint32_t thislevel = bpo->startlevel; thislevel < bpo->endlevel; thislevel++) {
-		size_t maxblocks = MIN(bpo->size, 1<<(thislevel+1));//(bpo->size + (1<<(bpo->endlevel - thislevel -2)) - 1) / (1<<(bpo->endlevel - thislevel -2));
+		size_t maxblocks = (bpo->size + (1<<(bpo->endlevel - thislevel -1)) - 1) / (1<<(bpo->endlevel - thislevel -1));
 
 		#pragma omp parallel for
 		for (size_t ii = 0; ii < maxblocks; ii += 2) {
@@ -71,7 +71,7 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 
 	#pragma omp parallel num_threads(2)
 	{
-
+		//OpenMP seems to get along with obliv-c just fine, so long as obliv-c only uses the master thread.
 		#pragma omp master
 		fn(bp, indexp);	
 

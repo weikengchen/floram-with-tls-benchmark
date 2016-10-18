@@ -113,6 +113,7 @@ void bitpropagator_getblockvector(void * active_block_pair, void * local_output,
 
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 
+	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
 	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, bitpropagator_traverselevels);
 
 	//write output
