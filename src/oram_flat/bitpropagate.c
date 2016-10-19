@@ -4,8 +4,8 @@
 
 struct bitpropagator_offline {
 	size_t size;
-	uint32_t startlevel;
-	uint32_t endlevel;
+	size_t startlevel;
+	size_t endlevel;
 	void * Z;
 	uint32_t * advicebits;
 	void * level_data_1;
@@ -14,13 +14,13 @@ struct bitpropagator_offline {
 };
 
 void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
-	memcpy(bpo->level_data_1, blocks, (1<<bpo->startlevel) * BLOCKSIZE);
+	memcpy(bpo->level_data_1, blocks, (1ll<<bpo->startlevel) * BLOCKSIZE);
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
 		omp_set_lock(&bpo->locks[ii]);
 	}
 }
 
-void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, uint32_t advicebit, uint32_t level) {
+void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, uint32_t advicebit, size_t level) {
 	memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
 	bpo->advicebits[level- bpo->startlevel - 1] = advicebit;
 	omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
@@ -28,9 +28,9 @@ void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, uint32_
 
 void bitpropagator_offline_readblockvector(void * local_output, bitpropagator_offline * bpo) {
 
-	uint32_t thislevel = bpo->startlevel;
-	size_t thislevelblocks = (1<<bpo->startlevel);
-	size_t nextlevelblocks = (bpo->size + (1<<(bpo->endlevel - thislevel -1)) - 1) / (1<<(bpo->endlevel - thislevel -1));
+	size_t thislevel = bpo->startlevel;
+	size_t thislevelblocks = (1ll<<bpo->startlevel);
+	size_t nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
 
 	uint64_t* a = (uint64_t *)bpo->level_data_1;
 	uint8_t* a2 = (uint8_t *)bpo->level_data_1;
@@ -56,7 +56,7 @@ void bitpropagator_offline_readblockvector(void * local_output, bitpropagator_of
 		omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
 
 		thislevelblocks = nextlevelblocks;
-		nextlevelblocks = (bpo->size + (1<<(bpo->endlevel - thislevel -1)) - 1) / (1<<(bpo->endlevel - thislevel -1));
+		nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
 		if (thislevel == bpo->endlevel -1) nextlevelblocks = bpo->size;
 
 		abyte = bpo->advicebits[thislevel - bpo->startlevel -1]/8;
@@ -130,14 +130,14 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 	}
 }
 
-bitpropagator_offline * bitpropagator_offline_new(size_t size, uint32_t startlevel) {
+bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel) {
 	offline_expand_init();
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
 	bpo->startlevel = startlevel;
 	bpo->endlevel = LOG2(size) + (((1 << LOG2(size)) < size)? 1:0);
-	posix_memalign(&bpo->level_data_1,16,(1<<bpo->endlevel) * BLOCKSIZE);
-	posix_memalign(&bpo->level_data_2,16,(1<<bpo->endlevel) * BLOCKSIZE);
+	posix_memalign(&bpo->level_data_1,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
+	posix_memalign(&bpo->level_data_2,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel)*BLOCKSIZE);
 	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits = malloc((bpo->endlevel - bpo->startlevel) * sizeof(uint32_t));
