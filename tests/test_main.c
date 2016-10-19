@@ -13,7 +13,11 @@ void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host
 		fprintf(stderr,"TCP connect failed\n");
 		exit(1);
 	}
-}										
+}	
+
+int pma(void** dst, size_t alignment, size_t size) {
+	return posix_memalign(dst, alignment, size);
+}									
 
 int main(int argc,char* argv[])
 {

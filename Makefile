@@ -20,7 +20,7 @@ TEST_DEPS=test_main.o
 TEST_BINS = test_obig test_osha256 test_osha512 test_osalsa test_ochacha test_oaes\
 		test_oqueue test_oram test_oscrypt test_ograph test_omatch test_osearch\
 		bench_oram bench_oram_init bench_oscrypt bench_bfs bench_bst bench_gs bench_rp\
-		bench_oaes
+		bench_oaes test_floram
 
 default: $(ACKLIB) tests
 

@@ -54,6 +54,8 @@ struct option* get_long_options();
 
 void print_supplmentary_help();
 
+int pma(void** dst, size_t alignment, size_t size);
+
 void test_main(void*varg);
 
 #endif
