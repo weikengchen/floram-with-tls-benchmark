@@ -265,7 +265,7 @@ void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t 
 		rem >>= 8;
 
 		//and XOR for encryption
-		out[ii] ^= block[ii];
+		if (block != NULL) out[ii] ^= block[ii];
 	}
 }
 

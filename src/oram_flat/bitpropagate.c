@@ -159,3 +159,10 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 	free(bpo->locks);
 	free(bpo);
 }
+
+void bitpropagator_offline_applyadvice(bool * bitflags, uint8_t * local_data, size_t blocksize, size_t blockcount, int32_t advice) {
+	#pragma omp parallel for
+	for (size_t ii = 0; ii < blockcount; ii++) {
+		bitflags[ii] = (local_data[ii * blocksize + advice/8] >> (advice % 8)) & 1;
+	}
+}

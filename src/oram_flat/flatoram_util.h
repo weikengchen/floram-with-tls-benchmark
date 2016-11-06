@@ -20,6 +20,6 @@ void get_random_bytes(void *buf, size_t bytes);
 
 void offline_expand_init();
 void offline_expand_deinit();
-void offline_expand(void * dest, void * src, size_t n);
+void offline_expand(uint8_t * dest, uint8_t * src, size_t n);
 
 #endif

@@ -1,13 +1,13 @@
 #include "endian.oh"
 
-void be32enc(obliv uint8_t * dst, obliv uint32_t x) {
+void be32enc(obliv uint8_t * dst, obliv uint32_t x) obliv {
 	dst[3] = x & 0xff;
 	dst[2] = (x >> 8) & 0xff;
 	dst[1] = (x >> 16) & 0xff;
 	dst[0] = (x >> 24) & 0xff;
 }
 
-obliv uint32_t be32dec(obliv uint8_t * p) {
+obliv uint32_t be32dec(obliv uint8_t * p) obliv {
 	obliv uint32_t result = 0;
 	for (int ii = 0; ii < 4; ii++) {
 		result += (obliv uint32_t)p[3-ii] << (ii*8);
@@ -15,7 +15,7 @@ obliv uint32_t be32dec(obliv uint8_t * p) {
 	return result;
 }
 
-void be64enc(obliv uint8_t * dst, obliv uint64_t x) {
+void be64enc(obliv uint8_t * dst, obliv uint64_t x) obliv {
 	dst[7] = x & 0xff;
 	dst[6] = (x >> 8) & 0xff;
 	dst[5] = (x >> 16) & 0xff;
@@ -26,7 +26,7 @@ void be64enc(obliv uint8_t * dst, obliv uint64_t x) {
 	dst[0] = (x >> 56) & 0xff;
 }
 
-void be32enc_vect(obliv uint8_t * dst, obliv const uint32_t * src, size_t len) {
+void be32enc_vect(obliv uint8_t * dst, obliv const uint32_t * src, size_t len) obliv {
 	for (size_t ii = 0; ii < len / 4; ii++) {
 		dst[ii * 4 + 3] = src[ii] & 0xFF;
 		dst[ii * 4 + 2] = (src[ii] >> 8) & 0xFF;
@@ -35,7 +35,7 @@ void be32enc_vect(obliv uint8_t * dst, obliv const uint32_t * src, size_t len) {
 	}
 }
 
-void be64enc_vect(obliv uint8_t * dst, obliv const uint64_t * src, size_t len) {
+void be64enc_vect(obliv uint8_t * dst, obliv const uint64_t * src, size_t len) obliv {
 	for (size_t ii = 0; ii < len / 8; ii++) {
 		dst[ii * 8 + 7] = src[ii] & 0xFF;
 		dst[ii * 8 + 6] = (src[ii] >> 8) & 0xFF;
@@ -48,14 +48,14 @@ void be64enc_vect(obliv uint8_t * dst, obliv const uint64_t * src, size_t len) {
 	}
 }
 
-void le32enc(obliv uint8_t * p, obliv uint32_t x) {
+void le32enc(obliv uint8_t * p, obliv uint32_t x) obliv {
 	p[0] = x & 0xFF;
 	p[1] = (x >> 8) & 0xFF;
 	p[2] = (x >> 16) & 0xFF;
 	p[3] = (x >> 24) & 0xFF;
 }
 
-obliv uint32_t le32dec(obliv uint8_t * p) {
+obliv uint32_t le32dec(obliv uint8_t * p) obliv {
 	obliv uint32_t result = 0;
 	for (int ii = 0; ii < 4; ii++) {
 		result += (obliv uint32_t)p[ii] << (ii*8);

@@ -15,4 +15,6 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel);
 void bitpropagator_offline_free(bitpropagator_offline * bpo);
 
+void bitpropagator_offline_applyadvice(bool * bitflags, uint8_t * local_data, size_t blocksize, size_t blockcount, int32_t advice);
+
 #endif

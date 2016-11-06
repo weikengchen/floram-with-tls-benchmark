@@ -5,6 +5,7 @@
 typedef struct bitpropagator bitpropagator;
 
 void bitpropagator_getblockvector(void * active_block_pair, void * local_output, bitpropagator * bp, obliv uint32_t index);
+int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * activeblock_B);
 bitpropagator * bitpropagator_new(size_t size, uint32_t truncated_levels);
 void bitpropagator_free(bitpropagator * bp);
 

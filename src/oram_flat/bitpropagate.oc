@@ -56,17 +56,10 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv uint32_t * indexp) {
 			revealOblivChar(&bp->Z_local[jj], *((obliv uint8_t *)element(&ocCopyChar, bp->Z, jj)), 0);
 		}
 
-		obliv int32_t advicebit = -1;
-		for (size_t kk = 0; kk < BLOCKSIZE; kk ++) {
-			for (uint8_t jj = 0; jj < 8; jj++) {
-				obliv if ((((*(obliv uint8_t*)element(&ocCopyChar, bp->blocktemp_A, kk)) >> jj) & 1) != (((*(obliv uint8_t*)element(&ocCopyChar, bp->blocktemp_B, kk)) >> jj) & 1)) {
-					advicebit = kk * 8 + jj;
-				}
-			}
-		}
-		int32_t advicebit_local;
-		revealOblivInt(&advicebit_local, advicebit, 0);
-		//Note: if the advicebit is -1, we've found a collision in the PRG and must fail!
+		int32_t advicebit_local = bitpropagator_getadvice(bp->blocktemp_A, bp->blocktemp_B);
+
+		if (advicebit_local == -1) printf("HELP");
+		else if (advicebit_local < 0) printf("HELP!");
 
 		bitpropagator_offline_push_Z(bp->bpo, bp->Z_local, advicebit_local, ii);
 
@@ -119,6 +112,22 @@ void bitpropagator_getblockvector(void * active_block_pair, void * local_output,
 	//write output
 	ocCopyN(&ocCopyChar, element(&ocCopyChar, active_block_pair, 0), bp->activeblock_A, BLOCKSIZE);
 	ocCopyN(&ocCopyChar, element(&ocCopyChar, active_block_pair, BLOCKSIZE), bp->activeblock_B, BLOCKSIZE);
+}
+
+int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * activeblock_B) {
+	obliv int32_t advicebit = -1;
+	int32_t advicebit_local;
+	revealOblivInt(&advicebit_local, advicebit, 0);
+	for (size_t kk = 0; kk < BLOCKSIZE; kk ++) {
+		for (uint8_t jj = 0; jj < 8; jj++) {
+			obliv if ((((*(obliv uint8_t*)element(&ocCopyChar, activeblock_A, kk)) >> jj) & 1) != (((*(obliv uint8_t*)element(&ocCopyChar, activeblock_B, kk)) >> jj) & 1)) {
+				advicebit = kk * 8 + jj;
+			}
+		}
+	}
+	revealOblivInt(&advicebit_local, advicebit, 0);
+	return advicebit_local;
+	//Note: if the advicebit is -1, we've found a collision in the PRG and must fail!
 }
 
 bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {

@@ -77,7 +77,7 @@ void offline_expand_deinit() {
 	sslinits--;
 }
 
-void offline_expand(void * dest, void * src, size_t n) {
+void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 	EVP_CIPHER_CTX *ctx;
 	ctx = EVP_CIPHER_CTX_new();
 	EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);

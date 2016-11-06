@@ -1,5 +1,8 @@
 #include <obliv.oh>
 #include "oram_flat/bitpropagate.oh"
+#include "oram_flat/bitpropagate.h"
+#include "oram_flat/scanrom.oh"
+#include <copy.oh>
 #include "test_generic.h"
 
 #define BLOCKCOUNT 64
@@ -20,13 +23,31 @@ struct option* get_long_options() {
 
 void print_supplementary_help() {}
 
+
+
+struct scanrom {
+	OcCopy * blockcpy;
+	uint8_t * local_data;
+	uint8_t * local_halfkey;
+	uint8_t * local_halfpad;
+	obliv uint8_t * halfkey_a;
+	obliv uint8_t * halfkey_b;
+	uint8_t * local_blocktemp;
+	obliv uint8_t * blocktemp;
+	size_t blockmultiple;
+	size_t blockcount;
+	size_t fullblocksize;
+};
+
+
 void test_main(void*varg) {
 
 	{
-		size_t propagatorblocks = 200000000;
+
+		size_t propagatorblocks = 2000;
 		bitpropagator * bp = bitpropagator_new(propagatorblocks, 6);
-		void * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
-		void * local_output;
+		obliv uint8_t * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
+		uint8_t * local_output;
 		pma(&local_output, 16, propagatorblocks * 16);
 
 		int64_t runtime = -current_timestamp();
@@ -34,11 +55,10 @@ void test_main(void*varg) {
 		bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
 		runtime +=current_timestamp();
 		ygc += yaoGateCount();
-		bitpropagator_free(bp);
 
-		printf("runtime: %d\n",runtime);
+		/*printf("runtime: %d\n",runtime);
 		printf("gates:   %d\n\b",ygc);
-
+		
 		printf("active 1: ");
 		char temp;
 		for (int ii = 0; ii < 16; ii++) {
@@ -51,18 +71,65 @@ void test_main(void*varg) {
 			printf("%02hhX",temp);
 		}
 		printf("\n");
-			
 
-		/*for (int ii = 0; ii < propagatorblocks; ii++) {
-			printf("%02d: ",ii);
-			for (int jj = 0; jj< 16; jj++) {
-				printf("%02hhX",((char*)local_output)[ii*16+jj]);
+		printf("local: \n");
+		for (int ii = 0; ii < propagatorblocks; ii++) {
+			printf("\t%08d: ",ii);
+			for (int jj = 0; jj < 16; jj++) {
+				printf("%02hhX",local_output[ii*16+jj]);
 			}
 			printf("\n");
 		}*/
+		
+		OcCopy cpy = ocCopyCharN(16);
+		obliv uint8_t * key_local = calloc(1, 16);
+		for (int ii = 0; ii < (16)/sizeof(uint32_t); ii++) {
+			((uint32_t *)key_local)[ii] = rand();
+		}
+		scanrom * rom = scanrom_new(&cpy, propagatorblocks, key_local);
 
-		free(active_block_pair);
-		free(local_output);
+		uint8_t * localdata = malloc(propagatorblocks * 16);
+		obliv uint8_t * block = calloc(1, 16*sizeof(obliv uint8_t));
+		bool * bitflags = malloc(propagatorblocks * sizeof(bool));
+		for (int ii = 0; ii < (propagatorblocks * 16)/sizeof(uint32_t); ii++) {
+			((uint32_t *)localdata)[ii] = rand();
+		}
+
+		scanrom_write_from_xor_shares(rom, localdata, 0, propagatorblocks);
+
+		for (int ii=0; ii < 10; ii++) {
+			obliv size_t index = feedOblivLLong(rand()%propagatorblocks, 1);
+			size_t localindex;
+			revealOblivLLong(&localindex, index, 0);
+			printf("READ  RESULT TEST INDEX: %d", localindex);
+			bitpropagator_getblockvector(active_block_pair, local_output, bp, index);
+			int32_t advice = bitpropagator_getadvice(active_block_pair, &active_block_pair[16]);
+			bitpropagator_offline_applyadvice(bitflags, local_output, 16, propagatorblocks, advice);
+
+			/*printf("\n\tadvice: ");
+			for(int jj = 0; jj < propagatorblocks; jj++) {
+				printf("%d", bitflags[jj]);
+			}*/
+
+			scanrom_read_with_bitvector(block, rom, index, bitflags);
+			printf("\n\tresult: ");
+			for (int jj=0; jj<16;jj++) {
+				uint8_t temp;
+				revealOblivChar(&temp, block[jj], 0);
+				printf("%02hhX", temp);
+			}
+			printf("\n\texpect: ");
+			for (int jj=0; jj<16;jj++) {
+				uint8_t temp = ocBroadcastChar(localdata[localindex * 16 + jj], 1);
+				temp ^= ocBroadcastChar(localdata[localindex * 16 + jj], 2);
+				printf("%02hhX", temp);
+			}
+			printf("\n");
+		}
+
+		bitpropagator_free(bp);
+		scanrom_free(rom);
+		
 	}
 	
 
