@@ -6,6 +6,9 @@
 #include <openssl/evp.h>
 #include <openssl/err.h>
 
+#include <wmmintrin.h>
+
+
 static int sslinits = 0;
 static void* sslzero;
 static omp_lock_t * ssllocks;
@@ -77,14 +80,151 @@ void offline_expand_deinit() {
 	sslinits--;
 }
 
+#define KE(NK,OK,RND) NK = OK;	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
+
+
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
-	EVP_CIPHER_CTX *ctx;
-	ctx = EVP_CIPHER_CTX_new();
-	EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
-	EVP_CIPHER_CTX_set_padding(ctx, 0);
-	int len;
-	for (size_t ii = 0; ii < n; ii++) {
-		EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
-	}
-	EVP_CIPHER_CTX_free(ctx);
+	// EVP_CIPHER_CTX *ctx;
+	// ctx = EVP_CIPHER_CTX_new();
+	// EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
+	// EVP_CIPHER_CTX_set_padding(ctx, 0);
+	// int len;
+	// for (size_t ii = 0; ii < n; ii++) {
+	// 	EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
+	// }
+	// EVP_CIPHER_CTX_free(ctx);
+
+
+
+    __m128i seed;
+    seed = _mm_load_si128((__m128i *) src);
+
+	__m128i nk; // next key
+	__m128i ml,mr, ok;
+	ok = seed;
+
+    ml = _mm_xor_si128(ml, ml); 				// msg = 0
+    mr = _mm_set_epi64((__m64)0l,(__m64)1l);	// msg = 1
+
+    // round 0
+    ml = _mm_xor_si128(ml, ok);
+    mr = _mm_xor_si128(mr, ok);
+
+
+	// key expand 1 KEYEXP128(rk[0], 0x01);
+	KE(nk, ok, 0x01)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x02)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x04)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x08)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x10)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x20)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x40)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x80)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x1b)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x36)
+    ml = _mm_aesenclast_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+    _mm_storeu_si128((__m128i*) dest, ml);
+    _mm_storeu_si128((__m128i*) dest+16, mr);
+
+}
+
+
+
+void fss_expand(const unsigned char* s0, unsigned char* outl, unsigned char* outr) {
+
+    __m128i seed;
+    seed = _mm_load_si128((__m128i *) s0);
+
+	__m128i nk; // next key
+	__m128i ok; // next key
+	__m128i ml,mr;
+	ok = seed;
+
+    ml = _mm_xor_si128(ml, ml); 	// msg = 0
+    mr = _mm_set_epi64((__m64)0l,(__m64)1l);
+    //m1 = _mm_xor_si128(ml, 0x000000001); 	// msg = 0
+
+    // round 0
+    ml = _mm_xor_si128(ml, ok);
+    mr = _mm_xor_si128(mr, ok);
+
+
+	// key expand 1 KEYEXP128(rk[0], 0x01);
+	KE(nk, ok, 0x01)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x02)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x04)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x08)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x10)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x20)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x40)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x80)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x1b)
+    ml = _mm_aesenc_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+	KE(nk, ok, 0x36)
+    ml = _mm_aesenclast_si128(ml, ok);
+    mr = _mm_aesenc_si128(mr, ok);
+
+    _mm_storeu_si128((__m128i*) outl, ml);
+    _mm_storeu_si128((__m128i*) outr, mr);
+
+
 }
