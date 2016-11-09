@@ -28,8 +28,8 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv uint32_t * indexp) {
 		levelindex = (index >> (bp->endlevel - ii)) & 1;
 
 		//first expand our active blocks into two blocks (L/R)
-		online_expand(bp->expanded_A, bp->activeblock_A, bp->blockzero, 2);
-		online_expand(bp->expanded_B, bp->activeblock_B, bp->blockzero, 2);
+		online_expand(bp->expanded_A, bp->activeblock_A, 2);
+		online_expand(bp->expanded_B, bp->activeblock_B, 2);
 		obliv if (levelindex == 0) {
 			//copy the branch to be silenced so that we can scan it for an advice bit
 			ocCopyN(&ocCopyChar, bp->blocktemp_A, element(&ocCopyChar, bp->expanded_A, BLOCKSIZE), BLOCKSIZE);
@@ -131,6 +131,7 @@ int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * a
 }
 
 bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
+	online_expand_init();
 	bitpropagator * bp = malloc(sizeof(bitpropagator));
 	bp->size = size;
 	bp->startlevel = startlevel;
@@ -164,5 +165,6 @@ void bitpropagator_free(bitpropagator * bp) {
 	free(bp->Z);
 	free(bp->Z_local);
 	bitpropagator_offline_free(bp->bpo);
+	online_expand_deinit();
 	free(bp);
 }

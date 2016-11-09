@@ -5,6 +5,9 @@
 
 void* element(OcCopy* cpy,void* arr,uint32_t x) obliv;
 
-void online_expand(void * dest, void * src, void* zero, size_t n) obliv;
+void online_expand(void * dest, void * src, size_t n) obliv;
+
+void online_expand_init();
+void online_expand_deinit();
 
 #endif

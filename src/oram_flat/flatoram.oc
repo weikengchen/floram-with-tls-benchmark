@@ -24,7 +24,7 @@ struct flatoram {
 	uint32_t elementsperblock;
 };
 
-void flatoram_read(void* data, scanram* ram, obliv uint32_t index) obliv {
+void flatoram_read(void* data, flatoram* ram, obliv uint32_t index) obliv {
 	obliv uint32_t blockid = index / ram->elementsperblock;
 	obliv uint32_t subblockid = index % ram->elementsperblock;
 	~obliv() bitpropagator_getblockvector(ram->active_blocks_temp, ram->blockvector_local_temp, ram->bitpropagator, blockid);
@@ -72,21 +72,23 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 
 
 	//scanwrom_write_with_bitvectors(ram->writemem, element(ram->blockcpy, ram->stash, 0), ram->blocktemp, ram->bitvector_data_temp, ram->bitvector_flags_temp);
-
-	ram->progress++;
-	if (ram->progress == ram->period) flatoram_refresh(ram);
+	~obliv() {
+		ram->progress++;
+		if (ram->progress == ram->period) flatoram_refresh(ram);
+	}
 }
 
 void writer_function(OcCopy * cpy, void * oram_block, void * ext_block) obliv {
   ocCopy(cpy, oram_block, ext_block);
 }
 
-void flatoram_write(scanram* ram, void* data, obliv uint32_t index) obliv {
+void flatoram_write(flatoram* ram, void* data, obliv uint32_t index) obliv {
 	flatoram_apply(ram, data, writer_function, index);
 }
 
 void flatoram_refresh(flatoram* ram) {
 	ram->progress = 0;
+	scanrom_import_from_scanwrom(ram->readmem, ram->writemem);
 }
 
 flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
@@ -119,12 +121,10 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	//Set initial romkey and wromkey. Each party is expected to supply a different random value
 	ram->romkey_local = malloc(KEYSIZE);
-	ram->wromkey_local = malloc(KEYSIZE);
 	get_random_bytes(ram->romkey_local, KEYSIZE);
-	get_random_bytes(ram->wromkey_local, KEYSIZE);
 
 	ram->readmem = scanrom_new(ram->blockcpy, ram->blockcount, ram->romkey_local);
-	ram->writemem = scanwrom_new(ram->blockcpy, ram->blockcount, ram->wromkey_local);
+	ram->writemem = scanwrom_new(ram->blockcpy, ram->blockcount);
 
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {

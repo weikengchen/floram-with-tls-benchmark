@@ -26,3 +26,18 @@ void scanrom_encrypt_offline(void * out, void * in, void* pad, size_t len) {
 		((uint64_t *)out)[ii] = ((uint64_t *)in)[ii] ^ ((uint64_t *)pad)[ii];
 	}	
 }
+
+
+void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blockvector, uint8_t*Zblock, int32_t advicebit, bool expand, size_t fullblocksize, size_t blockcount) {
+	for (size_t ii = 0; ii< blockcount; ii++) {
+		if ((blockvector[ii * fullblocksize + advicebit/8] >> (advicebit%8)) & 1) {
+			for (size_t jj = 0; jj < fullblocksize; jj++) {
+				local_data[ii * fullblocksize + jj] ^= blockvector[ii * fullblocksize + jj] ^ Zblock[jj];
+			}
+		} else {
+			for (size_t jj = 0; jj < fullblocksize; jj++) {
+				local_data[ii * fullblocksize + jj] ^= blockvector[ii * fullblocksize + jj];
+			}
+		}
+	}
+}
