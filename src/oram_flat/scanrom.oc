@@ -21,6 +21,18 @@ struct scanrom {
 	size_t fullblocksize;
 };
 
+struct scanwrom {
+	OcCopy * blockcpy;
+	uint8_t * local_data;
+	uint8_t * local_blocktemp;
+	obliv uint8_t * blocktemp;
+	size_t blockmultiple;
+	size_t blockcount;
+	size_t fullblocksize;
+};
+
+
+
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
 	~obliv() {
 		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
@@ -62,7 +74,7 @@ void scanrom_read_with_blockvector(obliv uint8_t * data, scanrom * rom, obliv si
 	scanrom_read_with_bitvector(data, rom, index, rom->bitvector);
 }
 
-void scanrom_write_from_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len) {
+void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len) {
 	//receives one share from each party, encrypts them locally, and shares them
 	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize * MIN(len, rom->blockcount - index));
 	for (; index < MIN(len, rom->blockcount); index++) {
@@ -92,7 +104,7 @@ void scanrom_set_key(scanrom* rom, uint8_t* key_local) {
 }
 
 void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom) {
-	scanrom_write_from_xor_shares(rom, wrom->local_data, 0, rom->blockcount);
+	scanrom_write_xor_shares(rom, wrom->local_data, 0, rom->blockcount);
 }
 
 scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
@@ -133,15 +145,6 @@ void scanrom_free(scanrom* rom) {
 
 
 
-struct scanwrom {
-	OcCopy * blockcpy;
-	uint8_t * local_data;
-	uint8_t * local_blocktemp;
-	obliv uint8_t * blocktemp;
-	size_t blockmultiple;
-	size_t blockcount;
-	size_t fullblocksize;
-};
 
 void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
 	for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
@@ -187,7 +190,7 @@ void scanwrom_read_xor_shares(uint8_t * data, scanwrom* rom, size_t index, size_
 	memcpy(data, &rom->local_data[index * rom->fullblocksize], MIN(len*rom->fullblocksize, rom->blockcount - index));
 }
 
-void scanrom_write_xor_shares(scanwrom* rom, uint8_t * data, size_t index, size_t len) {
+void scanwrom_write_xor_shares(scanwrom* rom, uint8_t * data, size_t index, size_t len) {
 	memcpy(&rom->local_data[index * rom->fullblocksize], data, MIN(len*rom->fullblocksize, rom->blockcount - index));
 }
 

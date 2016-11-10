@@ -39,6 +39,8 @@ const char* getOramName(oram_type mode) {
 			return "Circuit ORAM:";
 		case ORAM_TYPE_LINEAR:
 			return "Linear Scan:";
+		case ORAM_TYPE_FLAT:
+			return "Flat ORAM:";
 		default:
 			return "Unknown";
 	}
@@ -181,6 +183,7 @@ void testOramType(oram_type mode) {
 }
 
 void test_main(void*varg) {
+	testOramType(ORAM_TYPE_FLAT);
 	testOramType(ORAM_TYPE_SQRT);
 	testOramType(ORAM_TYPE_CIRCUIT);
 	testOramType(ORAM_TYPE_LINEAR);

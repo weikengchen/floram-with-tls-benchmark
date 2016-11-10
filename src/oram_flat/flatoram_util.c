@@ -87,7 +87,7 @@ void offline_expand_deinit() {
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
 
 
-void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
+void offline_expand_2(uint8_t * dest, uint8_t * src) {
 	// EVP_CIPHER_CTX *ctx;
 	// ctx = EVP_CIPHER_CTX_new();
 	// EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
@@ -161,7 +161,7 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 }
 
 
-void offline_expand_n(uint8_t * dest, uint8_t * src, size_t n) {
+void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 	// this version handles the case when n!=2 using a loop
 
     __m128i seed;
