@@ -7,7 +7,10 @@
 #include <openssl/err.h>
 
 #include <wmmintrin.h>
+#include <tmmintrin.h>
 
+
+// gcc -c -O3 -maes -I/usr/include -I . -I ../../src/ -std=c99 -fopenmp flatoram_util.c -o flatoram_util.o -I ../ext/oblivc
 
 static int sslinits = 0;
 static void* sslzero;
@@ -97,7 +100,18 @@ void offline_expand_2(uint8_t * dest, uint8_t * src) {
 	// 	EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
 	// }
 	// EVP_CIPHER_CTX_free(ctx);
+	EVP_CIPHER_CTX *ctx;
+	ctx = EVP_CIPHER_CTX_new();
+	EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
+	EVP_CIPHER_CTX_set_padding(ctx, 0);
+	int len;
+	for (size_t ii = 0; ii < n; ii++) {
+		EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
+	}
+	EVP_CIPHER_CTX_free(ctx);	
+}
 
+void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);
@@ -112,7 +126,6 @@ void offline_expand_2(uint8_t * dest, uint8_t * src) {
     // round 0
     ml = _mm_xor_si128(ml, ok);
     mr = _mm_xor_si128(mr, ok);
-
 
 	// key expand 1 KEYEXP128(rk[0], 0x01);
 	KE(nk, ok, 0x01)
@@ -156,13 +169,21 @@ void offline_expand_2(uint8_t * dest, uint8_t * src) {
     mr = _mm_aesenclast_si128(mr, ok);
 
     _mm_storeu_si128((__m128i*) dest, ml);
-    _mm_storeu_si128((__m128i*) dest+16, mr);
+    uint8_t* pp = (dest+16);
+    _mm_storeu_si128((__m128i*) pp, mr);
 
 }
 
 
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
-	// this version handles the case when n!=2 using a loop
+#define KE2(NK,OK,RND) NK = OK;	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
+
+
+    // this version handles the case when n!=2 using a loop
 
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);
@@ -171,19 +192,23 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 	__m128i mr, ok;
 	ok = seed;
 
-	KE(r1, ok, 0x01)
-	KE(r2, ok, 0x02)
-	KE(r3, ok, 0x04)
-	KE(r4, ok, 0x08)
-	KE(r5, ok, 0x10)
-	KE(r6, ok, 0x20)
-	KE(r7, ok, 0x40)
-	KE(r8, ok, 0x80)
-	KE(r9, ok, 0x1b)
-	KE(r10, ok, 0x36)
+	KE2(r1, ok, 0x01)
+	KE2(r2, r1, 0x02)
+	KE2(r3, r2, 0x04)
+	KE2(r4, r3, 0x08)
+	KE2(r5, r4, 0x10)
+	KE2(r6, r5, 0x20)
+	KE2(r7, r6, 0x40)
+	KE2(r8, r7, 0x80)
+	KE2(r9, r8, 0x1b)
+	KE2(r10, r9, 0x36)
 
-	for(long li=0; li<n; li++) {
-	    mr = _mm_set_epi64((__m64)0l,(__m64)li);	// msg = li
+	__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
+
+	for(size_t li=0; li<n; li++) {
+	    mr = _mm_set_epi64((__m64)li,(__m64)0l);	// msg = li
+		mr = _mm_shuffle_epi8 (mr, mask);
+
 	    mr = _mm_xor_si128(mr, ok);					// round 0
 
 	    mr = _mm_aesenc_si128(mr, r1);
@@ -196,8 +221,8 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 	    mr = _mm_aesenc_si128(mr, r8);
 	    mr = _mm_aesenc_si128(mr, r9);
 	    mr = _mm_aesenclast_si128(mr, r10);
-
-	    _mm_storeu_si128((__m128i*) dest+li*16, mr);
+	    uint8_t* pp = dest+(li*16);
+	    _mm_storeu_si128((__m128i*) pp, mr);
 
 	}
 
@@ -205,69 +230,3 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 
 }
 
-
-void fss_expand(const unsigned char* s0, unsigned char* outl, unsigned char* outr) {
-
-    __m128i seed;
-    seed = _mm_load_si128((__m128i *) s0);
-
-	__m128i nk; // next key
-	__m128i ok; // next key
-	__m128i ml,mr;
-	ok = seed;
-
-    ml = _mm_xor_si128(ml, ml); 	// msg = 0
-    mr = _mm_set_epi64((__m64)0l,(__m64)1l);
-    //m1 = _mm_xor_si128(ml, 0x000000001); 	// msg = 0
-
-    // round 0
-    ml = _mm_xor_si128(ml, ok);
-    mr = _mm_xor_si128(mr, ok);
-
-
-	// key expand 1 KEYEXP128(rk[0], 0x01);
-	KE(nk, ok, 0x01)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x02)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x04)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x08)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x10)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x20)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x40)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x80)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x1b)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x36)
-    ml = _mm_aesenclast_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-    _mm_storeu_si128((__m128i*) outl, ml);
-    _mm_storeu_si128((__m128i*) outr, mr);
-
-
-}
