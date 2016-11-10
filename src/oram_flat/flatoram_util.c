@@ -99,7 +99,6 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 	// EVP_CIPHER_CTX_free(ctx);
 
 
-
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);
 
@@ -154,13 +153,57 @@ void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 
 	KE(nk, ok, 0x36)
     ml = _mm_aesenclast_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
+    mr = _mm_aesenclast_si128(mr, ok);
 
     _mm_storeu_si128((__m128i*) dest, ml);
     _mm_storeu_si128((__m128i*) dest+16, mr);
 
 }
 
+
+void offline_expand_n(uint8_t * dest, uint8_t * src, size_t n) {
+	// this version handles the case when n!=2 using a loop
+
+    __m128i seed;
+    seed = _mm_load_si128((__m128i *) src);
+
+	__m128i r1,r2,r3,r4,r5,r6,r7,r8,r9,r10; // next key
+	__m128i mr, ok;
+	ok = seed;
+
+	KE(r1, ok, 0x01)
+	KE(r2, ok, 0x02)
+	KE(r3, ok, 0x04)
+	KE(r4, ok, 0x08)
+	KE(r5, ok, 0x10)
+	KE(r6, ok, 0x20)
+	KE(r7, ok, 0x40)
+	KE(r8, ok, 0x80)
+	KE(r9, ok, 0x1b)
+	KE(r10, ok, 0x36)
+
+	for(long li=0; li<n; li++) {
+	    mr = _mm_set_epi64((__m64)0l,(__m64)li);	// msg = li
+	    mr = _mm_xor_si128(mr, ok);					// round 0
+
+	    mr = _mm_aesenc_si128(mr, r1);
+	    mr = _mm_aesenc_si128(mr, r2);
+	    mr = _mm_aesenc_si128(mr, r3);
+	    mr = _mm_aesenc_si128(mr, r4);
+	    mr = _mm_aesenc_si128(mr, r5);
+	    mr = _mm_aesenc_si128(mr, r6);
+	    mr = _mm_aesenc_si128(mr, r7);
+	    mr = _mm_aesenc_si128(mr, r8);
+	    mr = _mm_aesenc_si128(mr, r9);
+	    mr = _mm_aesenclast_si128(mr, r10);
+
+	    _mm_storeu_si128((__m128i*) dest+li*16, mr);
+
+	}
+
+
+
+}
 
 
 void fss_expand(const unsigned char* s0, unsigned char* outl, unsigned char* outr) {

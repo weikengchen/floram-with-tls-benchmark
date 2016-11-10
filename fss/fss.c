@@ -110,7 +110,7 @@ void fss_expand(const unsigned char* s0, unsigned char* outl, unsigned char* out
 
 	KE(nk, ok, 0x36)
     ml = _mm_aesenclast_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
+    mr = _mm_aesenclast_si128(mr, ok);
 
     _mm_storeu_si128((__m128i*) outl, ml);
     _mm_storeu_si128((__m128i*) outr, mr);
