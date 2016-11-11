@@ -22,7 +22,10 @@ void get_random_bytes(void *buf, size_t bytes) {
 
 	FILE *fp;
 	fp = fopen("/dev/urandom", "r");
-	fread(buf, 1, bytes, fp);
+	if (fread(buf, 1, bytes, fp) != bytes) {
+		fprintf(stderr,"Could not read random bytes.");
+		exit(1);
+	}
 	fclose(fp);
 }
 
@@ -90,7 +93,7 @@ void offline_expand_deinit() {
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
 
 
-void offline_expand_2(uint8_t * dest, uint8_t * src) {
+void offline_expand_old(uint8_t * dest, uint8_t * src, size_t n) {
 	// EVP_CIPHER_CTX *ctx;
 	// ctx = EVP_CIPHER_CTX_new();
 	// EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
@@ -111,7 +114,7 @@ void offline_expand_2(uint8_t * dest, uint8_t * src) {
 	EVP_CIPHER_CTX_free(ctx);	
 }
 
-void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
+void offline_expand_2(uint8_t * dest, uint8_t * src) {
 
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);
