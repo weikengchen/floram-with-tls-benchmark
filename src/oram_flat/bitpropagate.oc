@@ -6,54 +6,64 @@ struct bitpropagator {
 	uint32_t startlevel;
 	uint32_t endlevel;
 	size_t size;
-	void * toplevel;
-	void * toplevel_local;
-	void * blockzero;
-	void * blocktemp_A;
-	void * blocktemp_B;
-	void * activeblock_A;
-	void * activeblock_B;
-	void * expanded_A;
-	void * expanded_B;
-	void * Z;
-	void * Z_local;
+	obliv uint8_t * toplevel;
+	uint8_t * toplevel_local;
+	obliv uint8_t * blockzero;
+	obliv uint8_t * blocktemp_A;
+	obliv uint8_t * blocktemp_B;
+	obliv uint8_t * activeblock_A;
+	obliv uint8_t * activeblock_B;
+	obliv uint8_t * expanded_A;
+	obliv uint8_t * expanded_B;
+	obliv uint8_t * Z;
+	uint8_t * Z_local;
 	bitpropagator_offline * bpo;
 };
 
-void bitpropagator_traverselevels(bitpropagator * bp, obliv uint32_t * indexp) {
+void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 	obliv uint32_t levelindex;
-	obliv uint32_t index = *indexp;
+	obliv size_t index = *indexp;
 
 	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
 		levelindex = (index >> (bp->endlevel - ii)) & 1;
+
+		bool diff = false;
+		for (size_t jj = 0; jj < BLOCKSIZE; jj++) {
+			uint8_t temp1;
+			uint8_t temp2;
+			revealOblivChar(&temp1, ((obliv uint8_t *)bp->activeblock_A)[jj],0);
+			revealOblivChar(&temp2, ((obliv uint8_t *)bp->activeblock_B)[jj],0);
+			diff |= temp1 != temp2;
+		}
+		if (!diff) printf("ACTIVE BLOCKS IDENTICAL!\n");
 
 		//first expand our active blocks into two blocks (L/R)
 		online_expand(bp->expanded_A, bp->activeblock_A, 2);
 		online_expand(bp->expanded_B, bp->activeblock_B, 2);
 		obliv if (levelindex == 0) {
 			//copy the branch to be silenced so that we can scan it for an advice bit
-			ocCopyN(&ocCopyChar, bp->blocktemp_A, element(&ocCopyChar, bp->expanded_A, BLOCKSIZE), BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, element(&ocCopyChar, bp->expanded_B, BLOCKSIZE), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_A, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_B, &bp->expanded_B[BLOCKSIZE], BLOCKSIZE);
 			//copy the branch to be kept
-			ocCopyN(&ocCopyChar, bp->activeblock_A, element(&ocCopyChar, bp->expanded_A, 0), BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->activeblock_B, element(&ocCopyChar, bp->expanded_B, 0), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->activeblock_A, bp->expanded_A, BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->activeblock_B, bp->expanded_B, BLOCKSIZE);
 		} else {
 			//copy the branch to be silenced so that we can scan it for an advice bit
-			ocCopyN(&ocCopyChar, bp->blocktemp_A, element(&ocCopyChar, bp->expanded_A, 0), BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, element(&ocCopyChar, bp->expanded_B, 0), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_A, bp->expanded_A, BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_B, bp->expanded_B, BLOCKSIZE);
 			//copy the branch to be kept
-			ocCopyN(&ocCopyChar, bp->activeblock_A, element(&ocCopyChar, bp->expanded_A, BLOCKSIZE), BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->activeblock_B, element(&ocCopyChar, bp->expanded_B, BLOCKSIZE), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->activeblock_A, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->expanded_B[BLOCKSIZE], BLOCKSIZE);
 		}
 
 		//Z = block_A XOR block_B for the silenced branch
 		ocCopyN(&ocCopyChar, bp->Z, bp->blocktemp_A, BLOCKSIZE);
 		for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-			*(obliv uint8_t*)element(&ocCopyChar, bp->Z, jj) ^= *(obliv uint8_t*)element(&ocCopyChar, bp->blocktemp_B, jj);
+			bp->Z[jj] ^= bp->blocktemp_B[jj];
 		}
 
 		for (size_t jj = 0; jj < BLOCKSIZE; jj++) {
-			revealOblivChar(&bp->Z_local[jj], *((obliv uint8_t *)element(&ocCopyChar, bp->Z, jj)), 0);
+			revealOblivChar(&bp->Z_local[jj], bp->Z[jj], 0);
 		}
 
 		int32_t advicebit_local = bitpropagator_getadvice(bp->blocktemp_A, bp->blocktemp_B);
@@ -64,45 +74,45 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv uint32_t * indexp) {
 		bitpropagator_offline_push_Z(bp->bpo, bp->Z_local, advicebit_local, ii);
 
 		//XOR the live branches with Z if they will also be XORed by the offline component
-		obliv if (((*(obliv uint8_t*)element(&ocCopyChar, bp->activeblock_A, advicebit_local/8) >> advicebit_local%8) & 1) == 1) {
+		obliv if (((bp->activeblock_A[advicebit_local/8] >> advicebit_local%8) & 1) == 1) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				*(obliv uint8_t*)element(&ocCopyChar, bp->activeblock_A, jj) ^= ((uint8_t *)bp->Z_local)[jj];
+				bp->activeblock_A[jj] ^= bp->Z_local[jj];
 			}
 		}
-		obliv if (((*(obliv uint8_t*)element(&ocCopyChar, bp->activeblock_B, advicebit_local/8) >> advicebit_local%8) & 1) == 1) {
+		obliv if (((bp->activeblock_B[advicebit_local/8] >> advicebit_local%8) & 1) == 1) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				*(obliv uint8_t*)element(&ocCopyChar, bp->activeblock_B, jj) ^= ((uint8_t *)bp->Z_local)[jj];
+				bp->activeblock_B[jj] ^= bp->Z_local[jj];
 			}
 		}
 	}
 }
 
-void bitpropagator_getblockvector(void * active_block_pair, void * local_output, bitpropagator * bp, obliv uint32_t index) {
+void bitpropagator_getblockvector(obliv uint8_t * active_block_pair, uint8_t * local_output, bitpropagator * bp, obliv size_t index) {
 
 	//Collect a set of random blocks for the top level
 	get_random_bytes(bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
 	for (size_t ii = 0; ii < ((1ll << bp->startlevel) + 1) * BLOCKSIZE; ii++) {
-		*(obliv uint8_t *)element(&ocCopyChar, bp->toplevel, ii) = feedOblivChar(((uint8_t *)bp->toplevel_local)[ii], 1);
-		*(obliv uint8_t *)element(&ocCopyChar, bp->toplevel, ii) ^= feedOblivChar(((uint8_t *)bp->toplevel_local)[ii], 2);
+		bp->toplevel[ii] = feedOblivChar(bp->toplevel_local[ii], 1);
+		bp->toplevel[ii] ^= feedOblivChar(bp->toplevel_local[ii], 2);
 	}
 
 	//now send identical blocks for all except the one branch that we're interested in.
-	obliv uint32_t levelindex = index >> (bp->endlevel - bp->startlevel);
+	obliv size_t levelindex = index >> (bp->endlevel - bp->startlevel);
 
-	for (size_t ii = 0; ii < ((1ll << bp->startlevel)); ii++) {
-		ocCopyN(&ocCopyChar, bp->blocktemp_A, element(&ocCopyChar, bp->toplevel, ii * BLOCKSIZE), BLOCKSIZE);
+	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) {
+		ocCopyN(&ocCopyChar, bp->blocktemp_A, &bp->toplevel[ii * BLOCKSIZE], BLOCKSIZE);
 		obliv if (levelindex != ii) {
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, element(&ocCopyChar, bp->toplevel, ii * BLOCKSIZE), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_B, &bp->toplevel[ii * BLOCKSIZE], BLOCKSIZE);
 		} else {
-			ocCopyN(&ocCopyChar, bp->activeblock_A, element(&ocCopyChar, bp->toplevel, ii * BLOCKSIZE), BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, element(&ocCopyChar, bp->toplevel, ((1ll << bp->startlevel))), BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->activeblock_A, &bp->toplevel[ii * BLOCKSIZE], BLOCKSIZE);
+			ocCopyN(&ocCopyChar, bp->blocktemp_B, &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
 		}
 		for (size_t jj = 0; jj < BLOCKSIZE; jj++) {
-			revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], *((obliv uint8_t *)element(&ocCopyChar, bp->blocktemp_A, jj)), 1);
-			revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], *((obliv uint8_t *)element(&ocCopyChar, bp->blocktemp_B, jj)), 2);
+			revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], bp->blocktemp_A[jj], 1);
+			revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], bp->blocktemp_B[jj], 2);
 		}
 	}
-	ocCopyN(&ocCopyChar, bp->activeblock_B, element(&ocCopyChar, bp->toplevel, ((1ll << bp->startlevel))), BLOCKSIZE);
+	ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
 
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 
@@ -110,8 +120,8 @@ void bitpropagator_getblockvector(void * active_block_pair, void * local_output,
 	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, bitpropagator_traverselevels);
 
 	//write output
-	ocCopyN(&ocCopyChar, element(&ocCopyChar, active_block_pair, 0), bp->activeblock_A, BLOCKSIZE);
-	ocCopyN(&ocCopyChar, element(&ocCopyChar, active_block_pair, BLOCKSIZE), bp->activeblock_B, BLOCKSIZE);
+	ocCopyN(&ocCopyChar, active_block_pair, bp->activeblock_A, BLOCKSIZE);
+	ocCopyN(&ocCopyChar, &active_block_pair[BLOCKSIZE], bp->activeblock_B, BLOCKSIZE);
 }
 
 int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * activeblock_B) {
@@ -120,7 +130,7 @@ int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * a
 	revealOblivInt(&advicebit_local, advicebit, 0);
 	for (size_t kk = 0; kk < BLOCKSIZE; kk ++) {
 		for (uint8_t jj = 0; jj < 8; jj++) {
-			obliv if ((((*(obliv uint8_t*)element(&ocCopyChar, activeblock_A, kk)) >> jj) & 1) != (((*(obliv uint8_t*)element(&ocCopyChar, activeblock_B, kk)) >> jj) & 1)) {
+			obliv if (((activeblock_A[kk] >> jj) & 1) != (((activeblock_B[kk]) >> jj) & 1)) {
 				advicebit = kk * 8 + jj;
 			}
 		}

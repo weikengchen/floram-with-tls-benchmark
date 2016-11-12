@@ -1,4 +1,5 @@
 #include <obliv.oh>
+#include "oram_flat/flatoram_util.h"
 #include "oram_flat/bitpropagate.oh"
 #include "oram_flat/bitpropagate.h"
 #include "oram_flat/scanrom.oh"
@@ -55,16 +56,16 @@ void test_main(void*varg) {
 	{
 
 		size_t propagatorblocks = 200000;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks, 6);
+		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(6, LOG2(propagatorblocks)));
 		obliv uint8_t * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
 		uint8_t * local_output;
 		pma(&local_output, 16, propagatorblocks * 16);
 
-		int64_t runtime = -current_timestamp();
-		int64_t ygc = -yaoGateCount();
-		bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
-		runtime +=current_timestamp();
-		ygc += yaoGateCount();
+		//int64_t runtime = -current_timestamp();
+		//int64_t ygc = -yaoGateCount();
+		//bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
+		//runtime +=current_timestamp();
+		//ygc += yaoGateCount();
 
 		/*printf("runtime: %d\n",runtime);
 		printf("gates:   %d\n\b",ygc);
@@ -92,19 +93,19 @@ void test_main(void*varg) {
 		}*/
 		
 		OcCopy cpy = ocCopyCharN(16);
-		/*obliv uint8_t * key_local = calloc(1, 16);
+		obliv uint8_t * key_local = calloc(1, 16);
 		for (int ii = 0; ii < (16)/sizeof(uint32_t); ii++) {
 			((uint32_t *)key_local)[ii] = rand();
 		}
 		scanrom * rom = scanrom_new(&cpy, propagatorblocks, key_local);
 
-		uint8_t * localdata = malloc(propagatorblocks * 16);
+		uint8_t * localdata = calloc(propagatorblocks, 16);
 		obliv uint8_t * block = calloc(1, 16*sizeof(obliv uint8_t));
 		for (int ii = 0; ii < (propagatorblocks * 16)/sizeof(uint32_t); ii++) {
 			((uint32_t *)localdata)[ii] = rand();
 		}
 
-		scanrom_write_from_xor_shares(rom, localdata, 0, propagatorblocks);
+		scanrom_write_xor_shares(rom, localdata, 0, propagatorblocks);
 
 		uint64_t tally = 0;
 		uint64_t tallygates = 0;
@@ -124,26 +125,25 @@ void test_main(void*varg) {
 			runtime += current_timestamp();
 			rungates += yaoGateCount();
 
-			printf("Sample %d: %d microseconds, %d gates\n", ii, runtime, rungates);
+			//printf("Sample %d: %d microseconds, %d gates\n", ii, runtime, rungates);
 
 			tally += runtime;
 			tallygates += rungates;
-		}*/
+		}
 
-		scanwrom * rom = scanwrom_new(&cpy, propagatorblocks);
+		printf("READ (n:%d): %d microseconds avg, %d gates avg\n", propagatorblocks, tally / samples, tallygates / samples);
+		
+		scanwrom * wrom = scanwrom_new(&cpy, propagatorblocks);
 
-		uint8_t * localdata = calloc(1, propagatorblocks * 16);
+		memset(localdata, 0, propagatorblocks * 16);
 		uint8_t * localblock = malloc(32);
-		obliv uint8_t * block = calloc(1, 16*sizeof(obliv uint8_t));
 		obliv uint8_t * zero = calloc(1, 16*sizeof(obliv uint8_t));
 		for (int ii = 0; ii < (propagatorblocks * 16)/sizeof(uint32_t); ii++) {
 			if (ocCurrentParty() == 1) ((uint32_t *)localdata)[ii] = 0xDEADBEEF;
 		}
 
-		uint64_t tally = 0;
-		uint64_t tallygates = 0;
-
-		int samples = 30;
+		tally = 0;
+		tallygates = 0;
 
 		for (int ii=0; ii < samples; ii++) {
 			obliv size_t index = feedOblivLLong(rand()%propagatorblocks, 1);
@@ -157,34 +157,43 @@ void test_main(void*varg) {
 			int64_t rungates = -yaoGateCount();
 
 			bitpropagator_getblockvector(active_block_pair, local_output, bp, index);
-			scanwrom_write_with_blockvector(rom, active_block_pair, local_output, zero, block);
+			scanwrom_write_with_blockvector(wrom, active_block_pair, local_output, zero, block);
 
 			runtime += current_timestamp();
 			rungates += yaoGateCount();
 
-			scanwrom_read(block, rom, localindex);
+			scanwrom_read(block, wrom, localindex);
 
-			for (size_t jj = 0; jj < 16; jj++ ) {
+			/*for (size_t jj = 0; jj < 16; jj++ ) {
 				uint8_t temp;
 				revealOblivChar(&temp, block[jj],0);
 				printf("%02hhX", temp);
-			}
-			printf("\n");
+			}*/
+			
+			/*printf("\n");
 			for (size_t jj = 0; jj < 16; jj++ ) {
 				printf("%02hhX", ocBroadcastChar(localdata[localindex*16+jj],1));
 			}
-			printf("\n");
+			printf("\n");*/
 
-			printf("Sample %d: %d microseconds, %d gates\n", ii, runtime, rungates);
+			//printf("Sample %d: %d microseconds, %d gates\n", ii, runtime, rungates);
 
 			tally += runtime;
 			tallygates += rungates;
 		}
 
-		printf("(n:%d): %d microseconds avg, %d gates avg\n", propagatorblocks, tally / samples, tallygates / samples);
+		printf("WRITE (n:%d): %d microseconds avg, %d gates avg\n", propagatorblocks, tally / samples, tallygates / samples);
 
 		bitpropagator_free(bp);
-		scanwrom_free(rom);
+		scanrom_free(rom);
+		scanwrom_free(wrom);
+		free(key_local);
+		free(localdata);
+		free(block);
+		free(active_block_pair);
+		free(local_output);
+		free(localblock);
+		free(zero);
 		
 	}
 	

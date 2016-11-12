@@ -20,9 +20,9 @@ void get_random_bytes(void *buf, size_t bytes) {
 	//only supported on recend linuxes, unfortunately.
 	//getrandom(buf, bytes, 0);
 
-	FILE *fp;
-	fp = fopen("/dev/urandom", "r");
-	fread(buf, 1, bytes, fp);
+	FILE *fp = fopen("/dev/urandom", "r");
+	size_t outbytes = fread(buf, 1, bytes, fp);
+	if (outbytes != bytes) printf("URANDOM READ FAILED\n");
 	fclose(fp);
 }
 
@@ -55,21 +55,32 @@ void openmp_thread_cleanup(void) {
 	OPENSSL_free(ssllocks);
 }
 
+void network_parallelizer(generic_function fn1, generic_function fn2, void* data1, void* data2) {
+	//#pragma omp sections
+	{
+		//#pragma omp section
+		fn1(data1);
+
+		//#pragma omp section
+		fn2(data2);
+	}
+}
+
 
 
 void offline_expand_init() {
-	if (sslinits == 0) {
+	/*if (sslinits == 0) {
 		openmp_thread_setup();
 		ERR_load_crypto_strings();
 		OpenSSL_add_all_algorithms();
 		OPENSSL_config(NULL);
 		sslzero = calloc(1, 16);
 	}
-	sslinits++;
+	sslinits++;*/
 }
 
 void offline_expand_deinit() {
-	if (sslinits == 1) {
+	/*if (sslinits == 1) {
 		ENGINE_cleanup(); 
 		CONF_modules_unload(1);
 		EVP_cleanup();
@@ -80,7 +91,7 @@ void offline_expand_deinit() {
 		sslzero = NULL;
 		openmp_thread_cleanup();
 	}
-	sslinits--;
+	sslinits--;*/
 }
 
 #define KE(NK,OK,RND) NK = OK;	\
@@ -89,29 +100,7 @@ void offline_expand_deinit() {
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
 
-
-void offline_expand_2(uint8_t * dest, uint8_t * src) {
-	// EVP_CIPHER_CTX *ctx;
-	// ctx = EVP_CIPHER_CTX_new();
-	// EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
-	// EVP_CIPHER_CTX_set_padding(ctx, 0);
-	// int len;
-	// for (size_t ii = 0; ii < n; ii++) {
-	// 	EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
-	// }
-	// EVP_CIPHER_CTX_free(ctx);
-	EVP_CIPHER_CTX *ctx;
-	ctx = EVP_CIPHER_CTX_new();
-	EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, src, sslzero);
-	EVP_CIPHER_CTX_set_padding(ctx, 0);
-	int len;
-	for (size_t ii = 0; ii < n; ii++) {
-		EVP_EncryptUpdate(ctx, &dest[BLOCKSIZE*ii], &len, sslzero, BLOCKSIZE);
-	}
-	EVP_CIPHER_CTX_free(ctx);	
-}
-
-void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
+void offline_expand_2(uint8_t * dest, uint8_t * src, size_t n) {
 
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);

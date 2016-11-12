@@ -1,7 +1,7 @@
 OBLIVCC = $(OBLIVC_PATH)/bin/oblivcc
 OBLIVCH = $(OBLIVC_PATH)/src/ext/oblivc
 OBLIVCA = $(OBLIVC_PATH)/_build/libobliv.a
-CFLAGS+= -O3 -maes -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp
+CFLAGS+= -O3 -march=native -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp
 
 SRC_PATH=src/
 LIB_OUT_PATH=build/lib/
