@@ -17,12 +17,14 @@ static void* sslzero;
 static omp_lock_t * ssllocks;
 
 void get_random_bytes(void *buf, size_t bytes) {
-	//only supported on recend linuxes, unfortunately.
+	//only supported on recent linuxes, unfortunately.
 	//getrandom(buf, bytes, 0);
 
 	FILE *fp = fopen("/dev/urandom", "r");
-	size_t outbytes = fread(buf, 1, bytes, fp);
-	if (outbytes != bytes) printf("URANDOM READ FAILED\n");
+	if (fread(buf, 1, bytes, fp) != bytes) {
+		fprintf(stderr,"Could not read random bytes.");
+		exit(1);
+	}
 	fclose(fp);
 }
 
@@ -100,7 +102,8 @@ void offline_expand_deinit() {
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
 
-void offline_expand_2(uint8_t * dest, uint8_t * src, size_t n) {
+
+void offline_expand_2(uint8_t * dest, uint8_t * src) {
 
     __m128i seed;
     seed = _mm_load_si128((__m128i *) src);
