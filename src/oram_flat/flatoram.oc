@@ -6,14 +6,14 @@
 struct flatoram {
 	OcCopy* cpy;
 	OcCopy blockcpy;
-	scanrom* writemem;
-	scanrom* readmem;
+	scanwrom* wrom;
+	scanrom* rom;
 	bitpropagator* bitpropagator;
 	obliv uint8_t* stash;
-	obliv uint32_t* stashi;
-	obliv uint8_t* active_blocks_temp;
-	uint8_t* blockvector_local_temp;
-	uint8_t* romkey_local;
+	obliv int32_t* stashi;
+	obliv uint8_t* activeblock_pair;
+	uint8_t* blockvector_local;
+	uint8_t* rom_key_half;
 	obliv uint8_t* blocktemp;
 	uint8_t* blocktemp_local;
 	uint64_t period;
@@ -24,52 +24,41 @@ struct flatoram {
 	uint32_t elementsperblock;
 };
 
-void flatoram_read(void* data, flatoram* ram, obliv uint32_t index) obliv {
-	obliv uint32_t blockid = index / ram->elementsperblock;
-	obliv uint32_t subblockid = index % ram->elementsperblock;
-	~obliv() bitpropagator_getblockvector(ram->active_blocks_temp, ram->blockvector_local_temp, ram->bitpropagator, blockid);
-	scanrom_read_with_blockvector(ram->blocktemp, ram->readmem, blockid, ram->active_blocks_temp, ram->blockvector_local_temp);
-	for (uint32_t ii = 0; ii < ram->period; ii ++) {
+void flatoram_read(void* data, flatoram* ram, obliv size_t index) obliv {
+	obliv size_t blockid = index / ram->elementsperblock;
+	obliv size_t subblockid = index % ram->elementsperblock;
+	~obliv() bitpropagator_getblockvector(ram->activeblock_pair, ram->blockvector_local, ram->bitpropagator, blockid);
+	scanrom_read_with_blockvector(ram->blocktemp, ram->rom, blockid, ram->activeblock_pair, ram->blockvector_local);
+	for (size_t ii = 0; ii < ram->period; ii ++) {
 		obliv if (blockid == ram->stashi[ii]) ocCopy(&ram->blockcpy, ram->blocktemp, element(&ram->blockcpy, ram->stash, ii));
 	}
-	for (uint32_t ii = 0; ii < ram->elementsperblock; ii ++) {
+	for (size_t ii = 0; ii < ram->elementsperblock; ii ++) {
 		obliv if (subblockid == ii) ocCopy(ram->cpy, data, element(ram->cpy, ram->blocktemp, ii));
 	}
 }
 
 void flatoram_refresh(flatoram* ram) {
 	ram->progress = 0;
-	get_random_bytes(ram->romkey_local, KEYSIZE);
-	scanrom_set_key(ram->readmem, ram->romkey_local);
-	scanrom_import_from_scanwrom(ram->readmem, ram->writemem);
+	get_random_bytes(ram->rom_key_half, KEYSIZE);
+	scanrom_set_key(ram->rom, ram->rom_key_half);
+	scanrom_import_from_scanwrom(ram->rom, ram->wrom);
 	for (size_t ii = 0; ii < ram->period; ii++) {
 		ram->stashi[ii] = -1;
 	}
 }
 
-void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv uint32_t index) obliv {
-	obliv uint32_t blockid = index / ram->elementsperblock;
-	obliv uint32_t subblockid = index % ram->elementsperblock;
+void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv size_t index) obliv {
+	obliv size_t blockid = index / ram->elementsperblock;
+	obliv size_t subblockid = index % ram->elementsperblock;
 	obliv bool found = false;
 
-	~obliv() {
-		uint32_t temp;
-		revealOblivInt(&temp, blockid, 0);
-		printf("\tblock: %08X, ", temp);
-		revealOblivInt(&temp, subblockid, 0);
-		printf("subblock: %08X, ", temp);
-		revealOblivInt(&temp, ram->progress, 0);
-		printf("progress: %08X, ", temp);
-	}
-
-	~obliv() printf("\n\tSTASH SCAN\n");
-
 	if (ram->progress > 0) {
-		ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, ram->progress), element(&ram->blockcpy, ram->stash, 0));
+		ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, ram->progress), ram->stash);
 		ram->stashi[ram->progress] = ram->stashi[0];
-		for (uint32_t ii = 1; ii < ram->period; ii ++) {
+		ram->stashi[0] = -1;
+		for (size_t ii = 1; ii <= ram->progress; ii ++) {
 			obliv if (blockid == ram->stashi[ii]) {
-				ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, 0), element(&ram->blockcpy, ram->stash, ii));
+				ocCopy(&ram->blockcpy, ram->stash, element(&ram->blockcpy, ram->stash, ii));
 				ram->stashi[0] = ram->stashi[ii];
 				ram->stashi[ii] = -1;
 				found = true;
@@ -77,28 +66,20 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 		}
 	}
 
-	~obliv() printf("\tFSS\n");
+	~obliv() bitpropagator_getblockvector(ram->activeblock_pair, ram->blockvector_local, ram->bitpropagator, blockid);
 
-	~obliv() bitpropagator_getblockvector(ram->active_blocks_temp, ram->blockvector_local_temp, ram->bitpropagator, blockid);
-
-	~obliv() printf("\tREAD\n");
-
-	obliv if (~found) {
-		scanrom_read_with_blockvector(element(&ram->blockcpy, ram->stash, 0), ram->readmem, blockid, ram->active_blocks_temp, ram->blockvector_local_temp);
+	obliv if (found == false) {
+		scanrom_read_with_blockvector(ram->stash, ram->rom, blockid, ram->activeblock_pair, ram->blockvector_local);
 		ram->stashi[0] = blockid;
 	}
 
-	ocCopy(&ram->blockcpy, ram->blocktemp, element(&ram->blockcpy, ram->stash, 0));
-
-	~obliv() printf("\tAPPLY\n");
+	ocCopy(&ram->blockcpy, ram->blocktemp, ram->stash);
 
 	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
-		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, element(&ram->blockcpy, ram->stash, 0), jj), data);
+		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
 	}
 
-	~obliv() printf("\tWRITE\n");
-
-	scanwrom_write_with_blockvector(ram->writemem, ram->active_blocks_temp, ram->blockvector_local_temp, element(&ram->blockcpy, ram->stash, 0), ram->blocktemp);
+	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_pair, ram->blockvector_local, element(&ram->blockcpy, ram->stash, 0), ram->blocktemp);
 	~obliv() {
 		ram->progress++;
 		if (ram->progress == ram->period) flatoram_refresh(ram);
@@ -109,7 +90,7 @@ void writer_function(OcCopy * cpy, void * oram_block, void * ext_block) obliv {
   ocCopy(cpy, oram_block, ext_block);
 }
 
-void flatoram_write(flatoram* ram, void* data, obliv uint32_t index) obliv {
+void flatoram_write(flatoram* ram, void* data, obliv size_t index) obliv {
 	flatoram_apply(ram, data, writer_function, index);
 }
 
@@ -130,55 +111,66 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 		ram->blockcount = (n/ram->elementsperblock) + (n%ram->elementsperblock?1:0);
 	}
 
-	ram->blockcpy=ocCopyBoolN(ram->blockmultiple * BLOCKSIZE);
+	ram->blockcpy=ocCopyCharN(ram->blockmultiple * BLOCKSIZE);
 
-
-	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(6, LOG2(ram->blockcount)));
-	ram->blockvector_local_temp = malloc(ram->blockcount * BLOCKSIZE);
+	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2(ram->blockcount)));
+	ram->blockvector_local = malloc(ram->blockcount * BLOCKSIZE);
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
-	ram->active_blocks_temp = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
+	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 
 	ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
 	ram->blocktemp = calloc(1, ram->blockcpy.eltsize);
 	ram->stash = calloc(ram->period, ram->blockcpy.eltsize);
-	ram->stashi = calloc(ram->period, sizeof(obliv uint32_t));
+	ram->stashi = calloc(ram->period, sizeof(obliv size_t));
+	for (size_t ii = 0; ii < ram->period; ii++) {
+		ram->stashi[ii] = -1;
+	}
 
 	//Set initial romkey and wromkey. Each party is expected to supply a different random value
-	ram->romkey_local = malloc(KEYSIZE);
-	get_random_bytes(ram->romkey_local, KEYSIZE);
+	ram->rom_key_half = malloc(KEYSIZE);
+	get_random_bytes(ram->rom_key_half, KEYSIZE);
 
-	ram->readmem = scanrom_new(&ram->blockcpy, ram->blockcount, ram->romkey_local);
-	ram->writemem = scanwrom_new(&ram->blockcpy, ram->blockcount);
+	ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
+	ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
 
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
-		uint32_t blockid, subblockid;
-		for (uint32_t ii = 0; ii < ram->size; ii++) {
+		size_t blockid, subblockid;
+		for (size_t ii = 0; ii < ram->size; ii++) {
 			blockid = ii / ram->elementsperblock;
 			subblockid = ii % ram->elementsperblock;
 			ocCopy(cpy, element(cpy, ram->blocktemp, subblockid), element(cpy,data,ii));
 			if (subblockid +1 == ram->elementsperblock) {
-				obliv uint32_t temp;
-				for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint32_t); ii++) {
-					temp = feedOblivInt(rand(),1);
-					temp ^= feedOblivInt(rand(),2);
-					revealOblivInt(&((uint32_t *)ram->blocktemp_local)[ii], temp, 1);
-					revealOblivInt(&((uint32_t *)ram->blocktemp_local)[ii], ((obliv uint32_t *)ram->blocktemp)[ii]^temp, 2);
+				obliv uint64_t temp;
+				uint64_t local_temp;
+				for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint64_t); ii++) {
+					get_random_bytes(&local_temp, sizeof(uint64_t));
+					temp = feedOblivLLong(local_temp,1);
+					temp ^= feedOblivLLong(local_temp,2);
+					revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], temp, 1);
+					revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], ((obliv uint64_t *)ram->blocktemp)[ii]^temp, 2);
 				}
-				scanrom_write_xor_shares(ram->readmem, ram->blocktemp_local, blockid, 1);
-				scanwrom_write_xor_shares(ram->readmem, ram->blocktemp_local, blockid, 1);
+				scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, blockid, 1);
+				scanwrom_write_xor_shares(ram->wrom, ram->blocktemp_local, blockid, 1);
 			}
 		}
 		if (subblockid +1 != ram->elementsperblock) {
-			obliv uint32_t temp;
-			for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint32_t); ii++) {
-				temp = feedOblivInt(rand(),1);
-				temp ^= feedOblivInt(rand(),2);
-				revealOblivInt(&((uint32_t *)ram->blocktemp_local)[ii], temp, 1);
-				revealOblivInt(&((uint32_t *)ram->blocktemp_local)[ii], ((obliv uint32_t *)ram->blocktemp)[ii]^temp, 2);
+			obliv uint64_t temp;
+			uint64_t local_temp;
+			for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint64_t); ii++) {
+				get_random_bytes(&local_temp, sizeof(uint64_t));
+				temp = feedOblivLLong(local_temp,1);
+				temp ^= feedOblivLLong(local_temp,2);
+				revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], temp, 1);
+				revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], ((obliv uint64_t *)ram->blocktemp)[ii]^temp, 2);
 			}
-			scanrom_write_xor_shares(ram->readmem, ram->blocktemp_local, blockid, 1);
-			scanwrom_write_xor_shares(ram->readmem, ram->blocktemp_local, blockid, 1);
+			scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, blockid, 1);
+			scanwrom_write_xor_shares(ram->wrom, ram->blocktemp_local, blockid, 1);
+		}
+	} else {
+		memset(ram->blocktemp_local, 0, ram->blockmultiple * BLOCKSIZE);
+		for (size_t ii = 0; ii < ram->blockcount; ii++) {
+			scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, ii, 1);
 		}
 	}
 
@@ -187,13 +179,13 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 void flatoram_free(flatoram* ram) {
 	bitpropagator_free(ram->bitpropagator);
-	scanrom_free(ram->readmem);
-	scanwrom_free(ram->writemem);
+	scanrom_free(ram->rom);
+	scanwrom_free(ram->wrom);
 	free(ram->blocktemp);
 	free(ram->blocktemp_local);
-	free(ram->active_blocks_temp);
-	free(ram->blockvector_local_temp);
-	free(ram->romkey_local);
+	free(ram->activeblock_pair);
+	free(ram->blockvector_local);
+	free(ram->rom_key_half);
 	free(ram->stashi);
 	free(ram->stash);
 	free(ram);

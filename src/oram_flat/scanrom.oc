@@ -34,14 +34,16 @@ struct scanwrom {
 
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
-	~obliv() {
-		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
-		for (uint32_t ii = 0; ii < rom->fullblocksize; ii++) {
-			data[ii] = feedOblivChar(rom->local_blocktemp[ii], 1);
-			data[ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2); 
+	~obliv() scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
+	for (uint32_t ii = 0; ii < rom->fullblocksize; ii++) {
+		obliv uint8_t d;
+		~obliv() {
+			d = feedOblivChar(rom->local_blocktemp[ii], 1);
+			d ^= feedOblivChar(rom->local_blocktemp[ii], 2); 
 		}
-		memset(&rom->blocktemp[rom->fullblocksize] ,0,rom->fullblocksize * sizeof(obliv uint8_t));
+		data[ii] = d;
 	}
+	~obliv() memset(&rom->blocktemp[rom->fullblocksize] ,0,rom->fullblocksize * sizeof(obliv uint8_t));
 
 	oaes_ctx * ctx;
 
@@ -100,32 +102,38 @@ void scanrom_data_transfer_21(scanrom_data_transfer_args* args) {
 	size_t index = args->index;
 	size_t len = args->len;
 
-	for (; index < MIN(len, rom->blockcount); index++) {
+	
+}
+
+void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexinit, size_t len) {
+	//receives one share from each party, encrypts them locally, and shares them
+	size_t index = indexinit;
+
+	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize * MIN(len, rom->blockcount - index));
+
+	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
+			rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 1);
+		}
+	}
+
+	index = indexinit;
+
+	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 2);
 		}
 	}
 }
 
-void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len) {
-	//receives one share from each party, encrypts them locally, and shares them
-	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize * MIN(len, rom->blockcount - index));
-
-	scanrom_data_transfer_args args;
-	args.rom = rom;
-	args.data = data;
-	args.index = index;
-	args.len = len;
-
-	network_parallelizer(scanrom_data_transfer_12, scanrom_data_transfer_21, &args, &args);
-}
-
 void scanrom_read(obliv uint8_t * data, scanrom* rom, size_t index) {
-	scanrom_encrypt_offline(rom->local_blocktemp, &rom->local_data[index * rom->fullblocksize], &rom->local_halfpad[index * (rom->fullblocksize)], rom->fullblocksize);
+	if (ocCurrentParty() == 1) {
+		scanrom_encrypt_offline(rom->local_blocktemp, &rom->local_data[index * rom->fullblocksize], &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize);
+	}
 
 	for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 		data[ii] = feedOblivChar(rom->local_blocktemp[ii], 1);
-		data[ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2);
+		data[ii] ^= feedOblivChar(rom->local_halfpad[index * rom->fullblocksize+ii], 2);
 	}
 }
 

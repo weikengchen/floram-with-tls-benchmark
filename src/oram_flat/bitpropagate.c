@@ -138,7 +138,7 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bpo->endlevel = LOG2(size) + (((1 << LOG2(size)) < size)? 1:0);
 	posix_memalign(&bpo->level_data_1,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->level_data_2,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
-	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel)*BLOCKSIZE);
+	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);
 	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits = malloc((bpo->endlevel - bpo->startlevel) * sizeof(uint32_t));
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {

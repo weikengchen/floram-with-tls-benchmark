@@ -4,7 +4,7 @@
 
 static const char TESTNAME[] = "oram";
 
-#define ELCT 200
+#define ELCT 256
 
 char* get_test_name() {
 	return TESTNAME;
@@ -61,11 +61,7 @@ void testOramType(oram_type mode) {
 
 		shuffle(order_raw, ELCT);
 
-		printf("NEW\n");
-
 		oram * o = oram_new(mode, &ocCopyInt, ELCT);
-
-		printf("WRITE\n");
 
 		for (int ii = 0; ii < ELCT; ii++) {
 			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
@@ -74,8 +70,6 @@ void testOramType(oram_type mode) {
 		}
 
 		bool success = true;
-
-		printf("READ\n");
 
 		for (int ii = 0; ii < ELCT; ii++) {
 			uint32_t temp;
