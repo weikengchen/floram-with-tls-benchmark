@@ -99,6 +99,7 @@ void test_main(void*varg) {
 	OcCopy cpy = ocCopyIntN(elsz);
 
 	uint64_t tally = 0;
+	uint64_t tallygates = 0;
 	obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
 	for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
 
@@ -110,16 +111,19 @@ void test_main(void*varg) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
 		uint64_t startTime = current_timestamp();
+		int64_t rungates = - yaoGateCount();
 		oram_write(o, &input[index_raw*elsz], index);
 		uint64_t runtime = current_timestamp() - startTime;
-		fprintf(stdout, ",%llu", runtime);
+		rungates += yaoGateCount();
+		fprintf(stdout, ",%llu,%llu", runtime,rungates);
 		fflush(stdout);
 		tally += runtime;
+		tallygates += rungates;
 	}
 
 	free(input);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg\n", elct, elsz, tally / samples);
+	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg, %llu gates avg\n", elct, elsz, tally / samples, tallygates/samples);
 
 }

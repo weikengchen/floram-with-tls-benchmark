@@ -133,46 +133,47 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
 	ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
 
+	uint8_t * loadtemp_local = malloc(ram->blockcount * ram->blockmultiple * BLOCKSIZE);
+
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
+
+		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
+		get_random_bytes(ram->blocktemp_local, KEYSIZE);
+		for (size_t ii = 0; ii < KEYSIZE; ii++) ram->blocktemp[ii] = feedOblivChar(ram->blocktemp_local[ii],1);
+		for (size_t ii = 0; ii < KEYSIZE; ii++) ram->blocktemp[ii] ^= feedOblivChar(ram->blocktemp_local[ii],2);
+		online_expand(loadtemp, ram->blocktemp, ram->blockmultiple * ram->blockcount);
+
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) {
+			revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 1);
+		}
+
 		size_t blockid, subblockid;
 		for (size_t ii = 0; ii < ram->size; ii++) {
 			blockid = ii / ram->elementsperblock;
 			subblockid = ii % ram->elementsperblock;
-			ocCopy(cpy, element(cpy, ram->blocktemp, subblockid), element(cpy,data,ii));
-			if (subblockid +1 == ram->elementsperblock) {
-				obliv uint64_t temp;
-				uint64_t local_temp;
-				for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint64_t); ii++) {
-					get_random_bytes(&local_temp, sizeof(uint64_t));
-					temp = feedOblivLLong(local_temp,1);
-					temp ^= feedOblivLLong(local_temp,2);
-					revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], temp, 1);
-					revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], ((obliv uint64_t *)ram->blocktemp)[ii]^temp, 2);
-				}
-				scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, blockid, 1);
-				scanwrom_write_xor_shares(ram->wrom, ram->blocktemp_local, blockid, 1);
+
+			size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
+
+			for (size_t jj = 0; jj < elosize; jj++){
+				loadtemp[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize + jj] ^= ((obliv uint8_t *)element(cpy,data,ii))[jj];
 			}
 		}
-		if (subblockid +1 != ram->elementsperblock) {
-			obliv uint64_t temp;
-			uint64_t local_temp;
-			for (size_t ii = 0; ii < (ram->blockmultiple * BLOCKSIZE)/sizeof(uint64_t); ii++) {
-				get_random_bytes(&local_temp, sizeof(uint64_t));
-				temp = feedOblivLLong(local_temp,1);
-				temp ^= feedOblivLLong(local_temp,2);
-				revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], temp, 1);
-				revealOblivLLong(&((uint64_t *)ram->blocktemp_local)[ii], ((obliv uint64_t *)ram->blocktemp)[ii]^temp, 2);
-			}
-			scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, blockid, 1);
-			scanwrom_write_xor_shares(ram->wrom, ram->blocktemp_local, blockid, 1);
+
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) {
+			revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 2);
 		}
+		
+		scanrom_write_xor_shares(ram->rom, loadtemp_local, blockid, ram->blockcount);
+		scanwrom_write_xor_shares(ram->wrom, loadtemp_local, blockid, ram->blockcount);
+
+		free(loadtemp);
 	} else {
-		memset(ram->blocktemp_local, 0, ram->blockmultiple * BLOCKSIZE);
-		for (size_t ii = 0; ii < ram->blockcount; ii++) {
-			scanrom_write_xor_shares(ram->rom, ram->blocktemp_local, ii, 1);
-		}
+		memset(loadtemp_local, 0, ram->blockmultiple * BLOCKSIZE * ram->blockcount);
+		scanrom_write_xor_shares(ram->rom, loadtemp_local, 0, ram->blockcount);
 	}
+
+	free(loadtemp_local);
 
 	return ram;
 }

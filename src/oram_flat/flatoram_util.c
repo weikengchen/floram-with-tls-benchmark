@@ -31,11 +31,11 @@ void get_random_bytes(void *buf, size_t bytes) {
 
 // Locking callback
 void openmp_locking_callback(int mode, int type, char *file, int line) {
-	if (mode & CRYPTO_LOCK) {
-		omp_set_lock(&ssllocks[type]);
-	} else {
-		omp_unset_lock(&ssllocks[type]);
-	}
+	//if (mode & CRYPTO_LOCK) {
+	//	omp_set_lock(&ssllocks[type]);
+	//} else {
+	//	omp_unset_lock(&ssllocks[type]);
+	//}
 }
 
 // Thread ID callback
@@ -44,17 +44,17 @@ unsigned long openmp_thread_id(void) {
 }
 
 void openmp_thread_setup(void) {
-	ssllocks = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(omp_lock_t));
-	for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_init_lock(&ssllocks[ii]);
-	CRYPTO_set_id_callback((unsigned long (*)())openmp_thread_id);
-	CRYPTO_set_locking_callback((void (*)())openmp_locking_callback);
+	//ssllocks = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(omp_lock_t));
+	//for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_init_lock(&ssllocks[ii]);
+	//CRYPTO_set_id_callback((unsigned long (*)())openmp_thread_id);
+	//CRYPTO_set_locking_callback((void (*)())openmp_locking_callback);
 }
 
 void openmp_thread_cleanup(void) {
-	CRYPTO_set_id_callback(NULL);
-	CRYPTO_set_locking_callback(NULL);
-	for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_destroy_lock(&ssllocks[ii]);
-	OPENSSL_free(ssllocks);
+	//CRYPTO_set_id_callback(NULL);
+	//CRYPTO_set_locking_callback(NULL);
+	//for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_destroy_lock(&ssllocks[ii]);
+	//OPENSSL_free(ssllocks);
 }
 
 void network_parallelizer(generic_function fn1, generic_function fn2, void* data1, void* data2) {
