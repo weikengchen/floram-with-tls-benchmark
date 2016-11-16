@@ -184,9 +184,8 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->blocktemp[ii] ^= rom->blocktemp[rom->fullblocksize + ii] ^ rom->blocktemp[2*rom->fullblocksize + ii];
 		}
-		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 0);
-		}
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 1);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 2);
 
 		int32_t advice = bitpropagator_getadvice(&rom->blocktemp[rom->fullblocksize],&rom->blocktemp[2*rom->fullblocksize]);
 		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, rom->local_blocktemp, advice, rom->blockmultiple != 1, rom->fullblocksize, rom->blockcount);
