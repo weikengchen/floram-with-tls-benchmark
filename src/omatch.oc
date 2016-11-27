@@ -201,8 +201,8 @@ void orp_hStatusFunction(OcCopy * cpy, void * oramBlock, void * extBlock) obliv 
 oroth_peranson_preference_package * oroth_peranson_preference_package_from_shares(oroth_peranson_proposer_share * pa, oroth_peranson_proposer_share * pb, size_t proposer_count, oroth_peranson_reviewer_share * ra, oroth_peranson_reviewer_share * rb, size_t reviewer_count, size_t reviewer_positions_bound) {
 
 	size_t p_preferences_bound = 0; size_t r_preferences_bound = 0;
-	for (size_t ii = 0; ii < proposer_count; ii++) p_preferences_bound = max(max(p_preferences_bound, pa[ii].preferences_bound), pb[ii].preferences_bound);
-	for (size_t ii = 0; ii < reviewer_count; ii++) r_preferences_bound = max(max(r_preferences_bound, ra[ii].preferences_bound), rb[ii].preferences_bound);
+	for (size_t ii = 0; ii < proposer_count; ii++) p_preferences_bound = MAX(MAX(p_preferences_bound, pa[ii].preferences_bound), pb[ii].preferences_bound);
+	for (size_t ii = 0; ii < reviewer_count; ii++) r_preferences_bound = MAX(MAX(r_preferences_bound, ra[ii].preferences_bound), rb[ii].preferences_bound);
 
 	oroth_peranson_preference_package * result = malloc(sizeof(oroth_peranson_preference_package));
 	result->proposer_count = proposer_count;
@@ -217,7 +217,7 @@ oroth_peranson_preference_package * oroth_peranson_preference_package_from_share
 	for (size_t ii = 0; ii < proposer_count; ii++) {
 
 		size_t jj = 0;
-		for (; jj < min(pa[ii].preferences_bound, pb[ii].preferences_bound); jj++) {
+		for (; jj < MIN(pa[ii].preferences_bound, pb[ii].preferences_bound); jj++) {
 			result->p_prefs[ii * p_preferences_bound + jj].pid = ii;
 			result->p_prefs[ii * p_preferences_bound + jj].rid = pa[ii].preferences[jj].id_share ^ pb[ii].preferences[jj].id_share;
 			result->p_prefs[ii * p_preferences_bound + jj].is_r = false;
@@ -235,7 +235,7 @@ oroth_peranson_preference_package * oroth_peranson_preference_package_from_share
 		result->r_positions_available[ii] = ra[ii].positions_available_share ^ rb[ii].positions_available_share;
 
 		size_t jj = 0;
-		for (; jj < min(ra[ii].preferences_bound, rb[ii].preferences_bound); jj++) {
+		for (; jj < MIN(ra[ii].preferences_bound, rb[ii].preferences_bound); jj++) {
 			result->r_prefs[ii * r_preferences_bound + jj].rid = ii;
 			result->r_prefs[ii * r_preferences_bound + jj].pid = ra[ii].preferences[jj].id_share ^ rb[ii].preferences[jj].id_share;
 			result->r_prefs[ii * r_preferences_bound + jj].is_r = true;
