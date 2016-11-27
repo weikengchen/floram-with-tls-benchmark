@@ -1,6 +1,7 @@
 #include "bitpropagate.oh"
 #include "bitpropagate.h"
 #include "flatoram_util.oh"
+#include "ackutil.h"
 
 struct bitpropagator {
 	uint32_t startlevel;
@@ -129,7 +130,7 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 	online_expand_init();
 	bitpropagator * bp = malloc(sizeof(bitpropagator));
 	bp->size = size;
-	bp->endlevel = LOG2(size) + (((1ll << LOG2(size)) < size)? 1:0);
+	bp->endlevel = LOG2LL(size) + (((1ll << LOG2LL(size)) < size)? 1:0);
 	bp->startlevel = MIN(startlevel,bp->endlevel-1);
 	bp->toplevel = calloc((1ll << bp->startlevel) + 1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->toplevel_local = malloc(((1ll << bp->startlevel) + 1) * BLOCKSIZE);

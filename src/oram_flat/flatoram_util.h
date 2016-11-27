@@ -2,8 +2,6 @@
 #define FLATORAM_UTIL_H
 #include "flatoram.h"
 
-#define LOG2(X) ((unsigned) (8*sizeof (unsigned long long) - __builtin_clzll((X)) - 1))
-
 //Note: the following macros CANNOT be used with obliv arguments (in case it wasn't obivious).
 
 #define MAX(a,b) \

@@ -1,5 +1,6 @@
 #include "bitpropagate.h"
 #include "flatoram_util.h"
+#include "ackutil.h"
 #include <omp.h>
 
 struct bitpropagator_offline {
@@ -138,7 +139,7 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
 	bpo->startlevel = startlevel;
-	bpo->endlevel = LOG2(size) + (((1 << LOG2(size)) < size)? 1:0);
+	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
 	posix_memalign(&bpo->level_data_1,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->level_data_2,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);

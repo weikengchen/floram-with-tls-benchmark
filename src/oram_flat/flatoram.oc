@@ -2,6 +2,7 @@
 #include "flatoram_util.oh"
 #include "scanrom.oh"
 #include "bitpropagate.oh"
+#include "ackutil.h"
 
 struct flatoram {
 	OcCopy* cpy;
@@ -113,7 +114,7 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	ram->blockcpy=ocCopyCharN(ram->blockmultiple * BLOCKSIZE);
 
-	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2(ram->blockcount)));
+	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2LL(ram->blockcount)));
 	ram->blockvector_local = malloc(ram->blockcount * BLOCKSIZE);
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
 	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));

@@ -88,7 +88,7 @@ void test_main(void*varg) {
 	{
 
 		/*size_t propagatorblocks = 256;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(6, LOG2(propagatorblocks)));
+		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(6, LOG2LL(propagatorblocks)));
 		obliv uint8_t * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
 		uint8_t * local_output;
 		pma(&local_output, 16, propagatorblocks * 16);*/
