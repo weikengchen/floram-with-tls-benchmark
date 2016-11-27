@@ -55,6 +55,11 @@ obliv bool obig_eqz(obig x) obliv;
 obliv int8_t obig_cmp(obig x, obig y) obliv;
 obliv int8_t obig_cmp_signed(obig x, obig y) obliv; //TODO
 
+/* bit manipulation */
+
+obliv bool obig_bit_get(obig x, size_t n) obliv;
+void obig_bit_set(obig * x, obliv bool y, size_t n) obliv;
+
 /* nondestructive elementary math - pass the same obig for first and second parameter for augmented assignment */
 
 void obig_shl_native(obig* out, obig x, size_t y) obliv;
