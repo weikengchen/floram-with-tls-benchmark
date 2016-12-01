@@ -177,31 +177,41 @@ obliv bool obig_eq(obig x, obig y) obliv {
 	return result;
 }
 
-obliv bool obig_eq_signed(obig x, obig y) obliv;
+obliv bool obig_eq_signed(obig x, obig y) obliv {
+	return obig_cmp_signed(x, y) == 0;
+}
 
 obliv bool obig_gt(obig x, obig y) obliv {
 	return obig_cmp(x, y) > 0;
 }
 
-obliv bool obig_gt_signed(obig x, obig y) obliv;
+obliv bool obig_gt_signed(obig x, obig y) obliv {
+	return obig_cmp_signed(x, y) > 0;
+}
 
 obliv bool obig_lt(obig x, obig y) obliv {
 	return obig_cmp(x, y) < 0;
 }
 
-obliv bool obig_lt_signed(obig x, obig y) obliv;
+obliv bool obig_lt_signed(obig x, obig y) obliv {
+	return obig_cmp_signed(x, y) < 0;
+}
 
 obliv bool obig_gte(obig x, obig y) obliv {
 	return obig_cmp(x, y) >= 0;
 }
 
-obliv bool obig_gte_signed(obig x, obig y) obliv;
+obliv bool obig_gte_signed(obig x, obig y) obliv {
+	return obig_cmp_signed(x, y) >= 0;
+}
 
 obliv bool obig_lte(obig x, obig y) obliv {
 	return obig_cmp(x, y) <= 0;
 }
 
-obliv bool obig_lte_signed(obig x, obig y) obliv;
+obliv bool obig_lte_signed(obig x, obig y) obliv {
+	return obig_cmp_signed(x, y) <= 0;
+}
 
 obliv bool obig_gtz(obig x) obliv {
 	obliv bool result = false;
@@ -246,7 +256,18 @@ obliv int8_t obig_cmp(obig x, obig y) obliv {
 	return result;
 }
 
-obliv int8_t obig_cmp_signed(obig x, obig y) obliv;
+obliv int8_t obig_cmp_signed(obig x, obig y) obliv {
+	obig temp;
+	~obliv() obig_init(&temp, MAX(x.digits,y.digits));
+	obig_sub_signed(&temp, x, y);
+
+	obliv int8_t result = 0;
+	obliv if (obig_gtz_signed(temp)) result = 1;
+	else obliv if (obig_ltz_signed(temp)) result = -1;
+
+	~obliv() obig_free(&temp);
+	return result;
+}
 
 
 
