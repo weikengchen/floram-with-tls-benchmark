@@ -1,0 +1,11 @@
+#ifndef OBLIV_FAST_AES_OH
+#define OBLIV_FAST_AES_OH
+
+#include <obliv.oh>
+#include <stdint.h>
+
+
+void o_aes(const obliv uint8_t in[16], obliv uint8_t out[16], obliv uint8_t key[16]) obliv;
+
+
+#endif
