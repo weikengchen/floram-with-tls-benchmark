@@ -41,19 +41,24 @@ obliv int64_t obig_export_onative_signed(obig x) obliv;
 obliv bool obig_eq(obig x, obig y) obliv;
 obliv bool obig_eq_signed(obig x, obig y) obliv; //TODO
 obliv bool obig_gt(obig x, obig y) obliv;
-obliv bool obig_gt_signed(obig x, obig y) obliv; //TODO
+obliv bool obig_gt_signed(obig x, obig y) obliv;
 obliv bool obig_lt(obig x, obig y) obliv;
-obliv bool obig_lt_signed(obig x, obig y) obliv; //TODO
+obliv bool obig_lt_signed(obig x, obig y) obliv;
 obliv bool obig_gte(obig x, obig y) obliv;
-obliv bool obig_gte_signed(obig x, obig y) obliv; //TODO
+obliv bool obig_gte_signed(obig x, obig y) obliv;
 obliv bool obig_lte(obig x, obig y) obliv;
-obliv bool obig_lte_signed(obig x, obig y) obliv; //TODO
+obliv bool obig_lte_signed(obig x, obig y) obliv;
 obliv bool obig_gtz(obig x) obliv;
-obliv bool obig_gtz_signed(obig x) obliv; //TODO
-obliv bool obig_ltz_signed(obig x) obliv; //TODO
+obliv bool obig_gtz_signed(obig x) obliv;
+obliv bool obig_ltz_signed(obig x) obliv;
 obliv bool obig_eqz(obig x) obliv;
 obliv int8_t obig_cmp(obig x, obig y) obliv;
-obliv int8_t obig_cmp_signed(obig x, obig y) obliv; //TODO
+obliv int8_t obig_cmp_signed(obig x, obig y) obliv;
+
+/* bit manipulation */
+
+obliv bool obig_bit_get(obig x, size_t n) obliv;
+void obig_bit_set(obig * x, obliv bool y, size_t n) obliv;
 
 /* nondestructive elementary math - pass the same obig for first and second parameter for augmented assignment */
 

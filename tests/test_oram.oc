@@ -4,6 +4,8 @@
 
 static const char TESTNAME[] = "oram";
 
+#define ELCT 256
+
 char* get_test_name() {
 	return TESTNAME;
 }
@@ -49,30 +51,30 @@ const char* getOramName(oram_type mode) {
 void testOramType(oram_type mode) {
 
 	{
-		uint32_t input_raw[256];
-		uint32_t order_raw[256];
+		uint32_t input_raw[ELCT];
+		uint32_t order_raw[ELCT];
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			input_raw[ii] = ii;
 			order_raw[ii] = ii;
 		}
 
-		shuffle(order_raw, 256);
+		shuffle(order_raw, ELCT);
 
-		oram * o = oram_new(mode, &ocCopyInt, 256);
+		oram * o = oram_new(mode, &ocCopyInt, ELCT);
 
-		for (int ii = 0; ii < 256; ii++) {
-			obliv size_t index = feedOblivLong(order_raw[ii], 1);
+		for (int ii = 0; ii < ELCT; ii++) {
+			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
 			obliv uint32_t value = feedOblivInt(input_raw[ii], 2);
 			oram_write(o, &value, index);
 		}
 
 		bool success = true;
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			uint32_t temp;
 			obliv uint32_t value;
-			obliv size_t index = feedOblivLong(order_raw[ii], 1);
+			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
 			oram_read(&value, o, index);
 			revealOblivInt(&temp, value, 0);
 			success &= (temp == input_raw[ii]);
@@ -85,25 +87,25 @@ void testOramType(oram_type mode) {
 	}
 
 	{
-		uint32_t input_raw[256];
-		uint32_t order_raw[256];
-		obliv uint32_t input[256];
+		uint32_t input_raw[ELCT];
+		uint32_t order_raw[ELCT];
+		obliv uint32_t input[ELCT];
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			input_raw[ii] = ii;
 			order_raw[ii] = ii;
 		}
 
-		shuffle(order_raw, 256);
+		shuffle(order_raw, ELCT);
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			input[ocBroadcastInt(order_raw[ii], 1)] = feedOblivInt(input_raw[ii], 2);
 		}
-		oram * o = oram_from_array(mode, &ocCopyInt, 256, input);
+		oram * o = oram_from_array(mode, &ocCopyInt, ELCT, input);
 
 		bool success = true;
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			uint32_t temp;
 			obliv uint32_t value;
 			obliv size_t index = feedOblivLong(order_raw[ii], 1);
@@ -120,7 +122,7 @@ void testOramType(oram_type mode) {
 
 	{
 
-		oram * o = oram_new(mode, &ocCopyInt, 256);
+		oram * o = oram_new(mode, &ocCopyInt, ELCT);
 
 		bool success = true;
 
@@ -131,7 +133,7 @@ void testOramType(oram_type mode) {
 			obliv uint32_t value = feedOblivInt(rand(), 2);
 			write_success = oram_write(o, &value, index);
 			revealOblivBool(&temp, write_success, 0);
-			success &= (temp == true && (ii >= 0 || ii < 256)) != (temp == false && (ii < 0 || ii >= 256));
+			success &= (temp == true && (ii >= 0 || ii < ELCT)) != (temp == false && (ii < 0 || ii >= ELCT));
 		}
 
 		oram_free(o);
@@ -141,18 +143,18 @@ void testOramType(oram_type mode) {
 	}
 
 	{
-		uint32_t input_raw[256];
-		uint32_t order_raw[256];
+		uint32_t input_raw[ELCT];
+		uint32_t order_raw[ELCT];
 
-		for (int ii = 0; ii < 256; ii++) {
+		for (int ii = 0; ii < ELCT; ii++) {
 			input_raw[ii] = rand();
 			order_raw[ii] = ii;
 		}
 
-		shuffle(input_raw, 256);
-		shuffle(order_raw, 256);
+		shuffle(input_raw, ELCT);
+		shuffle(order_raw, ELCT);
 
-		oram * o = oram_new(mode, &ocCopyInt, 256);
+		oram * o = oram_new(mode, &ocCopyInt, ELCT);
 
 		for (int ii = 0; ii < 256; ii++) {
 			obliv size_t index = feedOblivLong(order_raw[ii], 1);
@@ -162,14 +164,14 @@ void testOramType(oram_type mode) {
 
 		bool success = true;
 
-		for (int ii = -2; ii < 258; ii++) {
+		for (int ii = -2; ii < ELCT + 2; ii++) {
 			bool temp;
 			obliv bool read_success;
 			obliv uint32_t value;
 			obliv size_t index = feedOblivLong(ii, 1);
 			read_success = oram_read(&value, o, index);
 			revealOblivBool(&temp, read_success, 0);
-			success &= (temp == true && (ii >= 0 || ii < 256)) != (temp == false && (ii < 0 || ii >= 256));
+			success &= (temp == true && (ii >= 0 || ii < ELCT)) != (temp == false && (ii < 0 || ii >= ELCT));
 		}
 
 		oram_free(o);

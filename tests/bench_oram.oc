@@ -6,9 +6,9 @@
 static const char TESTNAME[] = "oram_benchmark";
 
 #define TEXT_HELP_SUPPLEMENTARY "\
-  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tsearch through \x1b[4mNUMBER\x1b[0m elements\n\n\
-  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tperform \x1b[4mNUMBER\x1b[0m searches on the same data\n\n\
-  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, and \033[1mlinear\033[0m.\n\n\
+  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mflat\033[0m, and \033[1mlinear\033[0m.\n\n\
   -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
 
 static const char options_string[] = "e:s:o:i:";
@@ -69,6 +69,8 @@ void test_main(void*varg) {
 				oram_set_default_type(ORAM_TYPE_CIRCUIT);
 			} else if (strcmp(optarg,"linear") == 0) {
 				oram_set_default_type(ORAM_TYPE_LINEAR);
+			} else if (strcmp(optarg,"flat") == 0) {
+				oram_set_default_type(ORAM_TYPE_FLAT);
 			} else {
 				fprintf (stderr, "Invalid argument for -%c.\n", arg);
 				return;
@@ -97,6 +99,7 @@ void test_main(void*varg) {
 	OcCopy cpy = ocCopyIntN(elsz);
 
 	uint64_t tally = 0;
+	uint64_t tallygates = 0;
 	obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
 	for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
 
@@ -108,16 +111,19 @@ void test_main(void*varg) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
 		uint64_t startTime = current_timestamp();
+		int64_t rungates = - yaoGateCount();
 		oram_write(o, &input[index_raw*elsz], index);
 		uint64_t runtime = current_timestamp() - startTime;
-		fprintf(stdout, ",%llu", runtime);
+		rungates += yaoGateCount();
+		fprintf(stdout, ",%llu,%llu", runtime,rungates);
 		fflush(stdout);
 		tally += runtime;
+		tallygates += rungates;
 	}
 
 	free(input);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg\n", elct, elsz, tally / samples);
+	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg, %llu gates avg\n", elct, elsz, tally / samples, tallygates/samples);
 
 }

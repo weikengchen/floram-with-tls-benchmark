@@ -34,14 +34,13 @@ struct scanwrom {
 
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
+	~obliv() scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
 	~obliv() {
-		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
-		for (uint32_t ii = 0; ii < rom->fullblocksize; ii++) {
-			data[ii] = feedOblivChar(rom->local_blocktemp[ii], 1);
-			data[ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2); 
-		}
-		memset(&rom->blocktemp[rom->fullblocksize] ,0,rom->fullblocksize * sizeof(obliv uint8_t));
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) rom->blocktemp[2*rom->fullblocksize+ii] = feedOblivChar(rom->local_blocktemp[ii], 1);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) rom->blocktemp[2*rom->fullblocksize+ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2);
 	}
+	ocCopy(rom->blockcpy, data, &rom->blocktemp[2*rom->fullblocksize]);
+	~obliv() memset(&rom->blocktemp[rom->fullblocksize] ,0,rom->fullblocksize * sizeof(obliv uint8_t));
 
 	oaes_ctx * ctx;
 
@@ -74,32 +73,40 @@ void scanrom_read_with_blockvector(obliv uint8_t * data, scanrom * rom, obliv si
 	scanrom_read_with_bitvector(data, rom, index, rom->bitvector);
 }
 
-void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len) {
+void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexinit, size_t len) {
 	//receives one share from each party, encrypts them locally, and shares them
+	size_t index = indexinit;
+
 	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize * MIN(len, rom->blockcount - index));
-	for (; index < MIN(len, rom->blockcount); index++) {
+
+	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 1);
+		}
+	}
+
+	index = indexinit;
+
+	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 2);
 		}
 	}
 }
 
 void scanrom_read(obliv uint8_t * data, scanrom* rom, size_t index) {
-	scanrom_encrypt_offline(rom->local_blocktemp, &rom->local_data[index * rom->fullblocksize], &rom->local_halfpad[index * (rom->fullblocksize)], rom->fullblocksize);
-
-	for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-		data[ii] = feedOblivChar(rom->local_blocktemp[ii], 1);
-		data[ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2);
+	if (ocCurrentParty() == 2) {
+		scanrom_encrypt_offline(rom->local_blocktemp, &rom->local_data[index * rom->fullblocksize], &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize);
 	}
+
+	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] = feedOblivChar(rom->local_blocktemp[ii], 2);
+	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= feedOblivChar(rom->local_halfpad[index * rom->fullblocksize+ii], 1);
 }
 
 void scanrom_set_key(scanrom* rom, uint8_t* key_local) {
 	memcpy(rom->local_halfkey, key_local, KEYSIZE);
-	for (uint32_t ii = 0; ii < KEYSIZE; ii++) {
-		*((obliv uint8_t *)element(&ocCopyChar, rom->halfkey_a, ii)) = feedOblivChar(rom->local_halfkey[ii], 1);
-		*((obliv uint8_t *)element(&ocCopyChar, rom->halfkey_b, ii)) = feedOblivChar(rom->local_halfkey[ii], 2);
-	}
+	for (uint32_t ii = 0; ii < KEYSIZE; ii++) rom->halfkey_a[ii] = feedOblivChar(rom->local_halfkey[ii], 1);
+	for (uint32_t ii = 0; ii < KEYSIZE; ii++) rom->halfkey_b[ii] = feedOblivChar(rom->local_halfkey[ii], 2);
 	scanrom_create_local_halfpad(rom->local_halfpad, rom->local_halfkey, rom->blockcount*rom->blockmultiple);
 }
 
@@ -120,7 +127,7 @@ scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
 	rom->local_halfkey = malloc(KEYSIZE);
 	rom->local_blocktemp = malloc(n * fullblocksize);
 	rom->bitvector = malloc(n * sizeof(bool));
-	rom->blocktemp = calloc(fullblocksize * 2, sizeof(obliv uint8_t));
+	rom->blocktemp = calloc(fullblocksize * 3, sizeof(obliv uint8_t));
 	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	scanrom_set_key(rom, key_local);
@@ -147,14 +154,12 @@ void scanrom_free(scanrom* rom) {
 
 
 void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
-	for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-		if (ocCurrentParty() == 1) {
-			*((obliv uint8_t *)element(&ocCopyChar, data, ii)) = feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 1);
-			*((obliv uint8_t *)element(&ocCopyChar, data, ii)) ^= feedOblivChar(NULL, 2);
-		} else if (ocCurrentParty() == 2) {
-			*((obliv uint8_t *)element(&ocCopyChar, data, ii)) = feedOblivChar(NULL, 1);
-			*((obliv uint8_t *)element(&ocCopyChar, data, ii)) ^= feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 2);
-		}
+	if (ocCurrentParty() == 1) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] = feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 1);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= feedOblivChar(NULL, 2);
+	} else if (ocCurrentParty() == 2) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] = feedOblivChar(NULL, 1);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 2);
 	}
 }
 
@@ -178,8 +183,9 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->blocktemp[ii] ^= rom->blocktemp[rom->fullblocksize + ii] ^ rom->blocktemp[2*rom->fullblocksize + ii];
-			revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 0);
 		}
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 1);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 2);
 
 		int32_t advice = bitpropagator_getadvice(&rom->blocktemp[rom->fullblocksize],&rom->blocktemp[2*rom->fullblocksize]);
 		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, rom->local_blocktemp, advice, rom->blockmultiple != 1, rom->fullblocksize, rom->blockcount);

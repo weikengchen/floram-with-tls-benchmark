@@ -1,5 +1,6 @@
 #include "bitpropagate.h"
 #include "flatoram_util.h"
+#include "ackutil.h"
 #include <omp.h>
 
 struct bitpropagator_offline {
@@ -21,9 +22,12 @@ void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
 }
 
 void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, uint32_t advicebit, size_t level) {
-	memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
-	bpo->advicebits[level- bpo->startlevel - 1] = advicebit;
-	omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
+	#pragma omp task
+	{
+		memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
+		bpo->advicebits[level- bpo->startlevel - 1] = advicebit;
+		omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
+	}
 }
 
 void bitpropagator_offline_readblockvector(void * local_output, bitpropagator_offline * bpo) {
@@ -135,10 +139,10 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
 	bpo->startlevel = startlevel;
-	bpo->endlevel = LOG2(size) + (((1 << LOG2(size)) < size)? 1:0);
+	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
 	posix_memalign(&bpo->level_data_1,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->level_data_2,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
-	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel)*BLOCKSIZE);
+	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);
 	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits = malloc((bpo->endlevel - bpo->startlevel) * sizeof(uint32_t));
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
