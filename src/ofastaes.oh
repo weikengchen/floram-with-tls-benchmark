@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 
-void o_aes(const obliv uint8_t in[16], obliv uint8_t out[16], obliv uint8_t key[16]) obliv;
+void oaes_fast128(obliv uint8_t out[16], obliv uint8_t key[16], const obliv uint8_t in[16]) obliv;
 
 
 #endif

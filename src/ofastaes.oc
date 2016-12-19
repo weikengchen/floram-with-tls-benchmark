@@ -1,0 +1,497 @@
+// PROGRAM AES 
+//
+// This program generates the circuit for computing AES
+
+#include <stdio.h>
+#include <stdlib.h>
+
+static const unsigned int rcon[16] = {
+//     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a,
+    0x8d000000, 0x01000000, 0x02000000, 0x04000000, 
+    0x08000000, 0x10000000, 0x20000000, 0x40000000, 
+    0x80000000, 0x1b000000, 0x36000000, 0x6c000000, 
+    0xd8000000, 0xab000000, 0x4d000000, 0x9a000000,
+};
+
+void aeskey(obliv uint8_t mem[176]) obliv;
+void addkey(obliv uint32_t mem[4], obliv uint32_t key[44], int index) obliv;
+void shiftrows(obliv uint32_t mem[4]) obliv;
+void mixcolumns(obliv uint32_t mem[4]) obliv;
+obliv uint32_t nsbox(obliv uint32_t in) obliv;
+obliv uint32_t nsbox2(obliv uint32_t in) obliv;
+
+
+
+void oaes_fast128(obliv uint8_t out[16], obliv uint8_t key[16], const obliv uint8_t in[16]) obliv {
+
+	obliv uint32_t mem[4];	// bigger than necessary, does it matter?
+	obliv uint8_t  kex[176];
+	// mem layout
+	// --input[ 16b ] -- | --key schedule 4*4*11 b--  
+	//| s0 -- s7 | t0 -- t27 | m0 -- m63 | l0 -- l29
+
+	~obliv() { memcpy(mem,    in, 16 * sizeof(obliv uint8_t)); }
+	~obliv() { memcpy(kex,   key, 16 * sizeof(obliv uint8_t)); }
+
+	aeskey(kex);	// this function expands the key
+
+	addkey(mem, (uint32_t*)kex, 0);
+
+	for(int round=1; round<11; round++) {
+
+		mem[0] = nsbox(mem[0]);
+		mem[1] = nsbox(mem[1]);
+		mem[2] = nsbox(mem[2]);
+		mem[3] = nsbox(mem[3]);
+
+		shiftrows(mem);
+
+		if (round<10) {			// last round doesnt have mix
+			mixcolumns(mem);
+		}
+		addkey(mem, (uint32_t*)kex, round*4);
+
+	}
+
+	~obliv() { memcpy(out, mem, 16 * sizeof(obliv uint8_t)); }
+
+}
+
+
+// oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t iv[16]) {
+// 	oaes_ctx * output = malloc(sizeof(oaes_ctx));	
+	
+// 	output->expandedkey = calloc(176, sizeof(obliv uint8_t));
+// 	memcpy(output->expandedkey, key, 16 * sizeof(obliv uint8_t));
+// 	aesKeyExpand(output->expandedkey);
+
+// 	output->iv = calloc(16, sizeof(obliv uint8_t));
+// 	memcpy(output->iv, iv, 16 * sizeof(obliv uint8_t));
+// 	return output;
+// }
+
+// void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) obliv {
+// 	oaes_128_from_expanded(out, ctx->expandedkey, ctx->iv);
+// 	obliv uint16_t rem = 1;
+// 	for (int ii = 15; ii >=0 ;ii--) {
+// 		//increment the IV (which is considered little endian for compatibility with openssl)
+// 		rem += ctx->iv[ii];
+// 		ctx->iv[ii] = rem;
+// 		rem >>= 8;
+
+// 		//and XOR for encryption
+// 		if (block != NULL) out[ii] ^= block[ii];
+// 	}
+// }
+
+// void oaes_128_ctx_free(oaes_ctx * ctx) {
+// 	free(ctx->expandedkey);
+// 	free(ctx->iv);
+// 	free(ctx);
+// }
+
+
+
+
+
+
+void aeskey(obliv uint8_t mem[176]) obliv {
+	// this sub-program runs in the same memory context as the aes program
+	// it expects the first 16 bytes of the key schedule to be set to the key
+	// and then expands the key into the rest of the key schedule
+	// memory layout
+	// --key[ 16b ] -- | --key schedule 4*4*11 b--  
+
+	obliv uint32_t t;
+
+    for(int round=1, ri=16; round<11; round++, ri+=16) {
+
+        // rotate by 8
+        // but key is stored in 
+        // 00 01 02 03 stored as 03.02.01.00
+        t = (mem[ ri-3 ]<<24) ^ (mem[ ri-2 ]<<16) ^ (mem[ ri-1 ]<<8) ^ (mem[ ri-4 ]);
+
+        t = nsbox(t);
+
+        t = t ^ rcon[round];
+
+        mem[ri]   = (t>>24) ^ mem[ri-16];
+        mem[ri+1] = (t>>16)&0xff ^ mem[ri-15];
+        mem[ri+2] = (t>>8) &0xff ^ mem[ri-14];
+        mem[ri+3] = (t)&0xff ^ mem[ri-13];
+
+        for(int j=4; j<16; j++) {
+            mem[ri+j] = mem[ri+j-4] ^ mem[ri+j-16];
+        }
+
+    }
+
+}
+
+
+void addkey(obliv uint32_t mem[4], obliv uint32_t kex[44], int index) obliv {
+
+    // printf(" k: %08x %08x %08x %08x\n", kex[index], kex[index+1], kex[index+2], kex[index+3]);
+    mem[0] ^= kex[index];
+    mem[1] ^= kex[index+1];
+    mem[2] ^= kex[index+2];
+    mem[3] ^= kex[index+3];
+}
+
+// applies sbox to all 4 bytes in the input word
+obliv uint32_t nsbox(obliv uint32_t in) obliv {
+
+	obliv uint32_t u0 = (in>>7&0x01010101);
+	obliv uint32_t u1 = (in>>6)&0x01010101;
+	obliv uint32_t u2 = (in>>5)&0x01010101;
+	obliv uint32_t u3 = (in>>4)&0x01010101;
+	obliv uint32_t u4 = (in>>3)&0x01010101;
+	obliv uint32_t u5 = (in>>2)&0x01010101;
+	obliv uint32_t u6 = (in>>1)&0x01010101;
+	obliv uint32_t u7 = (in)&0x01010101;
+	obliv uint32_t d  = u7;
+
+	obliv uint32_t t1 = u0 ^ u3;	// T1 = U0 + U3
+	obliv uint32_t t2 = u0 ^ u5;	// T2 = U0 + U5
+	obliv uint32_t t3 = u0 ^ u6;	// T3 = U0 + U6
+	obliv uint32_t t4 = u3 ^ u5;	// T4 = U3 + U5
+	obliv uint32_t t5 = u4 ^ u6;	// T5 = U4 + U6
+	obliv uint32_t t6 = t1 ^ t5;
+	obliv uint32_t t7 = u1 ^ u2;	// T7 = U1 + U2
+	obliv uint32_t t8 = u7 ^ t6;	// T8 = U7 + T6
+	obliv uint32_t t9 = u7 ^ t7;	// T9 = U7 + T7	
+	obliv uint32_t t10 = t6 ^ t7;	// T10 = T6 + T7
+	obliv uint32_t t11 = u1 ^ u5;	// T11 = U1 + U5
+	obliv uint32_t t12 = u2 ^ u5;	// T12 = U2 + U5
+	obliv uint32_t t13 = t3 ^ t4;	// T13 = T3 + T4
+	obliv uint32_t t14 = t6 ^ t11;	// T14 = T6 + T11
+	obliv uint32_t t15 = t5 ^ t11;	// T15 = T5 + T11
+	obliv uint32_t t16 = t5 ^ t12;	// T16 = T5 + T12
+	obliv uint32_t t17 = t9 ^ t16;
+	obliv uint32_t t18 = u3 ^ u7;
+	obliv uint32_t t19 = t7 ^ t18;
+	obliv uint32_t t20 = t1 ^ t19;
+	obliv uint32_t t21 = u6 ^ u7;
+	obliv uint32_t t22 = t7 ^ t21;
+	obliv uint32_t t23 = t2 ^ t22;
+	obliv uint32_t t24 = t2 ^ t10;
+	obliv uint32_t t25 = t20 ^ t17;
+	obliv uint32_t t26 = t3 ^ t16;
+	obliv uint32_t t27 = t1 ^ t12;
+
+	obliv uint32_t m1 = t13 & t6;
+	obliv uint32_t m2 = t23 & t8;
+	obliv uint32_t m3 = t14 ^ m1;
+	obliv uint32_t m4 = t19 & d;
+	obliv uint32_t m5 = m4 ^ m1;
+	obliv uint32_t m6 = t3 & t16;
+	obliv uint32_t m7 = t22 & t9;
+	obliv uint32_t m8 = t26 ^ m6;
+	obliv uint32_t m9 = t20 & t17;
+	obliv uint32_t m10 = m9 ^ m6;
+	obliv uint32_t m11 = t1 & t15;
+	obliv uint32_t m12 = t4 & t27;
+	obliv uint32_t m13 = m12 ^ m11;
+	obliv uint32_t m14 = t2 & t10;
+	obliv uint32_t m15 = m14 ^ m11;
+	obliv uint32_t m16 = m3 ^ m2;
+	obliv uint32_t m17 = m5 ^ t24;
+	obliv uint32_t m18 = m8 ^ m7;
+
+	obliv uint32_t m19 = m10 ^ m15;
+	obliv uint32_t m20 = m16 ^ m13;
+	obliv uint32_t m21 = m17 ^ m15;
+	obliv uint32_t m22 = m18 ^ m13;
+	obliv uint32_t m23 = m19 ^ t25;
+	obliv uint32_t m24 = m22 ^ m23;
+	obliv uint32_t m25 = m22 & m20;
+	obliv uint32_t m26 = m21 ^ m25;
+	obliv uint32_t m27 = m20 ^ m21;
+	obliv uint32_t m28 = m23 ^ m25;
+	obliv uint32_t m29 = m28 & m27;
+	obliv uint32_t m30 = m26 & m24;
+	obliv uint32_t m31 = m20 & m23;
+	obliv uint32_t m32 = m27 & m31;
+	obliv uint32_t m33 = m27 ^ m25;
+	obliv uint32_t m34 = m21 & m22;
+	obliv uint32_t m35 = m24 & m34;
+	obliv uint32_t m36 = m24 ^ m25;
+	obliv uint32_t m37 = m21 ^ m29;
+	obliv uint32_t m38 = m32 ^ m33;
+	obliv uint32_t m39 = m23 ^ m30;
+	obliv uint32_t m40 = m35 ^ m36;
+	obliv uint32_t m41 = m38 ^ m40;
+	obliv uint32_t m42 = m37 ^ m39;
+	obliv uint32_t m43 = m37 ^ m38;
+	obliv uint32_t m44 = m39 ^ m40;
+	obliv uint32_t m45 = m42 ^ m41;
+	obliv uint32_t m46 = m44 & t6 ;
+	obliv uint32_t m47 = m40 & t8 ;
+	obliv uint32_t m48 = m39 & d  ;
+	obliv uint32_t m49 = m43 & t16;
+	obliv uint32_t m50 = m38 & t9 ;
+	obliv uint32_t m51 = m37 & t17;
+	obliv uint32_t m52 = m42 & t15;
+	obliv uint32_t m53 = m45 & t27;
+	obliv uint32_t m54 = m41 & t10;
+	obliv uint32_t m55 = m44 & t13;
+	obliv uint32_t m56 = m40 & t23;
+	obliv uint32_t m57 = m39 & t19;
+	obliv uint32_t m58 = m43 & t3 ;
+	obliv uint32_t m59 = m38 & t22;
+	obliv uint32_t m60 = m37 & t20;
+	obliv uint32_t m61 = m42 & t1 ;
+	obliv uint32_t m62 = m45 & t4 ;
+	obliv uint32_t m63 = m41 & t2 ;
+
+	obliv uint32_t l0  = m61 ^ m62;
+	obliv uint32_t l1  = m50 ^ m56;
+	obliv uint32_t l2  = m46 ^ m48;
+	obliv uint32_t l3  = m47 ^ m55;
+	obliv uint32_t l4  = m54 ^ m58;
+	obliv uint32_t l5  = m49 ^ m61;
+	obliv uint32_t l6  = m62 ^ l5 ;
+	obliv uint32_t l7  = m46 ^ l3 ;
+	obliv uint32_t l8  = m51 ^ m59;
+	obliv uint32_t l9  = m52 ^ m53;
+	obliv uint32_t l10 = m53 ^ l4 ;
+	obliv uint32_t l11 = m60 ^ l2 ;
+	obliv uint32_t l12 = m48 ^ m51;
+	obliv uint32_t l13 = m50 ^ l0 ;
+	obliv uint32_t l14 = m52 ^ m61;
+	obliv uint32_t l15 = m55 ^ l1 ;
+	obliv uint32_t l16 = m56 ^ l0 ;
+	obliv uint32_t l17 = m57 ^ l1 ;
+	obliv uint32_t l18 = m58 ^ l8 ;
+	obliv uint32_t l19 = m63 ^ l4 ;
+	obliv uint32_t l20 = l0  ^ l1 ;
+	obliv uint32_t l21 = l1  ^ l7 ;
+	obliv uint32_t l22 = l3  ^ l12;
+	obliv uint32_t l23 = l18 ^ l2 ;
+	obliv uint32_t l24 = l15 ^ l9 ;
+	obliv uint32_t l25 = l6  ^ l10;
+	obliv uint32_t l26 = l7  ^ l9 ;
+	obliv uint32_t l27 = l8  ^ l10;
+	obliv uint32_t l28 = l11 ^ l14;
+	obliv uint32_t l29 = l11 ^ l17;
+
+	obliv uint32_t S0 = l6 ^ l24;
+	obliv uint32_t S1 = l16 ^ l26 ^ 0x01010101;
+	obliv uint32_t S2 = l19 ^ l28 ^ 0x01010101;
+	obliv uint32_t S3 = l6 ^ l21;
+	obliv uint32_t S4 = l20 ^ l22;
+	obliv uint32_t S5 = l25 ^ l29;
+	obliv uint32_t S6 = l13 ^ l27 ^ 0x01010101;
+	obliv uint32_t S7 = l6 ^ l23 ^ 0x01010101;
+
+	return (S0<<7) | (S1<<6) | (S2<<5) | (S3<<4) | (S4<<3) | (S5<<2) | (S6<<1) | (S7);
+}
+
+obliv uint32_t nsbox2(obliv uint32_t in) obliv {
+    // based on the 32-and gate 83-xor gate circuit by Boyar and Peralta
+
+    // input is X0 + ..,X7  
+    //output is S0 + ...,S7
+
+    obliv uint32_t x0 = (in>>7&0x01010101);
+    obliv uint32_t x1 = (in>>6)&0x01010101;
+    obliv uint32_t x2 = (in>>5)&0x01010101;
+    obliv uint32_t x3 = (in>>4)&0x01010101;
+    obliv uint32_t x4 = (in>>3)&0x01010101;
+    obliv uint32_t x5 = (in>>2)&0x01010101;
+    obliv uint32_t x6 = (in>>1)&0x01010101;
+    obliv uint32_t x7 = (in)&0x01010101;
+
+
+  // begin top linear transformation 
+    obliv uint32_t y14  = x3 ^ x5;
+    obliv uint32_t y13  = x0 ^ x6;
+    obliv uint32_t y9  = x0 ^ x3;
+    obliv uint32_t y8  = x0 ^ x5;
+    obliv uint32_t t0  = x1 ^ x2;
+    obliv uint32_t y1  = t0 ^ x7;
+    obliv uint32_t y4  = y1 ^ x3;
+    obliv uint32_t y12  = y13 ^ y14;
+    obliv uint32_t y2  = y1 ^ x0;
+    obliv uint32_t y5  = y1 ^ x6;
+    obliv uint32_t y3  = y5 ^ y8;
+    obliv uint32_t t1  = x4 ^ y12;
+    obliv uint32_t y15  = t1 ^ x5;
+    obliv uint32_t y20  = t1 ^ x1;
+    obliv uint32_t y6  = y15 ^  x7;
+    obliv uint32_t y10  = y15 ^  t0;
+    obliv uint32_t y11  = y20 ^  y9;
+    obliv uint32_t y7  = x7 ^ y11;
+    obliv uint32_t y17  = y10 ^ y11;
+    obliv uint32_t y19  = y10 ^ y8;
+    obliv uint32_t y16  = t0 ^ y11;
+    obliv uint32_t y21  = y13^  y16;
+    obliv uint32_t y18  = x0 ^ y16;
+  // end top linear transformation 
+    obliv uint32_t t2  = y12 & y15;
+    obliv uint32_t t3  = y3 & y6;
+    obliv uint32_t t4  = t3 ^ t2;
+    obliv uint32_t t5  = y4 & x7;
+    obliv uint32_t t6  = t5 ^ t2; 
+    obliv uint32_t t7  = y13 & y16;
+    obliv uint32_t t8  = y5 & y1;
+    obliv uint32_t t9  = t8 ^ t7;
+    obliv uint32_t t10 = y2 & y7;
+    obliv uint32_t t11 = t10 ^ t7;
+    obliv uint32_t t12 = y9 & y11;
+    obliv uint32_t t13 = y14 & y17;
+    obliv uint32_t t14 = t13 ^ t12;
+    obliv uint32_t t15 = y8 & y10;
+    obliv uint32_t t16 = t15 ^ t12;
+    obliv uint32_t t17 = t4 ^ t14;
+    obliv uint32_t t18 = t6 ^ t16;
+    obliv uint32_t t19 = t9 ^ t14;
+    obliv uint32_t t20 = t11 ^ t16;
+    obliv uint32_t t21 = t17 ^ y20;
+    obliv uint32_t t22 = t18 ^ y19;
+    obliv uint32_t t23 = t19 ^ y21;
+    obliv uint32_t t24 = t20 ^ y18;
+  // this next piece of the circuit is 
+  // inversion in GF16, inputs are t21..24
+  // and outputs are T37,T33,T40,T29.
+  // Refer to paper for representation details
+  // (tower field construction, normal basis (W,W^2) for extension   
+  // from GF2 to GF4 and (Z^2,Z^8) for extension from GF4 to GF16).
+    obliv uint32_t t25 = t21 ^ t22;
+    obliv uint32_t t26 = t21 & t23;
+    obliv uint32_t t27 = t24 ^ t26;
+    obliv uint32_t t28 = t25 & t27; 
+    obliv uint32_t t29 = t28 ^ t22;
+    obliv uint32_t t30 = t23 ^ t24;
+    obliv uint32_t t31 = t22 ^ t26;
+    obliv uint32_t t32 = t31 & t30;
+    obliv uint32_t t33 = t32 ^ t24;
+    obliv uint32_t t34 = t23 ^ t33;
+    obliv uint32_t t35 = t27 ^ t33;
+    obliv uint32_t t36 = t24 & t35; 
+    obliv uint32_t t37 = t36 ^ t34;
+    obliv uint32_t t38 = t27 ^ t36;
+    obliv uint32_t t39 = t29 & t38;
+    obliv uint32_t t40 = t25 ^ t39;
+  // end GF16 inversion
+    obliv uint32_t t41 = t40 ^ t37;
+    obliv uint32_t t42 = t29 ^ t33;
+    obliv uint32_t t43 = t29 ^ t40;
+    obliv uint32_t t44 = t33 ^ t37;
+    obliv uint32_t t45 = t42 ^ t41;
+    obliv uint32_t z0 = t44 & y15;
+    obliv uint32_t z1 = t37 & y6;
+    obliv uint32_t z2 = t33 & x7;
+    obliv uint32_t z3 = t43 & y16;
+    obliv uint32_t z4 = t40 & y1;
+    obliv uint32_t z5 = t29 & y7;
+    obliv uint32_t z6 = t42 & y11;
+    obliv uint32_t z7 = t45 & y17;
+    obliv uint32_t z8 = t41 & y10;
+    obliv uint32_t z9 = t44 & y12;
+    obliv uint32_t z10 = t37 & y3;
+    obliv uint32_t z11 = t33 & y4;
+    obliv uint32_t z12 = t43 & y13;
+    obliv uint32_t z13 = t40 & y5;
+    obliv uint32_t z14 = t29 & y2;
+    obliv uint32_t z15 = t42 & y9;
+    obliv uint32_t z16 = t45 & y14;
+    obliv uint32_t z17 = t41 & y8;
+  // begin end linear transformation 
+    obliv uint32_t t46 = z15 ^ z16;
+    obliv uint32_t t47 = z10 ^ z11;
+    obliv uint32_t t48 = z5 ^ z13;
+    obliv uint32_t t49 = z9 ^ z10;
+    obliv uint32_t t50 = z2 ^ z12;
+    obliv uint32_t t51 = z2 ^ z5;
+    obliv uint32_t t52 = z7 ^ z8;
+    obliv uint32_t t53 = z0 ^ z3;
+    obliv uint32_t t54 = z6 ^ z7;
+    obliv uint32_t t55 = z16 ^ z17;
+    obliv uint32_t t56 = z12 ^ t48;
+    obliv uint32_t t57 = t50 ^ t53;
+    obliv uint32_t t58 = z4 ^ t46;
+    obliv uint32_t t59 = z3 ^ t54;
+    obliv uint32_t t60 = t46 ^ t57;
+    obliv uint32_t t61 = z14 ^ t57;
+    obliv uint32_t t62 = t52 ^ t58;
+    obliv uint32_t t63 = t49 ^ t58;
+    obliv uint32_t t64 = z4 ^ t59;
+    obliv uint32_t t65 = t61 ^ t62;
+    obliv uint32_t t66 = z1 ^ t63;
+    obliv uint32_t s0 = t59 ^ t63;
+    obliv uint32_t s6 = t56 ^ t62 ^ 0x01010101;; 
+    obliv uint32_t s7 = t48 ^ t60 ^ 0x01010101;; 
+    obliv uint32_t t67 = t64 ^ t65;
+    obliv uint32_t s3 = t53 ^ t66;
+    obliv uint32_t s4 = t51 ^ t66;
+    obliv uint32_t s5 = t47 ^ t65;
+    obliv uint32_t s1 = t64 ^ s3 ^ 0x01010101;; 
+    obliv uint32_t s2 = t55 ^ t67 ^ 0x01010101;; 
+
+    return (s0<<7) | (s1<<6) | (s2<<5) | (s3<<4) | (s4<<3) | (s5<<2) | (s6<<1) | (s7);
+
+}
+
+void shiftrows(obliv uint32_t mem[4]) obliv {
+
+	// explicit and stupid way to do this, but zero cost in secure computation
+    obliv uint8_t a30 = (mem[0]>>24)&0xff;
+    obliv uint8_t a20 = (mem[0]>>16)&0xff;
+    obliv uint8_t a10 = (mem[0]>>8)&0xff;
+    obliv uint8_t a00 = (mem[0])&0xff;
+
+    obliv uint8_t a31 = (mem[1]>>24)&0xff;
+    obliv uint8_t a21 = (mem[1]>>16)&0xff;
+    obliv uint8_t a11 = (mem[1]>>8)&0xff;
+    obliv uint8_t a01 = (mem[1])&0xff;
+
+    obliv uint8_t a32 = (mem[2]>>24)&0xff;
+    obliv uint8_t a22 = (mem[2]>>16)&0xff;
+    obliv uint8_t a12 = (mem[2]>>8)&0xff;
+    obliv uint8_t a02 = (mem[2])&0xff;
+
+    obliv uint8_t a33 = (mem[3]>>24)&0xff;
+    obliv uint8_t a23 = (mem[3]>>16)&0xff;
+    obliv uint8_t a13 = (mem[3]>>8)&0xff;
+    obliv uint8_t a03 = (mem[3])&0xff;
+
+    mem[0] = (a00) ^ (a11<<8) ^ (a22<<16) ^ (a33<<24);
+    mem[1] = (a01) ^ (a12<<8) ^ (a23<<16) ^ (a30<<24);
+    mem[2] = (a02) ^ (a13<<8) ^ (a20<<16) ^ (a31<<24);
+    mem[3] = (a03) ^ (a10<<8) ^ (a21<<16) ^ (a32<<24);
+
+}
+
+void mixcolumns(obliv uint32_t mem[4]) obliv {
+
+	// b = [ 2 3 1 1 ] * [i0]
+	//	   [ 1 2 3 1 ]   [i1]
+	//     [ 1 1 2 3 ]   [i2]
+	//     [ 3 1 1 2 ]   [i3]
+
+	obliv uint8_t in[4], twoi[4], out[4], x2,x3,mm;
+
+
+	for(int i=0; i<4; i++) {
+		in[0] =  mem[i] & 0xff;
+		in[1] = (mem[i]>>8) & 0xff;
+		in[2] = (mem[i]>>16) & 0xff;
+		in[3] = (mem[i]>>24) & 0xff;
+
+		for(int j=0; j<4; j++) {
+			mm = (obliv uint8_t)((obliv signed char)in[j] >> 7); /* arithmetic rt shift, shifts in highorder zeros or ones */
+			twoi[j] = (in[j] << 1);	// double
+			twoi[j] ^= (mm & 0x1b);	// xor in pad if high bit was 1			
+		}
+
+ 		out[0] = twoi[0] ^ (twoi[1] ^ in[1])   ^ in[2]    ^ in[3];		// 2 3 1 1
+        out[1] = in[0]   ^  twoi[1] ^ (twoi[2] ^ in[2])   ^ in[3];		// 1 2 3 1
+        out[2] = in[0]   ^  in[1]   ^ twoi[2]  ^ (twoi[3] ^ in[3]);		// 1 1 2 3
+        out[3] = (twoi[0] ^ in[0])  ^ in[1]    ^ in[2]    ^ twoi[3];	// 3 1 1 2
+
+        mem[i] = (out[3]<<24) ^ (out[2]<<16) ^ (out[1]<<8) ^ (out[0]);
+
+	}
+
+}

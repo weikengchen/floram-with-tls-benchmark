@@ -110,7 +110,7 @@ void test_main(void*varg) {
 
 				for (int jj = 0; jj < blocks; jj++) {
 					if (fast) {
-						o_aes(&input[jj*16], key, &input[jj*16]);
+						oaes_fast128(&input[jj*16], key, &input[jj*16]);
 					} else {
 						oaes_128(&input[jj*16], key, &input[jj*16]);
 					}
