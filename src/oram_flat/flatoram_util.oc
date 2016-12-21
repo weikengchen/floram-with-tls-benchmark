@@ -6,10 +6,14 @@ void* element(OcCopy* cpy,void* arr,uint32_t x) obliv { return x*cpy->eltsize+(u
 
 static int sslinits = 0;
 static obliv uint8_t* sslzero;
+static oaes_ctx * sslctx;
+static OcCopy sslcpy;
 
 void online_expand_init() {
 	if (sslinits == 0) {
 		sslzero = calloc(1, 16 * sizeof(obliv uint8_t));
+		sslctx = oaes_128_ctx_ctr_new(sslzero, sslzero);
+		sslcpy = ocCopyCharN(16);
 	}
 	sslinits++;
 }
@@ -18,21 +22,17 @@ void online_expand_deinit() {
 	if (sslinits == 1) {
 		free(sslzero);
 		sslzero = NULL;
+		oaes_128_ctx_free(sslctx);
+		sslctx = NULL;
 	}
 	sslinits--;
 }
 
 void online_expand(void * dest, void * src, size_t n) obliv {
-	OcCopy cpy;
-	oaes_ctx * ctx;
 	~obliv() {
-		ctx = oaes_128_ctx_ctr_new(src, sslzero);
-		cpy = ocCopyCharN(16);
+		oaes_128_rekey(sslctx, src, sslzero);
 	}
 	for (size_t ii = 0; ii < n; ii++) {
-		oaes_128_encdec(element(&cpy, dest, ii), ctx, sslzero);
-	}
-	~obliv() {
-		oaes_128_ctx_free(ctx);
+		oaes_128_encdec(element(&sslcpy, dest, ii), sslctx, NULL);
 	}
 }

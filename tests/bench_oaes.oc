@@ -1,6 +1,5 @@
 #include <obliv.oh>
 #include "oaes.oh"
-#include "ofastaes.oh"
 #include "test_generic.h"
 
 static const char TESTNAME[] = "oaes_benchmark";
@@ -8,15 +7,13 @@ static const char TESTNAME[] = "oaes_benchmark";
 #define TEXT_HELP_SUPPLEMENTARY "\
   -e perform an AES key expansion for every block\n\n\
   -b \x1b[4mNUMBER\x1b[0m \n\t\tencrypt \x1b[4mNUMBER\x1b[0m AES blocks per iteration\n\n\
-  -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n\
-  -f use the faster AES method\n\n"
+  -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
 
-static const char options_string[] = "efb:i:";
+static const char options_string[] = "eb:i:";
 static struct option long_options[] = {
 	{"expand-on-all", no_argument, NULL, 'e'},
 	{"blocks", required_argument, NULL, 'b'},
 	{"samples", required_argument, NULL, 'i'},
-	{"fast", required_argument, NULL, 'f'},
 	{0, 0, 0, 0}
 };
 
@@ -41,7 +38,6 @@ void test_main(void*varg) {
 	int blocks = 64;
 	bool expand_on_all = false;
 	int samples = 1;
-	bool fast   = false;
 
 	args_t * args_pass = varg;
 	int arg;
@@ -49,8 +45,6 @@ void test_main(void*varg) {
 	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
 		if (arg == 'e') {
 			expand_on_all = true;
-		} else if (arg == 'f') {
-			fast = true;
 		} else if (arg == 'b') {
 			blocks = atoi(optarg);
 			if (blocks <= 0) {
@@ -78,7 +72,7 @@ void test_main(void*varg) {
 
 	{
 
-		fprintf(stdout, "# AES (block count, expand on all, sample 1, sample 2, ... sample n) FAST MODE=%d\n", fast);
+		fprintf(stdout, "# AES (block count, expand on all, sample 1, sample 2, ... sample n)\n");
 		fflush(stdout);
 
 		obliv uint8_t * input = calloc(blocks, 16 * sizeof(obliv uint8_t));
@@ -93,11 +87,12 @@ void test_main(void*varg) {
 		fflush(stdout);
 
 		uint64_t tally = 0;
-		int64_t ygc = -yaoGateCount();;
+		uint64_t gatetally = 0;
 
 		for (int ii = 0; ii < samples; ii++) {
 
 			uint64_t startTime, endTime;
+			int64_t gates;
 
 			if (expand_on_all) {
 
@@ -106,17 +101,15 @@ void test_main(void*varg) {
 				}
 
 				startTime = current_timestamp();
+				gates = -yaoGateCount();
 				
 
 				for (int jj = 0; jj < blocks; jj++) {
-					if (fast) {
-						oaes_fast128(&input[jj*16], key, &input[jj*16]);
-					} else {
-						oaes_128(&input[jj*16], key, &input[jj*16]);
-					}
+					oaes_128(&input[jj*16], key, &input[jj*16]);
 				}
 				
 				endTime = current_timestamp();
+				gates += yaoGateCount();
 				
 			} else {
 
@@ -126,25 +119,27 @@ void test_main(void*varg) {
 				}
 
 				startTime = current_timestamp();
+				gates = -yaoGateCount();
 				oaes_ctx * ctx = oaes_128_ctx_ctr_new(key, iv);
 				for (int jj = 0; jj < blocks; jj++) {
 					oaes_128_encdec(&input[jj*16], ctx, &input[jj*16]);
 				}
 				oaes_128_ctx_free(ctx);
 				endTime = current_timestamp();
+				gates += yaoGateCount();
 
 			}
 
-			fprintf(stdout, ",%d", endTime - startTime);
+			fprintf(stdout, ",%d,%d", endTime - startTime,gates);
 			fflush(stdout);
 			tally += endTime - startTime;
+			gatetally += gates;
 
 		}
-
-		ygc += yaoGateCount();
+		
 		fprintf(stdout, "\n");
 		fflush(stdout);
-		fprintf(stderr, "AES (blocks:%d, expand on all: %d): %d microseconds avg, %d gates\n", blocks, expand_on_all, tally / samples, ygc);
+		fprintf(stderr, "AES (blocks:%d, expand on all: %d): %d microseconds avg, %d gates\n", blocks, expand_on_all, tally / samples, gatetally/samples);
 
 		free(input);
 	}

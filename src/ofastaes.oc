@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "oaes.oh"
 
 static const unsigned int rcon[16] = {
 //     0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36, 0x6c, 0xd8, 0xab, 0x4d, 0x9a,
@@ -20,75 +21,81 @@ void mixcolumns(obliv uint32_t mem[4]) obliv;
 obliv uint32_t nsbox(obliv uint32_t in) obliv;
 obliv uint32_t nsbox2(obliv uint32_t in) obliv;
 
+struct oaes_ctx {
+    obliv uint8_t * expandedkey;
+    obliv uint8_t * iv;
+};
 
+void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t kex[176],const obliv uint8_t block[16]) obliv {
 
-void oaes_fast128(obliv uint8_t out[16], obliv uint8_t key[16], const obliv uint8_t in[16]) obliv {
+    obliv uint32_t mem[4];
+    ~obliv() { memcpy(mem, block, 16 * sizeof(obliv uint8_t)); }
+    addkey(mem, (uint32_t*)kex, 0);
+    for(int ii=1; ii<=10; ii++) {
+        mem[0] = nsbox(mem[0]);
+        mem[1] = nsbox(mem[1]);
+        mem[2] = nsbox(mem[2]);
+        mem[3] = nsbox(mem[3]);
 
-	obliv uint32_t mem[4];	// bigger than necessary, does it matter?
-	obliv uint8_t  kex[176];
-	// mem layout
-	// --input[ 16b ] -- | --key schedule 4*4*11 b--  
-	//| s0 -- s7 | t0 -- t27 | m0 -- m63 | l0 -- l29
+        shiftrows(mem);
 
-	~obliv() { memcpy(mem,    in, 16 * sizeof(obliv uint8_t)); }
-	~obliv() { memcpy(kex,   key, 16 * sizeof(obliv uint8_t)); }
+        if (ii<10) {         // last round doesnt have mix
+            mixcolumns(mem);
+        }
+        addkey(mem, (uint32_t*)kex, ii*4);
+    }
 
-	aeskey(kex);	// this function expands the key
+    for (size_t ii=0; ii<4;ii++) {
+        ((obliv uint32_t *)out)[ii] = mem[ii];
+    }
+}
 
-	addkey(mem, (uint32_t*)kex, 0);
+void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16], const obliv uint8_t in[16]) obliv {
 
-	for(int round=1; round<11; round++) {
-
-		mem[0] = nsbox(mem[0]);
-		mem[1] = nsbox(mem[1]);
-		mem[2] = nsbox(mem[2]);
-		mem[3] = nsbox(mem[3]);
-
-		shiftrows(mem);
-
-		if (round<10) {			// last round doesnt have mix
-			mixcolumns(mem);
-		}
-		addkey(mem, (uint32_t*)kex, round*4);
-
-	}
-
-	~obliv() { memcpy(out, mem, 16 * sizeof(obliv uint8_t)); }
+    obliv uint8_t buf[176];
+    ~obliv() { memcpy(buf, key, 16 * sizeof(obliv uint8_t)); }
+    aeskey(buf);
+    oaes_128_from_expanded(out,buf,in);
 
 }
 
-
-// oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t iv[16]) {
-// 	oaes_ctx * output = malloc(sizeof(oaes_ctx));	
+oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t iv[16]) {
+ 	oaes_ctx * output = malloc(sizeof(oaes_ctx));	
 	
-// 	output->expandedkey = calloc(176, sizeof(obliv uint8_t));
-// 	memcpy(output->expandedkey, key, 16 * sizeof(obliv uint8_t));
-// 	aesKeyExpand(output->expandedkey);
+ 	output->expandedkey = calloc(176, sizeof(obliv uint8_t));
+ 	memcpy(output->expandedkey, key, 16 * sizeof(obliv uint8_t));
+ 	aeskey(output->expandedkey);
 
-// 	output->iv = calloc(16, sizeof(obliv uint8_t));
-// 	memcpy(output->iv, iv, 16 * sizeof(obliv uint8_t));
-// 	return output;
-// }
+ 	output->iv = calloc(16, sizeof(obliv uint8_t));
+ 	memcpy(output->iv, iv, 16 * sizeof(obliv uint8_t));
+ 	return output;
+}
 
-// void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) obliv {
-// 	oaes_128_from_expanded(out, ctx->expandedkey, ctx->iv);
-// 	obliv uint16_t rem = 1;
-// 	for (int ii = 15; ii >=0 ;ii--) {
-// 		//increment the IV (which is considered little endian for compatibility with openssl)
-// 		rem += ctx->iv[ii];
-// 		ctx->iv[ii] = rem;
-// 		rem >>= 8;
+void oaes_128_rekey(oaes_ctx * ctx, obliv uint8_t key[16], obliv uint8_t iv[16]) {
+    memcpy(ctx->expandedkey, key, 16 * sizeof(obliv uint8_t));
+    aeskey(ctx->expandedkey);
+    memcpy(ctx->iv, iv, 16 * sizeof(obliv uint8_t));
+}
 
-// 		//and XOR for encryption
-// 		if (block != NULL) out[ii] ^= block[ii];
-// 	}
-// }
+void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) obliv {
+ 	oaes_128_from_expanded(out, ctx->expandedkey, ctx->iv);
+ 	obliv uint16_t rem = 1;
+ 	for (int ii = 15; ii >=0 ;ii--) {
+ 		//increment the IV (which is considered little endian for compatibility with openssl)
+ 		rem += ctx->iv[ii];
+ 		ctx->iv[ii] = rem;
+ 		rem >>= 8;
 
-// void oaes_128_ctx_free(oaes_ctx * ctx) {
-// 	free(ctx->expandedkey);
-// 	free(ctx->iv);
-// 	free(ctx);
-// }
+ 		//and XOR for encryption
+ 		if (block != NULL) out[ii] ^= block[ii];
+ 	}
+}
+
+void oaes_128_ctx_free(oaes_ctx * ctx) {
+ 	free(ctx->expandedkey);
+ 	free(ctx->iv);
+ 	free(ctx);
+}
 
 
 
@@ -139,7 +146,7 @@ void addkey(obliv uint32_t mem[4], obliv uint32_t kex[44], int index) obliv {
 }
 
 // applies sbox to all 4 bytes in the input word
-obliv uint32_t nsbox(obliv uint32_t in) obliv {
+/*obliv uint32_t nsbox(obliv uint32_t in) obliv {
 
 	obliv uint32_t u0 = (in>>7&0x01010101);
 	obliv uint32_t u1 = (in>>6)&0x01010101;
@@ -285,7 +292,163 @@ obliv uint32_t nsbox(obliv uint32_t in) obliv {
 	obliv uint32_t S7 = l6 ^ l23 ^ 0x01010101;
 
 	return (S0<<7) | (S1<<6) | (S2<<5) | (S3<<4) | (S4<<3) | (S5<<2) | (S6<<1) | (S7);
+}*/
+
+obliv uint8_t nsbox_one(obliv uint8_t in) obliv {
+
+    obliv bool u0 = in>>7;
+    obliv bool u1 = in>>6;
+    obliv bool u2 = in>>5;
+    obliv bool u3 = in>>4;
+    obliv bool u4 = in>>3;
+    obliv bool u5 = in>>2;
+    obliv bool u6 = in>>1;
+    obliv bool u7 = in;
+    obliv bool d  = u7;
+
+    obliv bool t1 = u0 ^ u3;    // T1 = U0 + U3
+    obliv bool t2 = u0 ^ u5;    // T2 = U0 + U5
+    obliv bool t3 = u0 ^ u6;    // T3 = U0 + U6
+    obliv bool t4 = u3 ^ u5;    // T4 = U3 + U5
+    obliv bool t5 = u4 ^ u6;    // T5 = U4 + U6
+    obliv bool t6 = t1 ^ t5;
+    obliv bool t7 = u1 ^ u2;    // T7 = U1 + U2
+    obliv bool t8 = u7 ^ t6;    // T8 = U7 + T6
+    obliv bool t9 = u7 ^ t7;    // T9 = U7 + T7 
+    obliv bool t10 = t6 ^ t7;   // T10 = T6 + T7
+    obliv bool t11 = u1 ^ u5;   // T11 = U1 + U5
+    obliv bool t12 = u2 ^ u5;   // T12 = U2 + U5
+    obliv bool t13 = t3 ^ t4;   // T13 = T3 + T4
+    obliv bool t14 = t6 ^ t11;  // T14 = T6 + T11
+    obliv bool t15 = t5 ^ t11;  // T15 = T5 + T11
+    obliv bool t16 = t5 ^ t12;  // T16 = T5 + T12
+    obliv bool t17 = t9 ^ t16;
+    obliv bool t18 = u3 ^ u7;
+    obliv bool t19 = t7 ^ t18;
+    obliv bool t20 = t1 ^ t19;
+    obliv bool t21 = u6 ^ u7;
+    obliv bool t22 = t7 ^ t21;
+    obliv bool t23 = t2 ^ t22;
+    obliv bool t24 = t2 ^ t10;
+    obliv bool t25 = t20 ^ t17;
+    obliv bool t26 = t3 ^ t16;
+    obliv bool t27 = t1 ^ t12;
+
+    obliv bool m1 = t13 & t6;
+    obliv bool m2 = t23 & t8;
+    obliv bool m3 = t14 ^ m1;
+    obliv bool m4 = t19 & d;
+    obliv bool m5 = m4 ^ m1;
+    obliv bool m6 = t3 & t16;
+    obliv bool m7 = t22 & t9;
+    obliv bool m8 = t26 ^ m6;
+    obliv bool m9 = t20 & t17;
+    obliv bool m10 = m9 ^ m6;
+    obliv bool m11 = t1 & t15;
+    obliv bool m12 = t4 & t27;
+    obliv bool m13 = m12 ^ m11;
+    obliv bool m14 = t2 & t10;
+    obliv bool m15 = m14 ^ m11;
+    obliv bool m16 = m3 ^ m2;
+    obliv bool m17 = m5 ^ t24;
+    obliv bool m18 = m8 ^ m7;
+
+    obliv bool m19 = m10 ^ m15;
+    obliv bool m20 = m16 ^ m13;
+    obliv bool m21 = m17 ^ m15;
+    obliv bool m22 = m18 ^ m13;
+    obliv bool m23 = m19 ^ t25;
+    obliv bool m24 = m22 ^ m23;
+    obliv bool m25 = m22 & m20;
+    obliv bool m26 = m21 ^ m25;
+    obliv bool m27 = m20 ^ m21;
+    obliv bool m28 = m23 ^ m25;
+    obliv bool m29 = m28 & m27;
+    obliv bool m30 = m26 & m24;
+    obliv bool m31 = m20 & m23;
+    obliv bool m32 = m27 & m31;
+    obliv bool m33 = m27 ^ m25;
+    obliv bool m34 = m21 & m22;
+    obliv bool m35 = m24 & m34;
+    obliv bool m36 = m24 ^ m25;
+    obliv bool m37 = m21 ^ m29;
+    obliv bool m38 = m32 ^ m33;
+    obliv bool m39 = m23 ^ m30;
+    obliv bool m40 = m35 ^ m36;
+    obliv bool m41 = m38 ^ m40;
+    obliv bool m42 = m37 ^ m39;
+    obliv bool m43 = m37 ^ m38;
+    obliv bool m44 = m39 ^ m40;
+    obliv bool m45 = m42 ^ m41;
+    obliv bool m46 = m44 & t6 ;
+    obliv bool m47 = m40 & t8 ;
+    obliv bool m48 = m39 & d  ;
+    obliv bool m49 = m43 & t16;
+    obliv bool m50 = m38 & t9 ;
+    obliv bool m51 = m37 & t17;
+    obliv bool m52 = m42 & t15;
+    obliv bool m53 = m45 & t27;
+    obliv bool m54 = m41 & t10;
+    obliv bool m55 = m44 & t13;
+    obliv bool m56 = m40 & t23;
+    obliv bool m57 = m39 & t19;
+    obliv bool m58 = m43 & t3 ;
+    obliv bool m59 = m38 & t22;
+    obliv bool m60 = m37 & t20;
+    obliv bool m61 = m42 & t1 ;
+    obliv bool m62 = m45 & t4 ;
+    obliv bool m63 = m41 & t2 ;
+
+    obliv bool l0  = m61 ^ m62;
+    obliv bool l1  = m50 ^ m56;
+    obliv bool l2  = m46 ^ m48;
+    obliv bool l3  = m47 ^ m55;
+    obliv bool l4  = m54 ^ m58;
+    obliv bool l5  = m49 ^ m61;
+    obliv bool l6  = m62 ^ l5 ;
+    obliv bool l7  = m46 ^ l3 ;
+    obliv bool l8  = m51 ^ m59;
+    obliv bool l9  = m52 ^ m53;
+    obliv bool l10 = m53 ^ l4 ;
+    obliv bool l11 = m60 ^ l2 ;
+    obliv bool l12 = m48 ^ m51;
+    obliv bool l13 = m50 ^ l0 ;
+    obliv bool l14 = m52 ^ m61;
+    obliv bool l15 = m55 ^ l1 ;
+    obliv bool l16 = m56 ^ l0 ;
+    obliv bool l17 = m57 ^ l1 ;
+    obliv bool l18 = m58 ^ l8 ;
+    obliv bool l19 = m63 ^ l4 ;
+    obliv bool l20 = l0  ^ l1 ;
+    obliv bool l21 = l1  ^ l7 ;
+    obliv bool l22 = l3  ^ l12;
+    obliv bool l23 = l18 ^ l2 ;
+    obliv bool l24 = l15 ^ l9 ;
+    obliv bool l25 = l6  ^ l10;
+    obliv bool l26 = l7  ^ l9 ;
+    obliv bool l27 = l8  ^ l10;
+    obliv bool l28 = l11 ^ l14;
+    obliv bool l29 = l11 ^ l17;
+
+    obliv bool S0 = l6 ^ l24;
+    obliv bool S1 = l16 ^ l26 ^ 1;
+    obliv bool S2 = l19 ^ l28 ^ 1;
+    obliv bool S3 = l6 ^ l21;
+    obliv bool S4 = l20 ^ l22;
+    obliv bool S5 = l25 ^ l29;
+    obliv bool S6 = l13 ^ l27 ^ 1;
+    obliv bool S7 = l6 ^ l23 ^ 1;
+
+    return (((obliv uint8_t)S0)<<7) | (((obliv uint8_t)S1)<<6) | (((obliv uint8_t)S2)<<5) | (((obliv uint8_t)S3)<<4) | (((obliv uint8_t)S4)<<3) | (((obliv uint8_t)S5)<<2) | (((obliv uint8_t)S6)<<1) | ((obliv uint8_t)S7);
 }
+
+obliv uint32_t nsbox(obliv uint32_t in) obliv {
+    return nsbox_one(in & 0xFF)
+            | (nsbox_one((in>>8) & 0xFF) << 8)
+            | (nsbox_one((in>>16) & 0xFF) << 16)
+            | (nsbox_one((in>>24) & 0xFF) << 24);
+}
+
 
 obliv uint32_t nsbox2(obliv uint32_t in) obliv {
     // based on the 32-and gate 83-xor gate circuit by Boyar and Peralta

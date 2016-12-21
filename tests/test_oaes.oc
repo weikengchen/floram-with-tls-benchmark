@@ -4,7 +4,6 @@
 
 #include <obliv.oh>
 #include "oaes.oh"
-#include "ofastaes.oh"
 #include "test_generic.h"
 
 
@@ -56,7 +55,7 @@ void test_main(void*varg) {
 		}
 
 		//oaes_128(output, key, input);
-		oaes_fast128(output, key, input);
+		oaes_128(output, key, input);
 
 		bool success = true;
 		for (int ii = 0; ii < 16; ii++) {
@@ -102,7 +101,7 @@ void test_main(void*varg) {
 		}
 
 		//oaes_128(output, key, input);
-		oaes_fast128(output, key, input);
+		oaes_128(output, key, input);
 
 		bool success = true;
 		for (int ii = 0; ii < 16; ii++) {
