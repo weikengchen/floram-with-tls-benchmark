@@ -18,8 +18,7 @@ void aeskey(obliv uint8_t mem[176]) obliv;
 void addkey(obliv uint32_t mem[4], obliv uint32_t key[44], int index) obliv;
 void shiftrows(obliv uint32_t mem[4]) obliv;
 void mixcolumns(obliv uint32_t mem[4]) obliv;
-obliv uint32_t nsbox(obliv uint32_t in) obliv;
-obliv uint32_t nsbox2(obliv uint32_t in) obliv;
+void nsbox_16(obliv uint8_t* out, obliv uint8_t* in) obliv;
 
 struct oaes_ctx {
     obliv uint8_t * expandedkey;
@@ -32,10 +31,7 @@ void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t kex[176],const 
     ~obliv() { memcpy(mem, block, 16 * sizeof(obliv uint8_t)); }
     addkey(mem, (uint32_t*)kex, 0);
     for(int ii=1; ii<=10; ii++) {
-        mem[0] = nsbox(mem[0]);
-        mem[1] = nsbox(mem[1]);
-        mem[2] = nsbox(mem[2]);
-        mem[3] = nsbox(mem[3]);
+        nsbox_16(mem, mem);
 
         shiftrows(mem);
 
@@ -109,23 +105,23 @@ void aeskey(obliv uint8_t mem[176]) obliv {
 	// memory layout
 	// --key[ 16b ] -- | --key schedule 4*4*11 b--  
 
-	obliv uint32_t t;
+	obliv uint32_t t[4];
 
     for(int round=1, ri=16; round<11; round++, ri+=16) {
 
         // rotate by 8
         // but key is stored in 
         // 00 01 02 03 stored as 03.02.01.00
-        t = (mem[ ri-3 ]<<24) ^ (mem[ ri-2 ]<<16) ^ (mem[ ri-1 ]<<8) ^ (mem[ ri-4 ]);
+        t[0] = (mem[ ri-3 ]<<24) ^ (mem[ ri-2 ]<<16) ^ (mem[ ri-1 ]<<8) ^ (mem[ ri-4 ]);
 
-        t = nsbox(t);
+        nsbox_16(t,t);
 
-        t = t ^ rcon[round];
+        t[0] = t[0] ^ rcon[round];
 
-        mem[ri]   = (t>>24) ^ mem[ri-16];
-        mem[ri+1] = (t>>16)&0xff ^ mem[ri-15];
-        mem[ri+2] = (t>>8) &0xff ^ mem[ri-14];
-        mem[ri+3] = (t)&0xff ^ mem[ri-13];
+        mem[ri]   = (t[0]>>24) ^ mem[ri-16];
+        mem[ri+1] = (t[0]>>16)&0xff ^ mem[ri-15];
+        mem[ri+2] = (t[0]>>8) &0xff ^ mem[ri-14];
+        mem[ri+3] = (t[0])&0xff ^ mem[ri-13];
 
         for(int j=4; j<16; j++) {
             mem[ri+j] = mem[ri+j-4] ^ mem[ri+j-16];
@@ -134,7 +130,6 @@ void aeskey(obliv uint8_t mem[176]) obliv {
     }
 
 }
-
 
 void addkey(obliv uint32_t mem[4], obliv uint32_t kex[44], int index) obliv {
 
@@ -145,469 +140,173 @@ void addkey(obliv uint32_t mem[4], obliv uint32_t kex[44], int index) obliv {
     mem[3] ^= kex[index+3];
 }
 
-// applies sbox to all 4 bytes in the input word
-/*obliv uint32_t nsbox(obliv uint32_t in) obliv {
-
-	obliv uint32_t u0 = (in>>7&0x01010101);
-	obliv uint32_t u1 = (in>>6)&0x01010101;
-	obliv uint32_t u2 = (in>>5)&0x01010101;
-	obliv uint32_t u3 = (in>>4)&0x01010101;
-	obliv uint32_t u4 = (in>>3)&0x01010101;
-	obliv uint32_t u5 = (in>>2)&0x01010101;
-	obliv uint32_t u6 = (in>>1)&0x01010101;
-	obliv uint32_t u7 = (in)&0x01010101;
-	obliv uint32_t d  = u7;
-
-	obliv uint32_t t1 = u0 ^ u3;	// T1 = U0 + U3
-	obliv uint32_t t2 = u0 ^ u5;	// T2 = U0 + U5
-	obliv uint32_t t3 = u0 ^ u6;	// T3 = U0 + U6
-	obliv uint32_t t4 = u3 ^ u5;	// T4 = U3 + U5
-	obliv uint32_t t5 = u4 ^ u6;	// T5 = U4 + U6
-	obliv uint32_t t6 = t1 ^ t5;
-	obliv uint32_t t7 = u1 ^ u2;	// T7 = U1 + U2
-	obliv uint32_t t8 = u7 ^ t6;	// T8 = U7 + T6
-	obliv uint32_t t9 = u7 ^ t7;	// T9 = U7 + T7	
-	obliv uint32_t t10 = t6 ^ t7;	// T10 = T6 + T7
-	obliv uint32_t t11 = u1 ^ u5;	// T11 = U1 + U5
-	obliv uint32_t t12 = u2 ^ u5;	// T12 = U2 + U5
-	obliv uint32_t t13 = t3 ^ t4;	// T13 = T3 + T4
-	obliv uint32_t t14 = t6 ^ t11;	// T14 = T6 + T11
-	obliv uint32_t t15 = t5 ^ t11;	// T15 = T5 + T11
-	obliv uint32_t t16 = t5 ^ t12;	// T16 = T5 + T12
-	obliv uint32_t t17 = t9 ^ t16;
-	obliv uint32_t t18 = u3 ^ u7;
-	obliv uint32_t t19 = t7 ^ t18;
-	obliv uint32_t t20 = t1 ^ t19;
-	obliv uint32_t t21 = u6 ^ u7;
-	obliv uint32_t t22 = t7 ^ t21;
-	obliv uint32_t t23 = t2 ^ t22;
-	obliv uint32_t t24 = t2 ^ t10;
-	obliv uint32_t t25 = t20 ^ t17;
-	obliv uint32_t t26 = t3 ^ t16;
-	obliv uint32_t t27 = t1 ^ t12;
-
-	obliv uint32_t m1 = t13 & t6;
-	obliv uint32_t m2 = t23 & t8;
-	obliv uint32_t m3 = t14 ^ m1;
-	obliv uint32_t m4 = t19 & d;
-	obliv uint32_t m5 = m4 ^ m1;
-	obliv uint32_t m6 = t3 & t16;
-	obliv uint32_t m7 = t22 & t9;
-	obliv uint32_t m8 = t26 ^ m6;
-	obliv uint32_t m9 = t20 & t17;
-	obliv uint32_t m10 = m9 ^ m6;
-	obliv uint32_t m11 = t1 & t15;
-	obliv uint32_t m12 = t4 & t27;
-	obliv uint32_t m13 = m12 ^ m11;
-	obliv uint32_t m14 = t2 & t10;
-	obliv uint32_t m15 = m14 ^ m11;
-	obliv uint32_t m16 = m3 ^ m2;
-	obliv uint32_t m17 = m5 ^ t24;
-	obliv uint32_t m18 = m8 ^ m7;
-
-	obliv uint32_t m19 = m10 ^ m15;
-	obliv uint32_t m20 = m16 ^ m13;
-	obliv uint32_t m21 = m17 ^ m15;
-	obliv uint32_t m22 = m18 ^ m13;
-	obliv uint32_t m23 = m19 ^ t25;
-	obliv uint32_t m24 = m22 ^ m23;
-	obliv uint32_t m25 = m22 & m20;
-	obliv uint32_t m26 = m21 ^ m25;
-	obliv uint32_t m27 = m20 ^ m21;
-	obliv uint32_t m28 = m23 ^ m25;
-	obliv uint32_t m29 = m28 & m27;
-	obliv uint32_t m30 = m26 & m24;
-	obliv uint32_t m31 = m20 & m23;
-	obliv uint32_t m32 = m27 & m31;
-	obliv uint32_t m33 = m27 ^ m25;
-	obliv uint32_t m34 = m21 & m22;
-	obliv uint32_t m35 = m24 & m34;
-	obliv uint32_t m36 = m24 ^ m25;
-	obliv uint32_t m37 = m21 ^ m29;
-	obliv uint32_t m38 = m32 ^ m33;
-	obliv uint32_t m39 = m23 ^ m30;
-	obliv uint32_t m40 = m35 ^ m36;
-	obliv uint32_t m41 = m38 ^ m40;
-	obliv uint32_t m42 = m37 ^ m39;
-	obliv uint32_t m43 = m37 ^ m38;
-	obliv uint32_t m44 = m39 ^ m40;
-	obliv uint32_t m45 = m42 ^ m41;
-	obliv uint32_t m46 = m44 & t6 ;
-	obliv uint32_t m47 = m40 & t8 ;
-	obliv uint32_t m48 = m39 & d  ;
-	obliv uint32_t m49 = m43 & t16;
-	obliv uint32_t m50 = m38 & t9 ;
-	obliv uint32_t m51 = m37 & t17;
-	obliv uint32_t m52 = m42 & t15;
-	obliv uint32_t m53 = m45 & t27;
-	obliv uint32_t m54 = m41 & t10;
-	obliv uint32_t m55 = m44 & t13;
-	obliv uint32_t m56 = m40 & t23;
-	obliv uint32_t m57 = m39 & t19;
-	obliv uint32_t m58 = m43 & t3 ;
-	obliv uint32_t m59 = m38 & t22;
-	obliv uint32_t m60 = m37 & t20;
-	obliv uint32_t m61 = m42 & t1 ;
-	obliv uint32_t m62 = m45 & t4 ;
-	obliv uint32_t m63 = m41 & t2 ;
-
-	obliv uint32_t l0  = m61 ^ m62;
-	obliv uint32_t l1  = m50 ^ m56;
-	obliv uint32_t l2  = m46 ^ m48;
-	obliv uint32_t l3  = m47 ^ m55;
-	obliv uint32_t l4  = m54 ^ m58;
-	obliv uint32_t l5  = m49 ^ m61;
-	obliv uint32_t l6  = m62 ^ l5 ;
-	obliv uint32_t l7  = m46 ^ l3 ;
-	obliv uint32_t l8  = m51 ^ m59;
-	obliv uint32_t l9  = m52 ^ m53;
-	obliv uint32_t l10 = m53 ^ l4 ;
-	obliv uint32_t l11 = m60 ^ l2 ;
-	obliv uint32_t l12 = m48 ^ m51;
-	obliv uint32_t l13 = m50 ^ l0 ;
-	obliv uint32_t l14 = m52 ^ m61;
-	obliv uint32_t l15 = m55 ^ l1 ;
-	obliv uint32_t l16 = m56 ^ l0 ;
-	obliv uint32_t l17 = m57 ^ l1 ;
-	obliv uint32_t l18 = m58 ^ l8 ;
-	obliv uint32_t l19 = m63 ^ l4 ;
-	obliv uint32_t l20 = l0  ^ l1 ;
-	obliv uint32_t l21 = l1  ^ l7 ;
-	obliv uint32_t l22 = l3  ^ l12;
-	obliv uint32_t l23 = l18 ^ l2 ;
-	obliv uint32_t l24 = l15 ^ l9 ;
-	obliv uint32_t l25 = l6  ^ l10;
-	obliv uint32_t l26 = l7  ^ l9 ;
-	obliv uint32_t l27 = l8  ^ l10;
-	obliv uint32_t l28 = l11 ^ l14;
-	obliv uint32_t l29 = l11 ^ l17;
-
-	obliv uint32_t S0 = l6 ^ l24;
-	obliv uint32_t S1 = l16 ^ l26 ^ 0x01010101;
-	obliv uint32_t S2 = l19 ^ l28 ^ 0x01010101;
-	obliv uint32_t S3 = l6 ^ l21;
-	obliv uint32_t S4 = l20 ^ l22;
-	obliv uint32_t S5 = l25 ^ l29;
-	obliv uint32_t S6 = l13 ^ l27 ^ 0x01010101;
-	obliv uint32_t S7 = l6 ^ l23 ^ 0x01010101;
-
-	return (S0<<7) | (S1<<6) | (S2<<5) | (S3<<4) | (S4<<3) | (S5<<2) | (S6<<1) | (S7);
-}*/
-
-/*obliv uint8_t nsbox_one(obliv uint8_t in) obliv {
-
-    obliv bool u0 = in>>7;
-    obliv bool u1 = in>>6;
-    obliv bool u2 = in>>5;
-    obliv bool u3 = in>>4;
-    obliv bool u4 = in>>3;
-    obliv bool u5 = in>>2;
-    obliv bool u6 = in>>1;
-    obliv bool u7 = in;
-    obliv bool d  = u7;
-
-    obliv bool t1 = u0 ^ u3;    // T1 = U0 + U3
-    obliv bool t2 = u0 ^ u5;    // T2 = U0 + U5
-    obliv bool t3 = u0 ^ u6;    // T3 = U0 + U6
-    obliv bool t4 = u3 ^ u5;    // T4 = U3 + U5
-    obliv bool t5 = u4 ^ u6;    // T5 = U4 + U6
-    obliv bool t6 = t1 ^ t5;
-    obliv bool t7 = u1 ^ u2;    // T7 = U1 + U2
-    obliv bool t8 = u7 ^ t6;    // T8 = U7 + T6
-    obliv bool t9 = u7 ^ t7;    // T9 = U7 + T7 
-    obliv bool t10 = t6 ^ t7;   // T10 = T6 + T7
-    obliv bool t11 = u1 ^ u5;   // T11 = U1 + U5
-    obliv bool t12 = u2 ^ u5;   // T12 = U2 + U5
-    obliv bool t13 = t3 ^ t4;   // T13 = T3 + T4
-    obliv bool t14 = t6 ^ t11;  // T14 = T6 + T11
-    obliv bool t15 = t5 ^ t11;  // T15 = T5 + T11
-    obliv bool t16 = t5 ^ t12;  // T16 = T5 + T12
-    obliv bool t17 = t9 ^ t16;
-    obliv bool t18 = u3 ^ u7;
-    obliv bool t19 = t7 ^ t18;
-    obliv bool t20 = t1 ^ t19;
-    obliv bool t21 = u6 ^ u7;
-    obliv bool t22 = t7 ^ t21;
-    obliv bool t23 = t2 ^ t22;
-    obliv bool t24 = t2 ^ t10;
-    obliv bool t25 = t20 ^ t17;
-    obliv bool t26 = t3 ^ t16;
-    obliv bool t27 = t1 ^ t12;
-
-    obliv bool m1 = t13 & t6;
-    obliv bool m2 = t23 & t8;
-    obliv bool m3 = t14 ^ m1;
-    obliv bool m4 = t19 & d;
-    obliv bool m5 = m4 ^ m1;
-    obliv bool m6 = t3 & t16;
-    obliv bool m7 = t22 & t9;
-    obliv bool m8 = t26 ^ m6;
-    obliv bool m9 = t20 & t17;
-    obliv bool m10 = m9 ^ m6;
-    obliv bool m11 = t1 & t15;
-    obliv bool m12 = t4 & t27;
-    obliv bool m13 = m12 ^ m11;
-    obliv bool m14 = t2 & t10;
-    obliv bool m15 = m14 ^ m11;
-    obliv bool m16 = m3 ^ m2;
-    obliv bool m17 = m5 ^ t24;
-    obliv bool m18 = m8 ^ m7;
-
-    obliv bool m19 = m10 ^ m15;
-    obliv bool m20 = m16 ^ m13;
-    obliv bool m21 = m17 ^ m15;
-    obliv bool m22 = m18 ^ m13;
-    obliv bool m23 = m19 ^ t25;
-    obliv bool m24 = m22 ^ m23;
-    obliv bool m25 = m22 & m20;
-    obliv bool m26 = m21 ^ m25;
-    obliv bool m27 = m20 ^ m21;
-    obliv bool m28 = m23 ^ m25;
-    obliv bool m29 = m28 & m27;
-    obliv bool m30 = m26 & m24;
-    obliv bool m31 = m20 & m23;
-    obliv bool m32 = m27 & m31;
-    obliv bool m33 = m27 ^ m25;
-    obliv bool m34 = m21 & m22;
-    obliv bool m35 = m24 & m34;
-    obliv bool m36 = m24 ^ m25;
-    obliv bool m37 = m21 ^ m29;
-    obliv bool m38 = m32 ^ m33;
-    obliv bool m39 = m23 ^ m30;
-    obliv bool m40 = m35 ^ m36;
-    obliv bool m41 = m38 ^ m40;
-    obliv bool m42 = m37 ^ m39;
-    obliv bool m43 = m37 ^ m38;
-    obliv bool m44 = m39 ^ m40;
-    obliv bool m45 = m42 ^ m41;
-    obliv bool m46 = m44 & t6 ;
-    obliv bool m47 = m40 & t8 ;
-    obliv bool m48 = m39 & d  ;
-    obliv bool m49 = m43 & t16;
-    obliv bool m50 = m38 & t9 ;
-    obliv bool m51 = m37 & t17;
-    obliv bool m52 = m42 & t15;
-    obliv bool m53 = m45 & t27;
-    obliv bool m54 = m41 & t10;
-    obliv bool m55 = m44 & t13;
-    obliv bool m56 = m40 & t23;
-    obliv bool m57 = m39 & t19;
-    obliv bool m58 = m43 & t3 ;
-    obliv bool m59 = m38 & t22;
-    obliv bool m60 = m37 & t20;
-    obliv bool m61 = m42 & t1 ;
-    obliv bool m62 = m45 & t4 ;
-    obliv bool m63 = m41 & t2 ;
-
-    obliv bool l0  = m61 ^ m62;
-    obliv bool l1  = m50 ^ m56;
-    obliv bool l2  = m46 ^ m48;
-    obliv bool l3  = m47 ^ m55;
-    obliv bool l4  = m54 ^ m58;
-    obliv bool l5  = m49 ^ m61;
-    obliv bool l6  = m62 ^ l5 ;
-    obliv bool l7  = m46 ^ l3 ;
-    obliv bool l8  = m51 ^ m59;
-    obliv bool l9  = m52 ^ m53;
-    obliv bool l10 = m53 ^ l4 ;
-    obliv bool l11 = m60 ^ l2 ;
-    obliv bool l12 = m48 ^ m51;
-    obliv bool l13 = m50 ^ l0 ;
-    obliv bool l14 = m52 ^ m61;
-    obliv bool l15 = m55 ^ l1 ;
-    obliv bool l16 = m56 ^ l0 ;
-    obliv bool l17 = m57 ^ l1 ;
-    obliv bool l18 = m58 ^ l8 ;
-    obliv bool l19 = m63 ^ l4 ;
-    obliv bool l20 = l0  ^ l1 ;
-    obliv bool l21 = l1  ^ l7 ;
-    obliv bool l22 = l3  ^ l12;
-    obliv bool l23 = l18 ^ l2 ;
-    obliv bool l24 = l15 ^ l9 ;
-    obliv bool l25 = l6  ^ l10;
-    obliv bool l26 = l7  ^ l9 ;
-    obliv bool l27 = l8  ^ l10;
-    obliv bool l28 = l11 ^ l14;
-    obliv bool l29 = l11 ^ l17;
-
-    obliv bool S0 = l6 ^ l24;
-    obliv bool S1 = l16 ^ l26 ^ 1;
-    obliv bool S2 = l19 ^ l28 ^ 1;
-    obliv bool S3 = l6 ^ l21;
-    obliv bool S4 = l20 ^ l22;
-    obliv bool S5 = l25 ^ l29;
-    obliv bool S6 = l13 ^ l27 ^ 1;
-    obliv bool S7 = l6 ^ l23 ^ 1;
-
-    return (((obliv uint8_t)S0)<<7) | (((obliv uint8_t)S1)<<6) | (((obliv uint8_t)S2)<<5) | (((obliv uint8_t)S3)<<4) | (((obliv uint8_t)S4)<<3) | (((obliv uint8_t)S5)<<2) | (((obliv uint8_t)S6)<<1) | ((obliv uint8_t)S7);
-}*/
-
-
-obliv uint8_t nsbox_16(obliv uint8_t in) obliv {
+void nsbox_16(obliv uint8_t out[16], obliv uint8_t in[16]) obliv {
     // based on the 32-and gate 83-xor gate circuit by Boyar and Peralta
 
-    obliv bool s0, s1, s2, s3, s4, s5, s6, s7;
+    obliv uint16_t s0, s1, s2, s3, s4, s5, s6, s7;
 
     ~obliv() {
         // input is X0 + ..,X7  
         //output is S0 + ...,S7
 
-        obliv bool x0 = in>>7;
-        obliv bool x1 = in>>6;
-        obliv bool x2 = in>>5;
-        obliv bool x3 = in>>4;
-        obliv bool x4 = in>>3;
-        obliv bool x5 = in>>2;
-        obliv bool x6 = in>>1;
-        obliv bool x7 = in;
+        obliv uint16_t x0;
+        obliv uint16_t x1;
+        obliv uint16_t x2;
+        obliv uint16_t x3;
+        obliv uint16_t x4;
+        obliv uint16_t x5;
+        obliv uint16_t x6;
+        obliv uint16_t x7;
 
+        for (size_t ii = 0; ii < 16; ii++) {
+            ((obliv bool *)&x0)[ii] = ((obliv bool *)(&(in[ii])))[7];
+            ((obliv bool *)&x1)[ii] = ((obliv bool *)(&(in[ii])))[6];
+            ((obliv bool *)&x2)[ii] = ((obliv bool *)(&(in[ii])))[5];
+            ((obliv bool *)&x3)[ii] = ((obliv bool *)(&(in[ii])))[4];
+            ((obliv bool *)&x4)[ii] = ((obliv bool *)(&(in[ii])))[3];
+            ((obliv bool *)&x5)[ii] = ((obliv bool *)(&(in[ii])))[2];
+            ((obliv bool *)&x6)[ii] = ((obliv bool *)(&(in[ii])))[1];
+            ((obliv bool *)&x7)[ii] = ((obliv bool *)(&(in[ii])))[0];
+        }
 
         // begin top linear transformation 
-        obliv bool y14  = x3 ^ x5;
-        obliv bool y13  = x0 ^ x6;
-        obliv bool y9  = x0 ^ x3;
-        obliv bool y8  = x0 ^ x5;
-        obliv bool t0  = x1 ^ x2;
-        obliv bool y1  = t0 ^ x7;
-        obliv bool y4  = y1 ^ x3;
-        obliv bool y12  = y13 ^ y14;
-        obliv bool y2  = y1 ^ x0;
-        obliv bool y5  = y1 ^ x6;
-        obliv bool y3  = y5 ^ y8;
-        obliv bool t1  = x4 ^ y12;
-        obliv bool y15  = t1 ^ x5;
-        obliv bool y20  = t1 ^ x1;
-        obliv bool y6  = y15 ^  x7;
-        obliv bool y10  = y15 ^  t0;
-        obliv bool y11  = y20 ^  y9;
-        obliv bool y7  = x7 ^ y11;
-        obliv bool y17  = y10 ^ y11;
-        obliv bool y19  = y10 ^ y8;
-        obliv bool y16  = t0 ^ y11;
-        obliv bool y21  = y13^  y16;
-        obliv bool y18  = x0 ^ y16;
+        obliv uint16_t y14  = x3 ^ x5;
+        obliv uint16_t y13  = x0 ^ x6;
+        obliv uint16_t y9  = x0 ^ x3;
+        obliv uint16_t y8  = x0 ^ x5;
+        obliv uint16_t t0  = x1 ^ x2;
+        obliv uint16_t y1  = t0 ^ x7;
+        obliv uint16_t y4  = y1 ^ x3;
+        obliv uint16_t y12  = y13 ^ y14;
+        obliv uint16_t y2  = y1 ^ x0;
+        obliv uint16_t y5  = y1 ^ x6;
+        obliv uint16_t y3  = y5 ^ y8;
+        obliv uint16_t t1  = x4 ^ y12;
+        obliv uint16_t y15  = t1 ^ x5;
+        obliv uint16_t y20  = t1 ^ x1;
+        obliv uint16_t y6  = y15 ^  x7;
+        obliv uint16_t y10  = y15 ^  t0;
+        obliv uint16_t y11  = y20 ^  y9;
+        obliv uint16_t y7  = x7 ^ y11;
+        obliv uint16_t y17  = y10 ^ y11;
+        obliv uint16_t y19  = y10 ^ y8;
+        obliv uint16_t y16  = t0 ^ y11;
+        obliv uint16_t y21  = y13^  y16;
+        obliv uint16_t y18  = x0 ^ y16;
         // end top linear transformation 
-        obliv bool t2  = y12 & y15;
-        obliv bool t3  = y3 & y6;
-        obliv bool t4  = t3 ^ t2;
-        obliv bool t5  = y4 & x7;
-        obliv bool t6  = t5 ^ t2; 
-        obliv bool t7  = y13 & y16;
-        obliv bool t8  = y5 & y1;
-        obliv bool t9  = t8 ^ t7;
-        obliv bool t10 = y2 & y7;
-        obliv bool t11 = t10 ^ t7;
-        obliv bool t12 = y9 & y11;
-        obliv bool t13 = y14 & y17;
-        obliv bool t14 = t13 ^ t12;
-        obliv bool t15 = y8 & y10;
-        obliv bool t16 = t15 ^ t12;
-        obliv bool t17 = t4 ^ t14;
-        obliv bool t18 = t6 ^ t16;
-        obliv bool t19 = t9 ^ t14;
-        obliv bool t20 = t11 ^ t16;
-        obliv bool t21 = t17 ^ y20;
-        obliv bool t22 = t18 ^ y19;
-        obliv bool t23 = t19 ^ y21;
-        obliv bool t24 = t20 ^ y18;
+        obliv uint16_t t2  = y12 & y15;
+        obliv uint16_t t3  = y3 & y6;
+        obliv uint16_t t4  = t3 ^ t2;
+        obliv uint16_t t5  = y4 & x7;
+        obliv uint16_t t6  = t5 ^ t2; 
+        obliv uint16_t t7  = y13 & y16;
+        obliv uint16_t t8  = y5 & y1;
+        obliv uint16_t t9  = t8 ^ t7;
+        obliv uint16_t t10 = y2 & y7;
+        obliv uint16_t t11 = t10 ^ t7;
+        obliv uint16_t t12 = y9 & y11;
+        obliv uint16_t t13 = y14 & y17;
+        obliv uint16_t t14 = t13 ^ t12;
+        obliv uint16_t t15 = y8 & y10;
+        obliv uint16_t t16 = t15 ^ t12;
+        obliv uint16_t t17 = t4 ^ t14;
+        obliv uint16_t t18 = t6 ^ t16;
+        obliv uint16_t t19 = t9 ^ t14;
+        obliv uint16_t t20 = t11 ^ t16;
+        obliv uint16_t t21 = t17 ^ y20;
+        obliv uint16_t t22 = t18 ^ y19;
+        obliv uint16_t t23 = t19 ^ y21;
+        obliv uint16_t t24 = t20 ^ y18;
         // this next piece of the circuit is 
         // inversion in GF16, inputs are t21..24
         // and outputs are T37,T33,T40,T29.
         // Refer to paper for representation details
         // (tower field construction, normal basis (W,W^2) for extension   
         // from GF2 to GF4 and (Z^2,Z^8) for extension from GF4 to GF16).
-        obliv bool t25 = t21 ^ t22;
-        obliv bool t26 = t21 & t23;
-        obliv bool t27 = t24 ^ t26;
-        obliv bool t28 = t25 & t27; 
-        obliv bool t29 = t28 ^ t22;
-        obliv bool t30 = t23 ^ t24;
-        obliv bool t31 = t22 ^ t26;
-        obliv bool t32 = t31 & t30;
-        obliv bool t33 = t32 ^ t24;
-        obliv bool t34 = t23 ^ t33;
-        obliv bool t35 = t27 ^ t33;
-        obliv bool t36 = t24 & t35; 
-        obliv bool t37 = t36 ^ t34;
-        obliv bool t38 = t27 ^ t36;
-        obliv bool t39 = t29 & t38;
-        obliv bool t40 = t25 ^ t39;
+        obliv uint16_t t25 = t21 ^ t22;
+        obliv uint16_t t26 = t21 & t23;
+        obliv uint16_t t27 = t24 ^ t26;
+        obliv uint16_t t28 = t25 & t27; 
+        obliv uint16_t t29 = t28 ^ t22;
+        obliv uint16_t t30 = t23 ^ t24;
+        obliv uint16_t t31 = t22 ^ t26;
+        obliv uint16_t t32 = t31 & t30;
+        obliv uint16_t t33 = t32 ^ t24;
+        obliv uint16_t t34 = t23 ^ t33;
+        obliv uint16_t t35 = t27 ^ t33;
+        obliv uint16_t t36 = t24 & t35; 
+        obliv uint16_t t37 = t36 ^ t34;
+        obliv uint16_t t38 = t27 ^ t36;
+        obliv uint16_t t39 = t29 & t38;
+        obliv uint16_t t40 = t25 ^ t39;
         // end GF16 inversion
-        obliv bool t41 = t40 ^ t37;
-        obliv bool t42 = t29 ^ t33;
-        obliv bool t43 = t29 ^ t40;
-        obliv bool t44 = t33 ^ t37;
-        obliv bool t45 = t42 ^ t41;
-        obliv bool z0 = t44 & y15;
-        obliv bool z1 = t37 & y6;
-        obliv bool z2 = t33 & x7;
-        obliv bool z3 = t43 & y16;
-        obliv bool z4 = t40 & y1;
-        obliv bool z5 = t29 & y7;
-        obliv bool z6 = t42 & y11;
-        obliv bool z7 = t45 & y17;
-        obliv bool z8 = t41 & y10;
-        obliv bool z9 = t44 & y12;
-        obliv bool z10 = t37 & y3;
-        obliv bool z11 = t33 & y4;
-        obliv bool z12 = t43 & y13;
-        obliv bool z13 = t40 & y5;
-        obliv bool z14 = t29 & y2;
-        obliv bool z15 = t42 & y9;
-        obliv bool z16 = t45 & y14;
-        obliv bool z17 = t41 & y8;
+        obliv uint16_t t41 = t40 ^ t37;
+        obliv uint16_t t42 = t29 ^ t33;
+        obliv uint16_t t43 = t29 ^ t40;
+        obliv uint16_t t44 = t33 ^ t37;
+        obliv uint16_t t45 = t42 ^ t41;
+        obliv uint16_t z0 = t44 & y15;
+        obliv uint16_t z1 = t37 & y6;
+        obliv uint16_t z2 = t33 & x7;
+        obliv uint16_t z3 = t43 & y16;
+        obliv uint16_t z4 = t40 & y1;
+        obliv uint16_t z5 = t29 & y7;
+        obliv uint16_t z6 = t42 & y11;
+        obliv uint16_t z7 = t45 & y17;
+        obliv uint16_t z8 = t41 & y10;
+        obliv uint16_t z9 = t44 & y12;
+        obliv uint16_t z10 = t37 & y3;
+        obliv uint16_t z11 = t33 & y4;
+        obliv uint16_t z12 = t43 & y13;
+        obliv uint16_t z13 = t40 & y5;
+        obliv uint16_t z14 = t29 & y2;
+        obliv uint16_t z15 = t42 & y9;
+        obliv uint16_t z16 = t45 & y14;
+        obliv uint16_t z17 = t41 & y8;
         // begin end linear transformation 
-        obliv bool t46 = z15 ^ z16;
-        obliv bool t47 = z10 ^ z11;
-        obliv bool t48 = z5 ^ z13;
-        obliv bool t49 = z9 ^ z10;
-        obliv bool t50 = z2 ^ z12;
-        obliv bool t51 = z2 ^ z5;
-        obliv bool t52 = z7 ^ z8;
-        obliv bool t53 = z0 ^ z3;
-        obliv bool t54 = z6 ^ z7;
-        obliv bool t55 = z16 ^ z17;
-        obliv bool t56 = z12 ^ t48; 
-        obliv bool t57 = t50 ^ t53; 
-        obliv bool t58 = z4 ^ t46; 
-        obliv bool t59 = z3 ^ t54; 
-        obliv bool t60 = t46 ^ t57; 
-        obliv bool t61 = z14 ^ t57; 
-        obliv bool t62 = t52 ^ t58;
-        obliv bool t63 = t49 ^ t58;
-        obliv bool t64 = z4 ^ t59;
-        obliv bool t65 = t61 ^ t62;
-        obliv bool t66 = z1 ^ t63;
+        obliv uint16_t t46 = z15 ^ z16;
+        obliv uint16_t t47 = z10 ^ z11;
+        obliv uint16_t t48 = z5 ^ z13;
+        obliv uint16_t t49 = z9 ^ z10;
+        obliv uint16_t t50 = z2 ^ z12;
+        obliv uint16_t t51 = z2 ^ z5;
+        obliv uint16_t t52 = z7 ^ z8;
+        obliv uint16_t t53 = z0 ^ z3;
+        obliv uint16_t t54 = z6 ^ z7;
+        obliv uint16_t t55 = z16 ^ z17;
+        obliv uint16_t t56 = z12 ^ t48; 
+        obliv uint16_t t57 = t50 ^ t53; 
+        obliv uint16_t t58 = z4 ^ t46; 
+        obliv uint16_t t59 = z3 ^ t54; 
+        obliv uint16_t t60 = t46 ^ t57; 
+        obliv uint16_t t61 = z14 ^ t57; 
+        obliv uint16_t t62 = t52 ^ t58;
+        obliv uint16_t t63 = t49 ^ t58;
+        obliv uint16_t t64 = z4 ^ t59;
+        obliv uint16_t t65 = t61 ^ t62;
+        obliv uint16_t t66 = z1 ^ t63;
         s0 = t59 ^ t63;
-        s6 = t56 ^ t62 ^ 1;
-        s7 = t48 ^ t60 ^ 1; 
-        obliv bool t67 = t64 ^ t65;
+        s6 = t56 ^ t62 ^ (~0);
+        s7 = t48 ^ t60 ^ (~0); 
+        obliv uint16_t t67 = t64 ^ t65;
         s3 = t53 ^ t66;
         s4 = t51 ^ t66;
         s5 = t47 ^ t65;
-        s1 = t64 ^ s3 ^ 1;
-        s2 = t55 ^ t67 ^ 1;
+        s1 = t64 ^ s3 ^ (~0);
+        s2 = t55 ^ t67 ^ (~0);
     }
 
-    obliv uint8_t result;
-    obliv bool * r = &result;
-    r[7] = s0;
-    r[6] = s1;
-    r[5] = s2;
-    r[4] = s3;
-    r[3] = s4;
-    r[2] = s5;
-    r[1] = s6;
-    r[0] = s7;
-    return result;
+     for (size_t ii = 0; ii < 16; ii++) {
+        ((obliv bool *)(&(out[ii])))[7] = ((obliv bool *)&s0)[ii];
+        ((obliv bool *)(&(out[ii])))[6] = ((obliv bool *)&s1)[ii];
+        ((obliv bool *)(&(out[ii])))[5] = ((obliv bool *)&s2)[ii];
+        ((obliv bool *)(&(out[ii])))[4] = ((obliv bool *)&s3)[ii];
+        ((obliv bool *)(&(out[ii])))[3] = ((obliv bool *)&s4)[ii];
+        ((obliv bool *)(&(out[ii])))[2] = ((obliv bool *)&s5)[ii];
+        ((obliv bool *)(&(out[ii])))[1] = ((obliv bool *)&s6)[ii];
+        ((obliv bool *)(&(out[ii])))[0] = ((obliv bool *)&s7)[ii];
+    }
 
-}
-
-obliv uint32_t nsbox(obliv uint32_t in) obliv {
-    return nsbox_one(in & 0xFF)
-            | (nsbox_one((in>>8) & 0xFF) << 8)
-            | (nsbox_one((in>>16) & 0xFF) << 16)
-            | (nsbox_one((in>>24) & 0xFF) << 24);
 }
 
 void shiftrows(obliv uint32_t m1[4]) obliv {
