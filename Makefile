@@ -12,7 +12,7 @@ CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo 
 FLAT_ORAM_DEPS=bitpropagate.oo bitpropagate.o flatoram_util.oo flatoram_util.o scanrom.oo scanrom.o flatoram.oo
 ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) $(FLAT_ORAM_DEPS:%=oram_flat/%) oram.oo
 OBJS=$(DEPS) $(ORAM_DEPS) obig.oo ochacha.oo ograph.oo omatch.oo oqueue.oo\
-		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo ofastaes.oo
+		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo oaes.oo
 
 TEST_PATH=tests/
 TEST_OUT_PATH=build/tests/

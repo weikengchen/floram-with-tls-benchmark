@@ -32,7 +32,9 @@ void online_expand(void * dest, void * src, size_t n) obliv {
 	~obliv() {
 		oaes_128_rekey(sslctx, src, sslzero);
 	}
-	for (size_t ii = 0; ii < n; ii++) {
-		oaes_128_encdec(element(&sslcpy, dest, ii), sslctx, NULL);
+	size_t ii = 0;
+	for (; ii < n/2; ii++) {
+		oaes_128_encdec_double(element(&sslcpy, dest, ii*2), element(&sslcpy, dest, ii*2+1), sslctx, NULL, NULL);
 	}
+	if (n%2 != 0) oaes_128_encdec(element(&sslcpy, dest, ii*2), sslctx, NULL);
 }
