@@ -294,7 +294,7 @@ void addkey(obliv uint32_t mem[4], obliv uint32_t kex[44], int index) obliv {
 	return (S0<<7) | (S1<<6) | (S2<<5) | (S3<<4) | (S4<<3) | (S5<<2) | (S6<<1) | (S7);
 }*/
 
-obliv uint8_t nsbox_one(obliv uint8_t in) obliv {
+/*obliv uint8_t nsbox_one(obliv uint8_t in) obliv {
 
     obliv bool u0 = in>>7;
     obliv bool u1 = in>>6;
@@ -440,6 +440,167 @@ obliv uint8_t nsbox_one(obliv uint8_t in) obliv {
     obliv bool S7 = l6 ^ l23 ^ 1;
 
     return (((obliv uint8_t)S0)<<7) | (((obliv uint8_t)S1)<<6) | (((obliv uint8_t)S2)<<5) | (((obliv uint8_t)S3)<<4) | (((obliv uint8_t)S4)<<3) | (((obliv uint8_t)S5)<<2) | (((obliv uint8_t)S6)<<1) | ((obliv uint8_t)S7);
+}*/
+
+
+obliv uint8_t nsbox_16(obliv uint8_t in) obliv {
+    // based on the 32-and gate 83-xor gate circuit by Boyar and Peralta
+
+    obliv bool s0, s1, s2, s3, s4, s5, s6, s7;
+
+    ~obliv() {
+        // input is X0 + ..,X7  
+        //output is S0 + ...,S7
+
+        obliv bool x0 = in>>7;
+        obliv bool x1 = in>>6;
+        obliv bool x2 = in>>5;
+        obliv bool x3 = in>>4;
+        obliv bool x4 = in>>3;
+        obliv bool x5 = in>>2;
+        obliv bool x6 = in>>1;
+        obliv bool x7 = in;
+
+
+        // begin top linear transformation 
+        obliv bool y14  = x3 ^ x5;
+        obliv bool y13  = x0 ^ x6;
+        obliv bool y9  = x0 ^ x3;
+        obliv bool y8  = x0 ^ x5;
+        obliv bool t0  = x1 ^ x2;
+        obliv bool y1  = t0 ^ x7;
+        obliv bool y4  = y1 ^ x3;
+        obliv bool y12  = y13 ^ y14;
+        obliv bool y2  = y1 ^ x0;
+        obliv bool y5  = y1 ^ x6;
+        obliv bool y3  = y5 ^ y8;
+        obliv bool t1  = x4 ^ y12;
+        obliv bool y15  = t1 ^ x5;
+        obliv bool y20  = t1 ^ x1;
+        obliv bool y6  = y15 ^  x7;
+        obliv bool y10  = y15 ^  t0;
+        obliv bool y11  = y20 ^  y9;
+        obliv bool y7  = x7 ^ y11;
+        obliv bool y17  = y10 ^ y11;
+        obliv bool y19  = y10 ^ y8;
+        obliv bool y16  = t0 ^ y11;
+        obliv bool y21  = y13^  y16;
+        obliv bool y18  = x0 ^ y16;
+        // end top linear transformation 
+        obliv bool t2  = y12 & y15;
+        obliv bool t3  = y3 & y6;
+        obliv bool t4  = t3 ^ t2;
+        obliv bool t5  = y4 & x7;
+        obliv bool t6  = t5 ^ t2; 
+        obliv bool t7  = y13 & y16;
+        obliv bool t8  = y5 & y1;
+        obliv bool t9  = t8 ^ t7;
+        obliv bool t10 = y2 & y7;
+        obliv bool t11 = t10 ^ t7;
+        obliv bool t12 = y9 & y11;
+        obliv bool t13 = y14 & y17;
+        obliv bool t14 = t13 ^ t12;
+        obliv bool t15 = y8 & y10;
+        obliv bool t16 = t15 ^ t12;
+        obliv bool t17 = t4 ^ t14;
+        obliv bool t18 = t6 ^ t16;
+        obliv bool t19 = t9 ^ t14;
+        obliv bool t20 = t11 ^ t16;
+        obliv bool t21 = t17 ^ y20;
+        obliv bool t22 = t18 ^ y19;
+        obliv bool t23 = t19 ^ y21;
+        obliv bool t24 = t20 ^ y18;
+        // this next piece of the circuit is 
+        // inversion in GF16, inputs are t21..24
+        // and outputs are T37,T33,T40,T29.
+        // Refer to paper for representation details
+        // (tower field construction, normal basis (W,W^2) for extension   
+        // from GF2 to GF4 and (Z^2,Z^8) for extension from GF4 to GF16).
+        obliv bool t25 = t21 ^ t22;
+        obliv bool t26 = t21 & t23;
+        obliv bool t27 = t24 ^ t26;
+        obliv bool t28 = t25 & t27; 
+        obliv bool t29 = t28 ^ t22;
+        obliv bool t30 = t23 ^ t24;
+        obliv bool t31 = t22 ^ t26;
+        obliv bool t32 = t31 & t30;
+        obliv bool t33 = t32 ^ t24;
+        obliv bool t34 = t23 ^ t33;
+        obliv bool t35 = t27 ^ t33;
+        obliv bool t36 = t24 & t35; 
+        obliv bool t37 = t36 ^ t34;
+        obliv bool t38 = t27 ^ t36;
+        obliv bool t39 = t29 & t38;
+        obliv bool t40 = t25 ^ t39;
+        // end GF16 inversion
+        obliv bool t41 = t40 ^ t37;
+        obliv bool t42 = t29 ^ t33;
+        obliv bool t43 = t29 ^ t40;
+        obliv bool t44 = t33 ^ t37;
+        obliv bool t45 = t42 ^ t41;
+        obliv bool z0 = t44 & y15;
+        obliv bool z1 = t37 & y6;
+        obliv bool z2 = t33 & x7;
+        obliv bool z3 = t43 & y16;
+        obliv bool z4 = t40 & y1;
+        obliv bool z5 = t29 & y7;
+        obliv bool z6 = t42 & y11;
+        obliv bool z7 = t45 & y17;
+        obliv bool z8 = t41 & y10;
+        obliv bool z9 = t44 & y12;
+        obliv bool z10 = t37 & y3;
+        obliv bool z11 = t33 & y4;
+        obliv bool z12 = t43 & y13;
+        obliv bool z13 = t40 & y5;
+        obliv bool z14 = t29 & y2;
+        obliv bool z15 = t42 & y9;
+        obliv bool z16 = t45 & y14;
+        obliv bool z17 = t41 & y8;
+        // begin end linear transformation 
+        obliv bool t46 = z15 ^ z16;
+        obliv bool t47 = z10 ^ z11;
+        obliv bool t48 = z5 ^ z13;
+        obliv bool t49 = z9 ^ z10;
+        obliv bool t50 = z2 ^ z12;
+        obliv bool t51 = z2 ^ z5;
+        obliv bool t52 = z7 ^ z8;
+        obliv bool t53 = z0 ^ z3;
+        obliv bool t54 = z6 ^ z7;
+        obliv bool t55 = z16 ^ z17;
+        obliv bool t56 = z12 ^ t48; 
+        obliv bool t57 = t50 ^ t53; 
+        obliv bool t58 = z4 ^ t46; 
+        obliv bool t59 = z3 ^ t54; 
+        obliv bool t60 = t46 ^ t57; 
+        obliv bool t61 = z14 ^ t57; 
+        obliv bool t62 = t52 ^ t58;
+        obliv bool t63 = t49 ^ t58;
+        obliv bool t64 = z4 ^ t59;
+        obliv bool t65 = t61 ^ t62;
+        obliv bool t66 = z1 ^ t63;
+        s0 = t59 ^ t63;
+        s6 = t56 ^ t62 ^ 1;
+        s7 = t48 ^ t60 ^ 1; 
+        obliv bool t67 = t64 ^ t65;
+        s3 = t53 ^ t66;
+        s4 = t51 ^ t66;
+        s5 = t47 ^ t65;
+        s1 = t64 ^ s3 ^ 1;
+        s2 = t55 ^ t67 ^ 1;
+    }
+
+    obliv uint8_t result;
+    obliv bool * r = &result;
+    r[7] = s0;
+    r[6] = s1;
+    r[5] = s2;
+    r[4] = s3;
+    r[3] = s4;
+    r[2] = s5;
+    r[1] = s6;
+    r[0] = s7;
+    return result;
+
 }
 
 obliv uint32_t nsbox(obliv uint32_t in) obliv {
@@ -449,182 +610,31 @@ obliv uint32_t nsbox(obliv uint32_t in) obliv {
             | (nsbox_one((in>>24) & 0xFF) << 24);
 }
 
+void shiftrows(obliv uint32_t m1[4]) obliv {
 
-obliv uint32_t nsbox2(obliv uint32_t in) obliv {
-    // based on the 32-and gate 83-xor gate circuit by Boyar and Peralta
+    obliv uint8_t * mem = m1;
+    obliv uint8_t m2[16];
+    ~obliv() memcpy(m2, mem, 16 * sizeof(obliv uint8_t));
 
-    // input is X0 + ..,X7  
-    //output is S0 + ...,S7
-
-    obliv uint32_t x0 = (in>>7&0x01010101);
-    obliv uint32_t x1 = (in>>6)&0x01010101;
-    obliv uint32_t x2 = (in>>5)&0x01010101;
-    obliv uint32_t x3 = (in>>4)&0x01010101;
-    obliv uint32_t x4 = (in>>3)&0x01010101;
-    obliv uint32_t x5 = (in>>2)&0x01010101;
-    obliv uint32_t x6 = (in>>1)&0x01010101;
-    obliv uint32_t x7 = (in)&0x01010101;
-
-
-  // begin top linear transformation 
-    obliv uint32_t y14  = x3 ^ x5;
-    obliv uint32_t y13  = x0 ^ x6;
-    obliv uint32_t y9  = x0 ^ x3;
-    obliv uint32_t y8  = x0 ^ x5;
-    obliv uint32_t t0  = x1 ^ x2;
-    obliv uint32_t y1  = t0 ^ x7;
-    obliv uint32_t y4  = y1 ^ x3;
-    obliv uint32_t y12  = y13 ^ y14;
-    obliv uint32_t y2  = y1 ^ x0;
-    obliv uint32_t y5  = y1 ^ x6;
-    obliv uint32_t y3  = y5 ^ y8;
-    obliv uint32_t t1  = x4 ^ y12;
-    obliv uint32_t y15  = t1 ^ x5;
-    obliv uint32_t y20  = t1 ^ x1;
-    obliv uint32_t y6  = y15 ^  x7;
-    obliv uint32_t y10  = y15 ^  t0;
-    obliv uint32_t y11  = y20 ^  y9;
-    obliv uint32_t y7  = x7 ^ y11;
-    obliv uint32_t y17  = y10 ^ y11;
-    obliv uint32_t y19  = y10 ^ y8;
-    obliv uint32_t y16  = t0 ^ y11;
-    obliv uint32_t y21  = y13^  y16;
-    obliv uint32_t y18  = x0 ^ y16;
-  // end top linear transformation 
-    obliv uint32_t t2  = y12 & y15;
-    obliv uint32_t t3  = y3 & y6;
-    obliv uint32_t t4  = t3 ^ t2;
-    obliv uint32_t t5  = y4 & x7;
-    obliv uint32_t t6  = t5 ^ t2; 
-    obliv uint32_t t7  = y13 & y16;
-    obliv uint32_t t8  = y5 & y1;
-    obliv uint32_t t9  = t8 ^ t7;
-    obliv uint32_t t10 = y2 & y7;
-    obliv uint32_t t11 = t10 ^ t7;
-    obliv uint32_t t12 = y9 & y11;
-    obliv uint32_t t13 = y14 & y17;
-    obliv uint32_t t14 = t13 ^ t12;
-    obliv uint32_t t15 = y8 & y10;
-    obliv uint32_t t16 = t15 ^ t12;
-    obliv uint32_t t17 = t4 ^ t14;
-    obliv uint32_t t18 = t6 ^ t16;
-    obliv uint32_t t19 = t9 ^ t14;
-    obliv uint32_t t20 = t11 ^ t16;
-    obliv uint32_t t21 = t17 ^ y20;
-    obliv uint32_t t22 = t18 ^ y19;
-    obliv uint32_t t23 = t19 ^ y21;
-    obliv uint32_t t24 = t20 ^ y18;
-  // this next piece of the circuit is 
-  // inversion in GF16, inputs are t21..24
-  // and outputs are T37,T33,T40,T29.
-  // Refer to paper for representation details
-  // (tower field construction, normal basis (W,W^2) for extension   
-  // from GF2 to GF4 and (Z^2,Z^8) for extension from GF4 to GF16).
-    obliv uint32_t t25 = t21 ^ t22;
-    obliv uint32_t t26 = t21 & t23;
-    obliv uint32_t t27 = t24 ^ t26;
-    obliv uint32_t t28 = t25 & t27; 
-    obliv uint32_t t29 = t28 ^ t22;
-    obliv uint32_t t30 = t23 ^ t24;
-    obliv uint32_t t31 = t22 ^ t26;
-    obliv uint32_t t32 = t31 & t30;
-    obliv uint32_t t33 = t32 ^ t24;
-    obliv uint32_t t34 = t23 ^ t33;
-    obliv uint32_t t35 = t27 ^ t33;
-    obliv uint32_t t36 = t24 & t35; 
-    obliv uint32_t t37 = t36 ^ t34;
-    obliv uint32_t t38 = t27 ^ t36;
-    obliv uint32_t t39 = t29 & t38;
-    obliv uint32_t t40 = t25 ^ t39;
-  // end GF16 inversion
-    obliv uint32_t t41 = t40 ^ t37;
-    obliv uint32_t t42 = t29 ^ t33;
-    obliv uint32_t t43 = t29 ^ t40;
-    obliv uint32_t t44 = t33 ^ t37;
-    obliv uint32_t t45 = t42 ^ t41;
-    obliv uint32_t z0 = t44 & y15;
-    obliv uint32_t z1 = t37 & y6;
-    obliv uint32_t z2 = t33 & x7;
-    obliv uint32_t z3 = t43 & y16;
-    obliv uint32_t z4 = t40 & y1;
-    obliv uint32_t z5 = t29 & y7;
-    obliv uint32_t z6 = t42 & y11;
-    obliv uint32_t z7 = t45 & y17;
-    obliv uint32_t z8 = t41 & y10;
-    obliv uint32_t z9 = t44 & y12;
-    obliv uint32_t z10 = t37 & y3;
-    obliv uint32_t z11 = t33 & y4;
-    obliv uint32_t z12 = t43 & y13;
-    obliv uint32_t z13 = t40 & y5;
-    obliv uint32_t z14 = t29 & y2;
-    obliv uint32_t z15 = t42 & y9;
-    obliv uint32_t z16 = t45 & y14;
-    obliv uint32_t z17 = t41 & y8;
-  // begin end linear transformation 
-    obliv uint32_t t46 = z15 ^ z16;
-    obliv uint32_t t47 = z10 ^ z11;
-    obliv uint32_t t48 = z5 ^ z13;
-    obliv uint32_t t49 = z9 ^ z10;
-    obliv uint32_t t50 = z2 ^ z12;
-    obliv uint32_t t51 = z2 ^ z5;
-    obliv uint32_t t52 = z7 ^ z8;
-    obliv uint32_t t53 = z0 ^ z3;
-    obliv uint32_t t54 = z6 ^ z7;
-    obliv uint32_t t55 = z16 ^ z17;
-    obliv uint32_t t56 = z12 ^ t48;
-    obliv uint32_t t57 = t50 ^ t53;
-    obliv uint32_t t58 = z4 ^ t46;
-    obliv uint32_t t59 = z3 ^ t54;
-    obliv uint32_t t60 = t46 ^ t57;
-    obliv uint32_t t61 = z14 ^ t57;
-    obliv uint32_t t62 = t52 ^ t58;
-    obliv uint32_t t63 = t49 ^ t58;
-    obliv uint32_t t64 = z4 ^ t59;
-    obliv uint32_t t65 = t61 ^ t62;
-    obliv uint32_t t66 = z1 ^ t63;
-    obliv uint32_t s0 = t59 ^ t63;
-    obliv uint32_t s6 = t56 ^ t62 ^ 0x01010101;; 
-    obliv uint32_t s7 = t48 ^ t60 ^ 0x01010101;; 
-    obliv uint32_t t67 = t64 ^ t65;
-    obliv uint32_t s3 = t53 ^ t66;
-    obliv uint32_t s4 = t51 ^ t66;
-    obliv uint32_t s5 = t47 ^ t65;
-    obliv uint32_t s1 = t64 ^ s3 ^ 0x01010101;; 
-    obliv uint32_t s2 = t55 ^ t67 ^ 0x01010101;; 
-
-    return (s0<<7) | (s1<<6) | (s2<<5) | (s3<<4) | (s4<<3) | (s5<<2) | (s6<<1) | (s7);
+    mem[3] = m2[15];
+    mem[2] = m2[10];
+    mem[1] = m2[5];
+    mem[0] = m2[0];
+    mem[7] = m2[3];
+    mem[6] = m2[14];
+    mem[5] = m2[9];
+    mem[4] = m2[4];
+    mem[11] = m2[7];
+    mem[10] = m2[2];
+    mem[9] = m2[13];
+    mem[8] = m2[8];
+    mem[15] = m2[11];
+    mem[14] = m2[6];
+    mem[13] = m2[1];
+    mem[12] = m2[12];
 
 }
 
-void shiftrows(obliv uint32_t mem[4]) obliv {
-
-	// explicit and stupid way to do this, but zero cost in secure computation
-    obliv uint8_t a30 = (mem[0]>>24)&0xff;
-    obliv uint8_t a20 = (mem[0]>>16)&0xff;
-    obliv uint8_t a10 = (mem[0]>>8)&0xff;
-    obliv uint8_t a00 = (mem[0])&0xff;
-
-    obliv uint8_t a31 = (mem[1]>>24)&0xff;
-    obliv uint8_t a21 = (mem[1]>>16)&0xff;
-    obliv uint8_t a11 = (mem[1]>>8)&0xff;
-    obliv uint8_t a01 = (mem[1])&0xff;
-
-    obliv uint8_t a32 = (mem[2]>>24)&0xff;
-    obliv uint8_t a22 = (mem[2]>>16)&0xff;
-    obliv uint8_t a12 = (mem[2]>>8)&0xff;
-    obliv uint8_t a02 = (mem[2])&0xff;
-
-    obliv uint8_t a33 = (mem[3]>>24)&0xff;
-    obliv uint8_t a23 = (mem[3]>>16)&0xff;
-    obliv uint8_t a13 = (mem[3]>>8)&0xff;
-    obliv uint8_t a03 = (mem[3])&0xff;
-
-    mem[0] = (a00) ^ (a11<<8) ^ (a22<<16) ^ (a33<<24);
-    mem[1] = (a01) ^ (a12<<8) ^ (a23<<16) ^ (a30<<24);
-    mem[2] = (a02) ^ (a13<<8) ^ (a20<<16) ^ (a31<<24);
-    mem[3] = (a03) ^ (a10<<8) ^ (a21<<16) ^ (a32<<24);
-
-}
 
 void mixcolumns(obliv uint32_t mem[4]) obliv {
 
