@@ -567,28 +567,37 @@ void mixcolumns(obliv uint32_t mem[4]) obliv {
 	//     [ 1 1 2 3 ]   [i2]
 	//     [ 3 1 1 2 ]   [i3]
 
-	obliv uint8_t in[4], twoi[4], out[4], x2,x3,mm;
+	obliv uint32_t in[4], twoi[4], out[4], x2,x3,mm;
 
+	obliv uint8_t * in2 = in;
+	obliv uint8_t * out2 = out;
+	obliv uint8_t * twoi2 = twoi;
+	obliv uint8_t * mm2 = &mm;
+	obliv uint8_t * m2 = mem;
 
-	for(int i=0; i<4; i++) {
-		in[0] =  mem[i] & 0xff;
-		in[1] = (mem[i]>>8) & 0xff;
-		in[2] = (mem[i]>>16) & 0xff;
-		in[3] = (mem[i]>>24) & 0xff;
-
-		for(int j=0; j<4; j++) {
-			mm = (obliv uint8_t)((obliv signed char)in[j] >> 7); /* arithmetic rt shift, shifts in highorder zeros or ones */
-			twoi[j] = (in[j] << 1);	// double
-			twoi[j] ^= (mm & 0x1b);	// xor in pad if high bit was 1			
+	for (int j=0; j<4; j++) {
+		for(int i=0; i<4; i++) {
+			in2[4*j+i] = m2[4*i+j];
 		}
+	}
 
- 		out[0] = twoi[0] ^ (twoi[1] ^ in[1])   ^ in[2]    ^ in[3];		// 2 3 1 1
-        out[1] = in[0]   ^  twoi[1] ^ (twoi[2] ^ in[2])   ^ in[3];		// 1 2 3 1
-        out[2] = in[0]   ^  in[1]   ^ twoi[2]  ^ (twoi[3] ^ in[3]);		// 1 1 2 3
-        out[3] = (twoi[0] ^ in[0])  ^ in[1]    ^ in[2]    ^ twoi[3];	// 3 1 1 2
+	for(int j=0; j<4; j++) {
+		for (int i=0; i<4; i++) {
+			mm2[i] = (obliv signed char)in2[4*j+i] >> 7; /* arithmetic rt shift, shifts in highorder zeros or ones */	
+		}
+		twoi[j] = (in[j] << 1) & 0xFEFEFEFE; //double
+		twoi[j] ^= (mm & 0x1b1b1b1b);	// xor in pad if high bit was 1			
+	}
 
-        mem[i] = (out[3]<<24) ^ (out[2]<<16) ^ (out[1]<<8) ^ (out[0]);
+	out[0] = twoi[0] ^ (twoi[1] ^ in[1])   ^ in[2]    ^ in[3];		// 2 3 1 1
+    out[1] = in[0]   ^  twoi[1] ^ (twoi[2] ^ in[2])   ^ in[3];		// 1 2 3 1
+    out[2] = in[0]   ^  in[1]   ^ twoi[2]  ^ (twoi[3] ^ in[3]);		// 1 1 2 3
+    out[3] = (twoi[0] ^ in[0])  ^ in[1]    ^ in[2]    ^ twoi[3];	// 3 1 1 2
 
+    for(int j=0; j<4; j++) {
+		for(int i=0; i<4; i++) {
+	        m2[4*i+j] = out2[4*j+i];
+		}
 	}
 
 }

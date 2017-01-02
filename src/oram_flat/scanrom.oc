@@ -15,7 +15,6 @@ struct scanrom {
 	obliv uint8_t * halfkey_b;
 	uint8_t * local_blocktemp;
 	obliv uint8_t * blocktemp;
-	bool * bitvector;
 	size_t blockmultiple;
 	size_t blockcount;
 	size_t fullblocksize;
@@ -63,14 +62,6 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 	for (uint32_t ii = 0; ii < rom->fullblocksize; ii++) {
 		data[ii] ^= rom->blocktemp[ii];
 	}
-}
-
-void scanrom_read_with_blockvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, obliv uint8_t * active_block_pair, uint8_t * blockvector) obliv {
-	~obliv() {
-		int32_t advice = bitpropagator_getadvice(active_block_pair, &active_block_pair[16]);
-		bitpropagator_offline_applyadvice(rom->bitvector, blockvector, 16, rom->blockcount, advice);
-	}
-	scanrom_read_with_bitvector(data, rom, index, rom->bitvector);
 }
 
 void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexinit, size_t len) {
@@ -126,7 +117,6 @@ scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
 	rom->local_halfpad = malloc(n * fullblocksize);
 	rom->local_halfkey = malloc(KEYSIZE);
 	rom->local_blocktemp = malloc(n * fullblocksize);
-	rom->bitvector = malloc(n * sizeof(bool));
 	rom->blocktemp = calloc(fullblocksize * 3, sizeof(obliv uint8_t));
 	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
@@ -140,7 +130,6 @@ void scanrom_free(scanrom* rom) {
 	free(rom->local_halfkey);
 	free(rom->local_halfpad);
 	free(rom->local_blocktemp);
-	free(rom->bitvector);
 	free(rom->blocktemp);
 	free(rom->halfkey_a);
 	free(rom->halfkey_b);
@@ -163,7 +152,7 @@ void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
 	}
 }
 
-void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_pair, uint8_t * blockvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
+void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_pair, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
 	~obliv(en) {
 		memset(rom->blocktemp, 0 , rom->fullblocksize*sizeof(obliv uint8_t));
 		obliv if (en) {
@@ -187,8 +176,7 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 1);
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 2);
 
-		int32_t advice = bitpropagator_getadvice(&rom->blocktemp[rom->fullblocksize],&rom->blocktemp[2*rom->fullblocksize]);
-		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, rom->local_blocktemp, advice, rom->blockmultiple != 1, rom->fullblocksize, rom->blockcount);
+		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, bitvector, rom->local_blocktemp, rom->blockmultiple != 1, rom->fullblocksize, rom->blockcount);
 	}
 }
 

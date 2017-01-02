@@ -88,21 +88,22 @@ void test_main(void*varg) {
 	{
 
 		/*size_t propagatorblocks = 256;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(6, LOG2LL(propagatorblocks)));
+		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(0, LOG2LL(propagatorblocks)));
 		obliv uint8_t * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
 		uint8_t * local_output;
-		pma(&local_output, 16, propagatorblocks * 16);*/
+		pma(&local_output, 16, propagatorblocks * 16);
+		bool * local_bit_output = malloc(propagatorblocks * sizeof(bool));
 
-		//int64_t runtime = -current_timestamp();
-		//int64_t ygc = -yaoGateCount();
-		//bitpropagator_getblockvector(active_block_pair, local_output, bp, 943);
-		//runtime +=current_timestamp();
-		//ygc += yaoGateCount();
+		int64_t runtime = -current_timestamp();
+		int64_t ygc = -yaoGateCount();
+		bitpropagator_getblockvector(active_block_pair, local_output, local_bit_output, bp, 9);
+		runtime +=current_timestamp();
+		ygc += yaoGateCount();
 
-		/*printf("runtime: %d\n",runtime);
-		printf("gates:   %d\n\b",ygc);
+		printf("runtime: %d\n",runtime);
+		printf("gates:   %d\n\b",ygc);*/
 		
-		printf("active 1: ");
+		/*printf("active 1: ");
 		char temp;
 		for (int ii = 0; ii < 16; ii++) {
 			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[ii],0);
@@ -113,15 +114,15 @@ void test_main(void*varg) {
 			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[16+ii],0);
 			printf("%02hhX",temp);
 		}
-		printf("\n");
+		printf("\n");*/
 
-		printf("local: \n");
+		/*printf("local: \n");
 		for (int ii = 0; ii < propagatorblocks; ii++) {
 			printf("\t%08d: ",ii);
 			for (int jj = 0; jj < 16; jj++) {
 				printf("%02hhX",local_output[ii*16+jj]);
 			}
-			printf("\n");
+			printf(" %d\n", local_bit_output[ii]);
 		}*/
 		
 		/*OcCopy cpy = ocCopyCharN(16);
@@ -245,7 +246,7 @@ void test_main(void*varg) {
 		free(zero);
 		*/
 
-		{
+		/*{
 			uint32_t input_raw[ELCT];
 			uint32_t order_raw[ELCT];
 
@@ -273,6 +274,41 @@ void test_main(void*varg) {
 				flatoram_read(&value, o, index);
 				revealOblivInt(&temp, value, 0);
 				success &= (temp == input_raw[ii]);
+			}
+
+			flatoram_free(o);
+
+			fprintf(stderr, "Test Item: %-19s %-50s %s\n", "Flatoram", "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+		}*/
+
+		{
+			uint32_t input_raw[ELCT];
+			obliv uint32_t input[ELCT];
+
+			for (int ii = 0; ii < ELCT; ii++) {
+				input_raw[ii] = ocBroadcastInt(rand(),1);
+				input[ii] = feedOblivInt(input_raw[ii],2);
+			}
+
+			//shuffle(order_raw, ELCT);
+
+			flatoram * o = flatoram_new(&ocCopyInt, input, ELCT);
+
+			/*for (int ii = 0; ii < ELCT; ii++) {
+				flatoram_write(o, &input[ii], ii);
+			}*/
+
+			bool success = true;
+
+			for (int ii = 0; ii < 10; ii++) {
+				uint32_t temp;
+				obliv uint32_t value;
+				size_t index_raw = ocBroadcastInt(rand()%ELCT, 1);
+				obliv size_t index = feedOblivLLong(index_raw, 2);
+				flatoram_read(&value, o, index);
+				revealOblivInt(&temp, value, 0);
+				success &= (temp == input_raw[index_raw]);
 			}
 
 			flatoram_free(o);

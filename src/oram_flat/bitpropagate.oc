@@ -24,6 +24,9 @@ struct bitpropagator {
 void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 	obliv uint32_t levelindex;
 	obliv size_t index = *indexp;
+	obliv bool control_bit_A_next, control_bit_B_next;
+	obliv bool control_bit_A = ((obliv bool *)bp->activeblock_A)[0];
+	obliv bool control_bit_B = ((obliv bool *)bp->activeblock_B)[0];
 
 	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
 		levelindex = (index >> (bp->endlevel - ii)) & 1;
@@ -32,52 +35,64 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 		online_expand(bp->expanded_A, bp->activeblock_A, 2);
 		online_expand(bp->expanded_B, bp->activeblock_B, 2);
 		obliv if (levelindex == 0) {
-			//copy the branch to be silenced so that we can scan it for an advice bit
-			ocCopyN(&ocCopyChar, bp->blocktemp_A, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, &bp->expanded_B[BLOCKSIZE], BLOCKSIZE);
 			//copy the branch to be kept
 			ocCopyN(&ocCopyChar, bp->activeblock_A, bp->expanded_A, BLOCKSIZE);
 			ocCopyN(&ocCopyChar, bp->activeblock_B, bp->expanded_B, BLOCKSIZE);
+			//Z = block_A XOR block_B for the silenced branch
+			ocCopyN(&ocCopyChar, bp->Z, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
+			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
+				bp->Z[jj] ^= bp->expanded_B[BLOCKSIZE+jj];
+			}
 		} else {
-			//copy the branch to be silenced so that we can scan it for an advice bit
-			ocCopyN(&ocCopyChar, bp->blocktemp_A, bp->expanded_A, BLOCKSIZE);
-			ocCopyN(&ocCopyChar, bp->blocktemp_B, bp->expanded_B, BLOCKSIZE);
 			//copy the branch to be kept
 			ocCopyN(&ocCopyChar, bp->activeblock_A, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
 			ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->expanded_B[BLOCKSIZE], BLOCKSIZE);
+			//Z = block_A XOR block_B for the silenced branch
+			ocCopyN(&ocCopyChar, bp->Z, bp->expanded_A, BLOCKSIZE);
+			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
+				bp->Z[jj] ^= bp->expanded_B[jj];
+			}
 		}
 
-		//Z = block_A XOR block_B for the silenced branch
-		ocCopyN(&ocCopyChar, bp->Z, bp->blocktemp_A, BLOCKSIZE);
-		for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-			bp->Z[jj] ^= bp->blocktemp_B[jj];
-		}
-
+		bool advicebit_local_l, advicebit_local_r;
+		bitpropagator_getadvice(&advicebit_local_l, &advicebit_local_r, bp->expanded_A, bp->expanded_B, levelindex);
 
 		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->Z_local[jj], bp->Z[jj], 1);
 		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->Z_local[jj], bp->Z[jj], 2);
 
-		int32_t advicebit_local = bitpropagator_getadvice(bp->blocktemp_A, bp->blocktemp_B);
+		bitpropagator_offline_push_Z(bp->bpo, bp->Z_local, advicebit_local_l, advicebit_local_r, ii);
 
-		if (advicebit_local < 0) printf("CRITICAL ERROR! No advice recieved!");
+		control_bit_A_next = control_bit_A;
+		control_bit_B_next = control_bit_B;		
 
-		bitpropagator_offline_push_Z(bp->bpo, bp->Z_local, advicebit_local, ii);
+		obliv if (levelindex == 0) {
+			control_bit_A_next &= advicebit_local_l;
+			control_bit_B_next &= advicebit_local_l;	
+		} else {
+			control_bit_A_next &= advicebit_local_r;
+			control_bit_B_next &= advicebit_local_r;
+		}
+		control_bit_A_next ^= ((obliv bool *)bp->activeblock_A)[0];
+		control_bit_B_next ^= ((obliv bool *)bp->activeblock_B)[0];
 
 		//XOR the live branches with Z if they will also be XORed by the offline component
-		obliv if (((bp->activeblock_A[advicebit_local/8] >> advicebit_local%8) & 1) == 1) {
+		obliv if (control_bit_A) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->activeblock_A[jj] ^= bp->Z_local[jj];
+				bp->activeblock_A[jj] ^= bp->Z[jj];
 			}
 		}
-		obliv if (((bp->activeblock_B[advicebit_local/8] >> advicebit_local%8) & 1) == 1) {
+		obliv if (control_bit_B) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->activeblock_B[jj] ^= bp->Z_local[jj];
+				bp->activeblock_B[jj] ^= bp->Z[jj];
 			}
 		}
+
+		control_bit_A = control_bit_A_next;
+		control_bit_B = control_bit_B_next;
 	}
 }
 
-void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * local_output, bitpropagator * bp, obliv size_t index) {
+void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index) {
 
 	//Collect a set of random blocks for the top level
 	get_random_bytes(bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
@@ -93,6 +108,8 @@ void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * lo
 			ocCopyN(&ocCopyChar, &bp->blocktemp_B[ii*BLOCKSIZE], &bp->toplevel[ii * BLOCKSIZE], BLOCKSIZE);
 		} else {
 			ocCopyN(&ocCopyChar, bp->activeblock_A, &bp->toplevel[ii * BLOCKSIZE], BLOCKSIZE);
+			// ensure the root advice bits are opposite
+			((obliv bool *)(&bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE]))[0] = ~((obliv bool *)bp->activeblock_A)[0];
 			ocCopyN(&ocCopyChar, &bp->blocktemp_B[ii*BLOCKSIZE], &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
 		}
 	}
@@ -104,26 +121,21 @@ void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * lo
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
-	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, bitpropagator_traverselevels);
+	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, bitpropagator_traverselevels);
 
 	//write output
 	ocCopyN(&ocCopyChar, activeblock_pair, bp->activeblock_A, BLOCKSIZE);
 	ocCopyN(&ocCopyChar, &activeblock_pair[BLOCKSIZE], bp->activeblock_B, BLOCKSIZE);
 }
 
-int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * activeblock_B) {
-	obliv int32_t advicebit = -1;
-	int32_t advicebit_local;
-	for (size_t kk = 0; kk < BLOCKSIZE; kk ++) {
-		for (uint8_t jj = 0; jj < 8; jj++) {
-			obliv if (((activeblock_A[kk] >> jj) & 1) != (((activeblock_B[kk]) >> jj) & 1)) {
-				advicebit = kk * 8 + jj;
-			}
-		}
-	}
-	revealOblivInt(&advicebit_local, advicebit, 0);
-	return advicebit_local;
-	//Note: if the advicebit is -1, we've found a collision in the PRG and must fail!
+void bitpropagator_getadvice(bool * advicebit_local_l, bool * advicebit_local_r, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock) {
+	//uint8_t tlcw = (s0l[0]&0x1) ^ (s1l[0]&01) ^ ai ^ 1;
+	//uint8_t trcw = (s0r[0]&0x1) ^ (s1r[0]&01) ^ ai;
+
+	obliv bool advicebit_l = ((obliv bool *)blocks_A)[0] ^ ((obliv bool *)blocks_B)[0] ^ rightblock ^ 1;
+	obliv bool advicebit_r = ((obliv bool *)blocks_A)[BLOCKSIZE*8] ^ ((obliv bool *)blocks_B)[BLOCKSIZE*8] ^ rightblock;
+	revealOblivBool(advicebit_local_l, advicebit_l, 0);
+	revealOblivBool(advicebit_local_r, advicebit_r, 0);
 }
 
 bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {

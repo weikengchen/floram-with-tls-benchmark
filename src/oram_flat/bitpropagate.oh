@@ -4,8 +4,8 @@
 
 typedef struct bitpropagator bitpropagator;
 
-void bitpropagator_getblockvector(obliv uint8_t * active_block_pair, uint8_t * local_output, bitpropagator * bp, obliv size_t index);
-int32_t bitpropagator_getadvice(obliv uint8_t * activeblock_A, obliv uint8_t * activeblock_B);
+void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index);
+void bitpropagator_getadvice(bool * tl, bool * tr, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock);
 bitpropagator * bitpropagator_new(size_t size, uint32_t truncated_levels);
 void bitpropagator_free(bitpropagator * bp);
 

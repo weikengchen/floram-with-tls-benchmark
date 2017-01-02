@@ -6,7 +6,6 @@ typedef struct scanrom scanrom;
 typedef struct scanwrom scanwrom;
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv;
-void scanrom_read_with_blockvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, obliv uint8_t * active_block_pair, uint8_t * blockvector) obliv;
 void scanrom_read(obliv uint8_t * data, scanrom* rom, size_t index);
 void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len);
 void scanrom_set_key(scanrom* rom, uint8_t* key_local);
@@ -15,7 +14,7 @@ void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom);
 scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local);
 void scanrom_free(scanrom* rom);
 
-void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_pair, uint8_t * blockvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv;
+void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_pair, uint8_t * blockvector, bool* bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv;
 void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index);
 void scanwrom_read_xor_shares(uint8_t * data, scanwrom* rom, size_t index, size_t len);
 void scanwrom_write_xor_shares(scanwrom* rom, uint8_t * data, size_t index, size_t len);
