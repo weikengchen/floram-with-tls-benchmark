@@ -116,7 +116,7 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	ram->blockcpy=ocCopyCharN(ram->blockmultiple * BLOCKSIZE);
 
 	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2LL(ram->blockcount)));
-	ram->blockvector_local = malloc(ram->blockcount * BLOCKSIZE);
+	flatoram_pma(&ram->blockvector_local, 16, ram->blockcount * BLOCKSIZE);
 	ram->bitvector_local = malloc(ram->blockcount * sizeof(bool));
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
 	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
@@ -140,6 +140,8 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
+
+		//TODO: simplify
 
 		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
 		get_random_bytes(ram->blocktemp_local, KEYSIZE);

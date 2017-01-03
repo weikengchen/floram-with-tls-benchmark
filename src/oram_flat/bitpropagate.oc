@@ -129,9 +129,6 @@ void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * lo
 }
 
 void bitpropagator_getadvice(bool * advicebit_local_l, bool * advicebit_local_r, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock) {
-	//uint8_t tlcw = (s0l[0]&0x1) ^ (s1l[0]&01) ^ ai ^ 1;
-	//uint8_t trcw = (s0r[0]&0x1) ^ (s1r[0]&01) ^ ai;
-
 	obliv bool advicebit_l = ((obliv bool *)blocks_A)[0] ^ ((obliv bool *)blocks_B)[0] ^ rightblock ^ 1;
 	obliv bool advicebit_r = ((obliv bool *)blocks_A)[BLOCKSIZE*8] ^ ((obliv bool *)blocks_B)[BLOCKSIZE*8] ^ rightblock;
 	revealOblivBool(advicebit_local_l, advicebit_l, 0);

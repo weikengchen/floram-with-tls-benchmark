@@ -39,7 +39,7 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) rom->blocktemp[2*rom->fullblocksize+ii] ^= feedOblivChar(rom->local_blocktemp[ii], 2);
 	}
 	ocCopy(rom->blockcpy, data, &rom->blocktemp[2*rom->fullblocksize]);
-	~obliv() memset(&rom->blocktemp[rom->fullblocksize] ,0,rom->fullblocksize * sizeof(obliv uint8_t));
+	~obliv() memset(&rom->blocktemp[rom->fullblocksize], 0, rom->fullblocksize * sizeof(obliv uint8_t));
 
 	oaes_ctx * ctx;
 

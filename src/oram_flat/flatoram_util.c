@@ -28,6 +28,9 @@ void get_random_bytes(void *buf, size_t bytes) {
 	fclose(fp);
 }
 
+int flatoram_pma(void** dst, size_t alignment, size_t size) {
+	return posix_memalign(dst, alignment, size);
+}
 
 // Locking callback
 void openmp_locking_callback(int mode, int type, char *file, int line) {
