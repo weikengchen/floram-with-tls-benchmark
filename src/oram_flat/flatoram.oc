@@ -141,13 +141,13 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
 
-		//TODO: simplify
-
 		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
-		get_random_bytes(ram->blocktemp_local, KEYSIZE);
-		for (size_t ii = 0; ii < KEYSIZE; ii++) ram->blocktemp[ii] = feedOblivChar(ram->blocktemp_local[ii],1);
-		for (size_t ii = 0; ii < KEYSIZE; ii++) ram->blocktemp[ii] ^= feedOblivChar(ram->blocktemp_local[ii],2);
-		online_expand(loadtemp, ram->blocktemp, ram->blockmultiple * ram->blockcount);
+
+		for (size_t ii = 0; ii < ram->blockcount; ii++) {
+			get_random_bytes(ram->blocktemp_local, BLOCKSIZE);	
+			for (size_t jj=0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) ((obliv uint64_t *)&loadtemp[ii * BLOCKSIZE])[jj] = feedOblivChar(((uint64_t *)ram->blocktemp_local)[jj],1);
+			for (size_t jj=0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) ((obliv uint64_t *)&loadtemp[ii * BLOCKSIZE])[jj] ^= feedOblivChar(((uint64_t *)ram->blocktemp_local)[jj],2);			
+		}
 
 		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) {
 			revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 1);
