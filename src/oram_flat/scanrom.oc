@@ -43,6 +43,8 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 
 	oaes_ctx * ctx;
 
+	//two extra expansions are unnecessary. We should generate the context once and reuse it.
+
 	be64enc(&rom->blocktemp[rom->fullblocksize + BLOCKSIZE - sizeof(size_t)], index);
 	~obliv() ctx = oaes_128_ctx_ctr_new(rom->halfkey_a, &rom->blocktemp[rom->fullblocksize]);
 	for (size_t ii = 0; ii < rom->blockmultiple; ii++) {

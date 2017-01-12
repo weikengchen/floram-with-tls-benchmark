@@ -172,19 +172,22 @@ void aeskey(obliv uint8_t mem[176]) {
 		// rotate by 8
 		// but key is stored in 
 		// 00 01 02 03 stored as 03.02.01.00
-		t[0] = (mem[ ri-3 ]<<24) ^ (mem[ ri-2 ]<<16) ^ (mem[ ri-1 ]<<8) ^ (mem[ ri-4 ]);
+		((obliv uint8_t *)(&t[0]))[0] = mem[ ri-4 ];
+		((obliv uint8_t *)(&t[0]))[1] = mem[ ri-3 ];
+		((obliv uint8_t *)(&t[0]))[2] = mem[ ri-2 ];
+		((obliv uint8_t *)(&t[0]))[3] = mem[ ri-1 ];
 
 		nsbox_16(t,t);
 
 		t[0] = t[0] ^ rcon[round];
 
-		mem[ri]   = (t[0]>>24) ^ mem[ri-16];
-		mem[ri+1] = (t[0]>>16)&0xff ^ mem[ri-15];
-		mem[ri+2] = (t[0]>>8) &0xff ^ mem[ri-14];
-		mem[ri+3] = (t[0])&0xff ^ mem[ri-13];
+		mem[ri]   = ((obliv uint8_t *)(&t[0]))[3] ^ mem[ri-16];
+		mem[ri+1] = ((obliv uint8_t *)(&t[0]))[2] ^ mem[ri-15];
+		mem[ri+2] = ((obliv uint8_t *)(&t[0]))[1] ^ mem[ri-14];
+		mem[ri+3] = ((obliv uint8_t *)(&t[0]))[0] ^ mem[ri-13];
 
-		for(int j=4; j<16; j++) {
-			mem[ri+j] = mem[ri+j-4] ^ mem[ri+j-16];
+		for(int j=1; j<4; j++) {
+			((obliv uint32_t *)mem)[ri/4+j] = ((obliv uint32_t *)mem)[ri/4+j-1] ^ ((obliv uint32_t *)mem)[ri/4+j-4];
 		}
 
 	}
