@@ -121,7 +121,10 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
 	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 
-	ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
+	//ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
+
+	// Based on B = 128*b; c = B*p+n*b/p = 128*p+n/p; dc/dp = 128-n/p^2; dc/dp = 0 when p = sqrt(n)/(8*sqrt(2))
+	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/(8*sqrt(2.0)));
 	ram->blocktemp = calloc(1, ram->blockcpy.eltsize);
 	ram->stash = calloc(ram->period, ram->blockcpy.eltsize);
 	ram->stashi = calloc(ram->period, sizeof(obliv size_t));
@@ -142,16 +145,17 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	if (data != NULL) {
 
 		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
+		obliv uint8_t * loadtemp2 = calloc(ram->blockcount, ram->blockcpy.eltsize);
 
-		for (size_t ii = 0; ii < ram->blockcount; ii++) {
-			get_random_bytes(ram->blocktemp_local, BLOCKSIZE);	
-			for (size_t jj=0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) ((obliv uint64_t *)&loadtemp[ii * BLOCKSIZE])[jj] = feedOblivChar(((uint64_t *)ram->blocktemp_local)[jj],1);
-			for (size_t jj=0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) ((obliv uint64_t *)&loadtemp[ii * BLOCKSIZE])[jj] ^= feedOblivChar(((uint64_t *)ram->blocktemp_local)[jj],2);			
-		}
+		get_random_bytes(loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple);	
 
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) {
-			revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 1);
-		}
+		feedOblivCharArray(loadtemp, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 1);
+		feedOblivCharArray(loadtemp2, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 2);
+
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) loadtemp[ii] ^= loadtemp2[ii];
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 2);
+
+		free(loadtemp2);
 
 		size_t blockid, subblockid;
 		for (size_t ii = 0; ii < ram->size; ii++) {
@@ -165,14 +169,12 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 			}
 		}
 
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) {
-			revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 2);
-		}
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 1);
+
+		free(loadtemp);
 		
 		scanrom_write_xor_shares(ram->rom, loadtemp_local, 0, ram->blockcount);
 		scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
-
-		free(loadtemp);
 	} else {
 		memset(loadtemp_local, 0, ram->blockmultiple * BLOCKSIZE * ram->blockcount);
 		scanrom_write_xor_shares(ram->rom, loadtemp_local, 0, ram->blockcount);

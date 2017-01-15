@@ -2,6 +2,7 @@
 #include "oram.oh"
 #include <copy.oh>
 #include "test_generic.h"
+#include <obliv.h>
 
 static const char TESTNAME[] = "oram_benchmark";
 
@@ -100,6 +101,7 @@ void test_main(void*varg) {
 
 	uint64_t tally = 0;
 	uint64_t tallygates = 0;
+	uint64_t tallybytes = 0;
 	obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
 	for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
 
@@ -112,18 +114,21 @@ void test_main(void*varg) {
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
 		uint64_t startTime = current_timestamp();
 		int64_t rungates = - yaoGateCount();
+		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
 		oram_write(o, &input[index_raw*elsz], index);
 		uint64_t runtime = current_timestamp() - startTime;
 		rungates += yaoGateCount();
-		fprintf(stdout, ",%llu,%llu", runtime,rungates);
+		runbytes += tcp2PBytesSent(ocCurrentProto());
+		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 		fflush(stdout);
 		tally += runtime;
 		tallygates += rungates;
+		tallybytes += runbytes;
 	}
 
 	free(input);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg, %llu gates avg\n", elct, elsz, tally / samples, tallygates/samples);
+	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }
