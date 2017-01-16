@@ -2,6 +2,8 @@
 #include "bitpropagate.h"
 #include "flatoram_util.oh"
 #include "ackutil.h"
+#include <omp.h>
+#include <obliv.h>
 
 struct bitpropagator {
 	uint32_t startlevel;
@@ -18,11 +20,37 @@ struct bitpropagator {
 	obliv uint8_t * expanded_A;
 	obliv uint8_t * expanded_B;
 	obliv uint8_t * Z;
-	uint8_t * Z_local;
+	obliv bool * advicebits;
+	omp_lock_t * locks;
 	bitpropagator_offline * bpo;
 };
 
+void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, ProtocolDesc* pd) {
+
+	ocSetCurrentProto(pd);
+
+	bool advicebit_local_l, advicebit_local_r;
+	uint8_t * Z_local = malloc(BLOCKSIZE);
+
+	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
+		size_t thislevel = ii- bp->startlevel -1;
+		omp_set_lock(&bp->locks[thislevel]);
+
+		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&Z_local[jj], bp->Z[thislevel*BLOCKSIZE+jj], 1);
+		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 1);
+		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 1);
+		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&Z_local[jj], bp->Z[thislevel*BLOCKSIZE+jj], 2);
+		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 2);
+		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 2);
+	
+		bitpropagator_offline_push_Z(bpo, Z_local, advicebit_local_l, advicebit_local_r, ii);
+	}
+
+	free(Z_local);
+}
+
 void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
+
 	obliv uint32_t levelindex;
 	obliv size_t index = *indexp;
 	obliv bool control_bit_A_next, control_bit_B_next;
@@ -32,6 +60,8 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
 		levelindex = (index >> (bp->endlevel - ii)) & 1;
 
+		obliv uint8_t * Z = &bp->Z[(ii - bp->startlevel - 1)*BLOCKSIZE];
+
 		//first expand our active blocks into two blocks (L/R)
 		online_expand(bp->expanded_A, bp->activeblock_A, 2);
 		online_expand(bp->expanded_B, bp->activeblock_B, 2);
@@ -40,38 +70,34 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 			ocCopyN(&ocCopyChar, bp->activeblock_A, bp->expanded_A, BLOCKSIZE);
 			ocCopyN(&ocCopyChar, bp->activeblock_B, bp->expanded_B, BLOCKSIZE);
 			//Z = block_A XOR block_B for the silenced branch
-			ocCopyN(&ocCopyChar, bp->Z, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
+			ocCopyN(&ocCopyChar, Z, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->Z[jj] ^= bp->expanded_B[BLOCKSIZE+jj];
+				Z[jj] ^= bp->expanded_B[BLOCKSIZE+jj];
 			}
 		} else {
 			//copy the branch to be kept
 			ocCopyN(&ocCopyChar, bp->activeblock_A, &bp->expanded_A[BLOCKSIZE], BLOCKSIZE);
 			ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->expanded_B[BLOCKSIZE], BLOCKSIZE);
 			//Z = block_A XOR block_B for the silenced branch
-			ocCopyN(&ocCopyChar, bp->Z, bp->expanded_A, BLOCKSIZE);
+			ocCopyN(&ocCopyChar, Z, bp->expanded_A, BLOCKSIZE);
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->Z[jj] ^= bp->expanded_B[jj];
+				Z[jj] ^= bp->expanded_B[jj];
 			}
 		}
 
-		bool advicebit_local_l, advicebit_local_r;
-		bitpropagator_getadvice(&advicebit_local_l, &advicebit_local_r, bp->expanded_A, bp->expanded_B, levelindex);
+		bitpropagator_getadvice(&bp->advicebits[(ii - bp->startlevel - 1)*2], bp->expanded_A, bp->expanded_B, levelindex);
 
-		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->Z_local[jj], bp->Z[jj], 1);
-		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->Z_local[jj], bp->Z[jj], 2);
-
-		bitpropagator_offline_push_Z(bp->bpo, bp->Z_local, advicebit_local_l, advicebit_local_r, ii);
+		omp_unset_lock(&bp->locks[ii - bp->startlevel - 1]);
 
 		control_bit_A_next = control_bit_A;
 		control_bit_B_next = control_bit_B;		
 
 		obliv if (levelindex == 0) {
-			control_bit_A_next &= advicebit_local_l;
-			control_bit_B_next &= advicebit_local_l;	
+			control_bit_A_next &= bp->advicebits[(ii - bp->startlevel - 1)*2];
+			control_bit_B_next &= bp->advicebits[(ii - bp->startlevel - 1)*2];	
 		} else {
-			control_bit_A_next &= advicebit_local_r;
-			control_bit_B_next &= advicebit_local_r;
+			control_bit_A_next &= bp->advicebits[(ii - bp->startlevel - 1)*2+1];
+			control_bit_B_next &= bp->advicebits[(ii - bp->startlevel - 1)*2+1];
 		}
 		control_bit_A_next ^= ((obliv bool *)bp->activeblock_A)[0];
 		control_bit_B_next ^= ((obliv bool *)bp->activeblock_B)[0];
@@ -94,6 +120,10 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 }
 
 void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index) {
+	bitpropagator_getblockvector_with_callback(activeblock_pair, local_output, local_bit_output, bp, index, NULL, NULL);
+}
+
+void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_pair, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index, facb_fn cbfn, void* cbpass) {
 
 	//Collect a set of random blocks for the top level
 	get_random_bytes(bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
@@ -123,20 +153,19 @@ void bitpropagator_getblockvector(obliv uint8_t * activeblock_pair, uint8_t * lo
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
-	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, bitpropagator_traverselevels);
+	ProtocolDesc pd2;
+	splitProtocol(&pd2, ocCurrentProto());
+	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, &pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
+	cleanupProtocol(&pd2);
 
 	//write output
 	ocCopyN(&ocCopyChar, activeblock_pair, bp->activeblock_A, BLOCKSIZE);
 	ocCopyN(&ocCopyChar, &activeblock_pair[BLOCKSIZE], bp->activeblock_B, BLOCKSIZE);
 }
 
-void bitpropagator_getadvice(bool * advicebit_local_l, bool * advicebit_local_r, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock) {
-	obliv bool advicebit_l = ((obliv bool *)blocks_A)[0] ^ ((obliv bool *)blocks_B)[0] ^ rightblock ^ 1;
-	obliv bool advicebit_r = ((obliv bool *)blocks_A)[BLOCKSIZE*8] ^ ((obliv bool *)blocks_B)[BLOCKSIZE*8] ^ rightblock;
-	revealOblivBool(advicebit_local_l, advicebit_l, 1);
-	revealOblivBool(advicebit_local_r, advicebit_r, 1);
-	revealOblivBool(advicebit_local_l, advicebit_l, 2);
-	revealOblivBool(advicebit_local_r, advicebit_r, 2);
+void bitpropagator_getadvice(obliv bool * advicebits, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock) {
+	advicebits[0] = ((obliv bool *)blocks_A)[0] ^ ((obliv bool *)blocks_B)[0] ^ rightblock ^ 1;
+	advicebits[1] = ((obliv bool *)blocks_A)[BLOCKSIZE*8] ^ ((obliv bool *)blocks_B)[BLOCKSIZE*8] ^ rightblock;
 }
 
 bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
@@ -155,9 +184,15 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 	bp->activeblock_B = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->expanded_A = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->expanded_B = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
-	bp->Z = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
-	bp->Z_local = malloc(1 * BLOCKSIZE);
+	bp->Z = calloc((bp->endlevel - bp->startlevel), BLOCKSIZE * sizeof(obliv uint8_t));
+	bp->advicebits = calloc((bp->endlevel - bp->startlevel),  2*sizeof(obliv bool));
 	bp->bpo = bitpropagator_offline_new(size, bp->startlevel);
+
+	bp->locks = malloc((bp->endlevel - bp->startlevel) * sizeof(omp_lock_t));
+	for (size_t ii = 0; ii < bp->endlevel - bp->startlevel; ii++) {
+		omp_init_lock(&bp->locks[ii]);
+		omp_set_lock(&bp->locks[ii]);
+	}
 
 	return bp;
 }
@@ -174,8 +209,14 @@ void bitpropagator_free(bitpropagator * bp) {
 	free(bp->expanded_A);
 	free(bp->expanded_B);
 	free(bp->Z);
-	free(bp->Z_local);
+	free(bp->advicebits);
 	bitpropagator_offline_free(bp->bpo);
+
+	for (int ii = 0; ii < (bp->endlevel - bp->startlevel); ii++) {
+		omp_destroy_lock(&bp->locks[ii]);
+	}
+	free(bp->locks);
+
 	online_expand_deinit();
 	free(bp);
 }

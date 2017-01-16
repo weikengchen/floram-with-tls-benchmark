@@ -74,7 +74,7 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 
 	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 1);
+			rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 2);
 		}
 	}
 
@@ -82,7 +82,7 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 
 	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 2);
+			rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 1);
 		}
 	}
 }
@@ -171,8 +171,8 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
 			rom->blocktemp[ii] ^= rom->blocktemp[rom->fullblocksize + ii] ^ rom->blocktemp[2*rom->fullblocksize + ii];
 		}
-		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 1);
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 2);
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) revealOblivChar(&rom->local_blocktemp[ii], rom->blocktemp[ii], 1);
 
 		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, bitvector, rom->local_blocktemp, rom->blockmultiple != 1, rom->fullblocksize, rom->blockcount);
 	}

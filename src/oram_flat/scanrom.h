@@ -2,6 +2,10 @@
 #define SCANROM_H
 #include "flatoram.h"
 
+typedef void (* duplexer_fn)(void *, void *);
+
+void scanrom_transfer_duplexer(duplexer_fn fn1, duplexer_fn fn2, void* data, void * pd);
+
 void scanrom_create_local_halfpad(void * dest, void * key, size_t size);
 
 void scanrom_read_with_bitvector_offline(void* data, void* local_data, bool * bitvector, size_t fullblocksize, size_t blockcount);

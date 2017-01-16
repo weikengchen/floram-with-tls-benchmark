@@ -44,3 +44,19 @@ void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blo
 		}
 	}
 }
+
+void scanrom_transfer_duplexer(duplexer_fn fn1, duplexer_fn fn2, void* data, void * pd) {
+
+	#pragma omp parallel num_threads(2)
+	{
+		#pragma omp master
+		fn1(data, NULL);
+
+		#pragma omp single
+		{
+			#pragma omp task
+			fn2(data, pd);
+		}
+	}
+
+}

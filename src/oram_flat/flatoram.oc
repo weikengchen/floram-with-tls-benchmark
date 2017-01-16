@@ -49,11 +49,18 @@ void flatoram_refresh(flatoram* ram) {
 	}
 }
 
-void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv size_t index) obliv {
-	obliv size_t blockid = index / ram->elementsperblock;
-	obliv size_t subblockid = index % ram->elementsperblock;
-	obliv bool found = false;
+typedef struct facb_pass {
+	flatoram * ram;
+	obliv size_t blockid;
+	obliv size_t subblockid;
+	obliv bool found;
+} facb_pass;
 
+flatoram_scan_callback(facb_pass * input) {
+	flatoram * ram = input->ram;
+	obliv size_t blockid = input->blockid;
+	obliv size_t subblockid = input->subblockid;
+	obliv bool found = false;
 	if (ram->progress > 0) {
 		ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, ram->progress), ram->stash);
 		ram->stashi[ram->progress] = ram->stashi[0];
@@ -67,10 +74,18 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 			}
 		}
 	}
+	input->found=found;
+}
 
-	~obliv() bitpropagator_getblockvector(ram->activeblock_pair, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid);
+void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn, obliv size_t index) obliv {
+	obliv size_t blockid = index / ram->elementsperblock;
+	obliv size_t subblockid = index % ram->elementsperblock;
 
-	obliv if (found == false) {
+	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
+
+	~obliv() bitpropagator_getblockvector_with_callback(ram->activeblock_pair, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, flatoram_scan_callback, &facb_data);
+
+	obliv if (facb_data.found == false) {
 		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);
 		ram->stashi[0] = blockid;
 	}

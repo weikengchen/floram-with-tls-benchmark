@@ -25,13 +25,10 @@ void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
 }
 
 void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, bool advicebit_l, bool advicebit_r, size_t level) {
-	//#pragma omp task
-	{
-		memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
-		bpo->advicebits_l[level- bpo->startlevel - 1] = advicebit_l;
-		bpo->advicebits_r[level- bpo->startlevel - 1] = advicebit_r;
-		omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
-	}
+	memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
+	bpo->advicebits_l[level- bpo->startlevel - 1] = advicebit_l;
+	bpo->advicebits_r[level- bpo->startlevel - 1] = advicebit_r;
+	omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
 }
 
 void bitpropagator_offline_readblockvector(void * local_output, void * local_bit_output, bitpropagator_offline * bpo) {
@@ -146,17 +143,27 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 	}
 }
 
-void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, void* indexp, void * local_output, void * local_bit_output, bp_traverser_fn fn) {
+void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, void* indexp, void * local_output, void * local_bit_output, void* pd, bp_traverser_fn fn, bp_pusher_fn fn2, facb_fn cbfn, void* cbpass) {
+
 	omp_set_nested(true);
 
-	#pragma omp parallel num_threads(2)
+	#pragma omp parallel num_threads(3)
 	{
 		//OpenMP seems to get along with obliv-c just fine, so long as obliv-c only uses the master thread.
 		#pragma omp master
-		fn(bp, indexp);	
+		{
+			fn(bp, indexp);	
+			if (*cbfn!=NULL) {
+				cbfn(cbpass);
+			}
+		}
+		
 
 		#pragma omp single
 		{
+			#pragma omp task
+			fn2(bp, bpo, pd);
+
 			#pragma omp task
 			bitpropagator_offline_readblockvector(local_output, local_bit_output, bpo);
 		}

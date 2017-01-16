@@ -32,6 +32,8 @@ void lso_write(LinearScanOram * oram, obliv int index, obliv bool* data)  obliv 
 
 void lso_read(LinearScanOram * oram, obliv int index, obliv bool* data) obliv {
    index = bit_mask(index, oram->index_size);
+   for(int j = 0; j < oram->data_size; ++j)
+      data[j] = oram->data[0][j];
    for(int i = 1; i < oram->N; ++i) {
       obliv if (index == i)
          for(int j = 0; j < oram->data_size; ++j)
