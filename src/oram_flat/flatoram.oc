@@ -56,7 +56,7 @@ typedef struct facb_pass {
 	obliv bool found;
 } facb_pass;
 
-flatoram_scan_callback(facb_pass * input) {
+void flatoram_scan_callback(facb_pass * input) {
 	flatoram * ram = input->ram;
 	obliv size_t blockid = input->blockid;
 	obliv size_t subblockid = input->subblockid;
@@ -132,7 +132,7 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2LL(ram->blockcount)));
 	flatoram_pma(&ram->blockvector_local, 16, ram->blockcount * BLOCKSIZE);
-	ram->bitvector_local = malloc(ram->blockcount * sizeof(bool));
+	flatoram_pma(&ram->bitvector_local, 16, ram->blockcount * sizeof(bool));
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
 	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 
@@ -154,7 +154,8 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
 	ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
 
-	uint8_t * loadtemp_local = malloc(ram->blockcount * ram->blockmultiple * BLOCKSIZE);
+	uint8_t * loadtemp_local;
+	flatoram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
 
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {

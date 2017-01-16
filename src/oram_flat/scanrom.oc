@@ -116,10 +116,11 @@ scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
 	rom->blockmultiple = fullblocksize/BLOCKSIZE;
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
-	rom->local_data = calloc(n, fullblocksize);
-	rom->local_halfpad = malloc(n * fullblocksize);
+	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
+	memset(rom->local_data, 0, n * fullblocksize);
+	flatoram_pma(&rom->local_halfpad, 16, n * fullblocksize);
 	rom->local_halfkey = malloc(KEYSIZE);
-	rom->local_blocktemp = malloc(n * fullblocksize);
+	flatoram_pma(&rom->local_blocktemp, 16, n * fullblocksize);
 	rom->blocktemp = calloc(fullblocksize * 3, sizeof(obliv uint8_t));
 	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
@@ -194,8 +195,9 @@ scanwrom* scanwrom_new(OcCopy* blockcpy, size_t n) {
 	rom->blockmultiple = fullblocksize/BLOCKSIZE;
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
-	rom->local_data = calloc(n, fullblocksize);
-	rom->local_blocktemp = malloc(fullblocksize);
+	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
+	memset(rom->local_data, 0, n * fullblocksize);
+	flatoram_pma(&rom->local_blocktemp, 16, fullblocksize);
 	rom->blocktemp = calloc(3, fullblocksize * sizeof(obliv uint8_t));
 	return rom;
 }
