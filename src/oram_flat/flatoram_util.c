@@ -169,6 +169,55 @@ void offline_expand_2(uint8_t * dest, uint8_t * src) {
 
 }
 
+void * offline_prf_keyschedule(uint8_t * src) {
+#define KE2(NK,OK,RND) NK = OK;	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
+	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
+
+	__m128i * r = malloc(11*sizeof(__m128i));
+
+    r[0] = _mm_load_si128((__m128i *) src);
+
+	KE2(r[1], r[0], 0x01)
+	KE2(r[2], r[1], 0x02)
+	KE2(r[3], r[2], 0x04)
+	KE2(r[4], r[3], 0x08)
+	KE2(r[5], r[4], 0x10)
+	KE2(r[6], r[5], 0x20)
+	KE2(r[7], r[6], 0x40)
+	KE2(r[8], r[7], 0x80)
+	KE2(r[9], r[8], 0x1b)
+	KE2(r[10], r[9], 0x36)
+
+	return r;
+}
+
+void offline_prf(uint8_t * dest, uint8_t * src, void * ri) {
+	__m128i or, mr;
+	__m128i * r = ri;
+
+    or = _mm_load_si128((__m128i *) src);
+    mr = or;
+
+    mr = _mm_xor_si128(mr, r[0]);
+
+    mr = _mm_aesenc_si128(mr, r[1]);
+    mr = _mm_aesenc_si128(mr, r[2]);
+    mr = _mm_aesenc_si128(mr, r[3]);
+    mr = _mm_aesenc_si128(mr, r[4]);
+    mr = _mm_aesenc_si128(mr, r[5]);
+    mr = _mm_aesenc_si128(mr, r[6]);
+    mr = _mm_aesenc_si128(mr, r[7]);
+    mr = _mm_aesenc_si128(mr, r[8]);
+    mr = _mm_aesenc_si128(mr, r[9]);
+    mr = _mm_aesenclast_si128(mr, r[10]);
+    mr = _mm_xor_si128(mr, or);
+    _mm_storeu_si128((__m128i*) dest, mr);
+
+}
+
 
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
 #define KE2(NK,OK,RND) NK = OK;	\

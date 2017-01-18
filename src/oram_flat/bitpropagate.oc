@@ -21,6 +21,8 @@ struct bitpropagator {
 	obliv uint8_t * expanded_B;
 	obliv uint8_t * Z;
 	obliv bool * advicebits;
+	obliv uint8_t * keyL;
+	obliv uint8_t * keyR;
 	omp_lock_t * locks;
 	bitpropagator_offline * bpo;
 };
@@ -63,8 +65,9 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 		obliv uint8_t * Z = &bp->Z[(ii - bp->startlevel - 1)*BLOCKSIZE];
 
 		//first expand our active blocks into two blocks (L/R)
-		online_expand(bp->expanded_A, bp->activeblock_A, 2);
-		online_expand(bp->expanded_B, bp->activeblock_B, 2);
+		online_prf_double(bp->expanded_A, &bp->expanded_A[BLOCKSIZE], bp->activeblock_A, bp->activeblock_A, bp->keyL, bp->keyR);
+		online_prf_double(bp->expanded_B, &bp->expanded_B[BLOCKSIZE], bp->activeblock_B, bp->activeblock_B, bp->keyL, bp->keyR);
+
 		obliv if (levelindex == 0) {
 			//copy the branch to be kept
 			ocCopyN(&ocCopyChar, bp->activeblock_A, bp->expanded_A, BLOCKSIZE);
@@ -186,7 +189,25 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 	bp->expanded_B = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->Z = calloc((bp->endlevel - bp->startlevel), BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->advicebits = calloc((bp->endlevel - bp->startlevel),  2*sizeof(obliv bool));
-	bp->bpo = bitpropagator_offline_new(size, bp->startlevel);
+
+	//Generator chooses keys so that we don't incur round trips. Since we're semi-honest I guess it's OK? Should probably change it anyway.
+	uint8_t * keyL = malloc(KEYSIZE);
+	uint8_t * keyR = malloc(KEYSIZE);
+	if (ocCurrentParty() == 1) {
+		get_random_bytes(keyL, KEYSIZE);
+		get_random_bytes(keyR, KEYSIZE);
+		for (size_t ii=0; ii< KEYSIZE;ii++) ocBroadcastChar(keyL[ii],1);
+		for (size_t ii=0; ii< KEYSIZE;ii++) ocBroadcastChar(keyR[ii],1);
+	} else {
+		for (size_t ii=0; ii< KEYSIZE;ii++) keyL[ii] = ocBroadcastChar(NULL,1);
+		for (size_t ii=0; ii< KEYSIZE;ii++) keyR[ii] = ocBroadcastChar(NULL,1);
+	}
+
+	online_prf_keyschedule_double(&bp->keyL, &bp->keyR, keyL, keyR);
+	bp->bpo = bitpropagator_offline_new(size, bp->startlevel, keyL, keyR);
+
+	free(keyL);
+	free(keyR);
 
 	bp->locks = malloc((bp->endlevel - bp->startlevel) * sizeof(omp_lock_t));
 	for (size_t ii = 0; ii < bp->endlevel - bp->startlevel; ii++) {
@@ -209,6 +230,7 @@ void bitpropagator_free(bitpropagator * bp) {
 	free(bp->expanded_A);
 	free(bp->expanded_B);
 	free(bp->Z);
+	free(bp->keyL); free(bp->keyR);
 	free(bp->advicebits);
 	bitpropagator_offline_free(bp->bpo);
 

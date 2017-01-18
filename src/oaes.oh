@@ -6,11 +6,21 @@
 
 typedef struct oaes_ctx oaes_ctx;
 
+// PRG function
 void oaes_128(obliv uint8_t out[16], obliv uint8_t key[16],const obliv uint8_t block[16]) obliv;
+
+// functions for working with contexts. Useful mostly for actual encryption
 oaes_ctx * oaes_128_ctx_ctr_new(const obliv uint8_t key[16],const obliv uint8_t iv[16]);
 void oaes_128_rekey(oaes_ctx * ctx, obliv uint8_t key[16], obliv uint8_t iv[16]);
 void oaes_128_encdec(obliv uint8_t out[16], oaes_ctx * ctx, const obliv uint8_t block[16]) obliv;
 void oaes_128_encdec_double(obliv uint8_t out1[16], obliv uint8_t out2[16], oaes_ctx * ctx, const obliv uint8_t block1[16], const obliv uint8_t block2[16]) obliv;
 void oaes_128_ctx_free(oaes_ctx * ctx);
+
+// internals that are slightly less internal than they probably should be
+// note: double functions use bitpacking to achieve optimal efficiency
+void oaes_128_expandkey(obliv uint8_t mem[176]);
+void oaes_128_from_expanded(obliv uint8_t out[16], obliv uint8_t kex[176],const obliv uint8_t block[16]) obliv;
+void oaes_128_expandkey_double(obliv uint8_t mem1[176], obliv uint8_t mem2[176]);
+void oaes_128_from_expanded_double(obliv uint8_t out1[16], obliv uint8_t out2[16], obliv uint8_t kex1[176], obliv uint8_t kex2[176],const obliv uint8_t block1[16],const obliv uint8_t block2[16]) obliv;
 
 #endif

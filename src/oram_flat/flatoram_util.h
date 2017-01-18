@@ -24,4 +24,7 @@ void offline_expand_init();
 void offline_expand_deinit();
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n);
 
+void * offline_prf_keyschedule(uint8_t * src);
+void offline_prf(uint8_t * dest, uint8_t * src, void * r);
+
 #endif

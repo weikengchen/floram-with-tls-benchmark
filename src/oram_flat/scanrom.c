@@ -1,9 +1,7 @@
 #include "scanrom.h"
 #include "flatoram_util.h"
-
-void scanrom_create_local_halfpad(uint8_t * dest, uint8_t * key, size_t size) {
-	offline_expand(dest, key, size);
-}
+#include <wmmintrin.h>
+#include <tmmintrin.h>
 
 void scanrom_read_with_bitvector_offline(uint8_t * data, uint8_t * local_data, bool * bitvector, size_t fullblocksize, size_t blockcount) {
 	memset(data, 0, fullblocksize);
@@ -23,15 +21,23 @@ void scanrom_read_with_bitvector_offline(uint8_t * data, uint8_t * local_data, b
 	}
 }
 
-void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* pad, size_t len) {
-	uint64_t * o = out;
-	uint64_t * i = in;
-	uint64_t * p = pad;
+void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t index, size_t len) {
+	uint8_t * o = out;
+	uint8_t * i = in;
 
-	#pragma omp parallel for simd aligned(o,i,p:16)
-	for (size_t ii = 0; ii < len / sizeof(uint64_t); ii++) {
-		o[ii] = i[ii] ^ p[ii];
-	}	
+	void * kex = offline_prf_keyschedule(key);
+
+	#pragma omp parallel for
+	for (size_t ii = index/BLOCKSIZE; ii < (index+len) / BLOCKSIZE; ii++) {
+		__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
+	    __m128i mr = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
+		offline_prf(&o[ii*BLOCKSIZE], &mr, kex);
+		#pragma omp simd aligned(o,i:16)
+		for (uint8_t jj=0;jj<BLOCKSIZE;jj++) {
+			o[ii*BLOCKSIZE+jj] ^= i[ii*BLOCKSIZE+jj];
+		}
+	}
+	free(kex);
 }
 
 

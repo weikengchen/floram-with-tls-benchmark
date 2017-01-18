@@ -138,8 +138,8 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	//ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
 
-	// Based on B = 128*b; c = B*p+n*b/p = 128*p+n/p; dc/dp = 128-n/p^2; dc/dp = 0 when p = sqrt(n)/(8*sqrt(2))
-	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/(8*sqrt(2.0)));
+	// Based on B = 128*b; c = B*p/2+n*b/p = 64*p+n/p; dc/dp = 64-n/p^2; dc/dp = 0 when p = sqrt(n)/8
+	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/(8));
 	ram->blocktemp = calloc(1, ram->blockcpy.eltsize);
 	ram->stash = calloc(ram->period, ram->blockcpy.eltsize);
 	ram->stashi = calloc(ram->period, sizeof(obliv size_t));

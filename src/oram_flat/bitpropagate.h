@@ -14,7 +14,7 @@ void bitpropagator_offline_readblockvector(void * local_output, void* local_bit_
 
 void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, void* indexp, void * local_output, void* local_bit_output, void* pd, bp_traverser_fn fn, bp_pusher_fn fn2, facb_fn cbfn, void* cbpass);
 
-bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel);
+bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel, uint8_t * keyL, uint8_t * keyR);
 void bitpropagator_offline_free(bitpropagator_offline * bpo);
 
 #endif

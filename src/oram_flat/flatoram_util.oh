@@ -6,6 +6,8 @@
 void* element(OcCopy* cpy,void* arr,uint32_t x) obliv;
 
 void online_expand(void * dest, void * src, size_t n) obliv;
+void online_prf_keyschedule_double(obliv uint8_t ** r1, obliv uint8_t ** r2, uint8_t * src1, uint8_t * src2);
+void online_prf_double(obliv uint8_t * dest1, obliv uint8_t * dest2, obliv uint8_t * src1, obliv uint8_t * src2, obliv uint8_t * r1, obliv uint8_t * r2) obliv;
 
 void online_expand_init();
 void online_expand_deinit();

@@ -70,7 +70,7 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 	//receives one share from each party, encrypts them locally, and shares them
 	size_t index = indexinit;
 
-	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize * MIN(len, rom->blockcount - index));
+	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, rom->local_halfkey, index, rom->fullblocksize * MIN(len, rom->blockcount - index));
 
 	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
@@ -87,21 +87,10 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 	}
 }
 
-void scanrom_read(obliv uint8_t * data, scanrom* rom, size_t index) {
-	if (ocCurrentParty() == 2) {
-		scanrom_encrypt_offline(rom->local_blocktemp, &rom->local_data[index * rom->fullblocksize], &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize);
-	}
-
-	feedOblivCharArray(rom->blocktemp, rom->local_blocktemp, rom->fullblocksize, 2);
-	feedOblivCharArray(data, &rom->local_halfpad[index * rom->fullblocksize], rom->fullblocksize, 1);
-	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= rom->blocktemp[ii];
-}
-
 void scanrom_set_key(scanrom* rom, uint8_t* key_local) {
 	memcpy(rom->local_halfkey, key_local, KEYSIZE);
 	feedOblivCharArray(rom->halfkey_a, rom->local_halfkey, KEYSIZE, 1);
 	feedOblivCharArray(rom->halfkey_b, rom->local_halfkey, KEYSIZE, 2);
-	scanrom_create_local_halfpad(rom->local_halfpad, rom->local_halfkey, rom->blockcount*rom->blockmultiple);
 }
 
 void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom) {

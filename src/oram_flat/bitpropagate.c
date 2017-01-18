@@ -14,6 +14,8 @@ struct bitpropagator_offline {
 	void * level_data_2;
 	void * level_bits_1;
 	void * level_bits_2;
+	void * keyL;
+	void * keyR;
 	omp_lock_t * locks;
 };
 
@@ -52,9 +54,10 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 	#pragma omp parallel for
 	for (size_t ii = 0; ii < thislevelblocks; ii++) {
 		if ((ii+1)*2 <= nextlevelblocks) {
-			offline_expand(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], 2);
+			offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
+			offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
 		} else if (ii*2+1 <= nextlevelblocks) {
-			offline_expand(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], 1);
+			offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
 		}
 		a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
 	}
@@ -92,9 +95,10 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 			}
 		
 			if ((ii+1)*2 <= nextlevelblocks) {
-				offline_expand(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], 2);
+				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
+				offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
 			} else if (ii*2+1 <= nextlevelblocks) {
-				offline_expand(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], 1);
+				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
 			}
 		}
 	}
@@ -170,7 +174,7 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 	}
 }
 
-bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel) {
+bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel, uint8_t * keyL, uint8_t * keyR) {
 	offline_expand_init();
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
@@ -184,6 +188,10 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bpo->advicebits_r = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->level_bits_1 = malloc(size * sizeof(bool));
 	bpo->level_bits_2 = malloc(size * sizeof(bool));
+
+	bpo->keyL = offline_prf_keyschedule(keyL);
+	bpo->keyR = offline_prf_keyschedule(keyR); 
+
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
 		omp_init_lock(&bpo->locks[ii]);
 	}
@@ -202,6 +210,8 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 	free(bpo->advicebits_l);
 	free(bpo->advicebits_r);
 	free(bpo->Z);
+	free(bpo->keyL);
+	free(bpo->keyR);
 	free(bpo->locks);
 	free(bpo);
 }
