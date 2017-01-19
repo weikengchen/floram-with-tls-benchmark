@@ -151,15 +151,12 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	ram->rom_key_half = malloc(KEYSIZE);
 	get_random_bytes(ram->rom_key_half, KEYSIZE);
 
-	ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
-	ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
-
-	uint8_t * loadtemp_local;
-	flatoram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
 
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
 
+		uint8_t * loadtemp_local;
+		flatoram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
 		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
 
 		get_random_bytes(loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple);	
@@ -185,14 +182,22 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 		free(loadtemp);
 		
-		scanrom_write_xor_shares(ram->rom, loadtemp_local, 0, ram->blockcount);
+		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
 		scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
+		free(loadtemp_local);
+
+		ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
+		scanrom_import_from_scanwrom(ram->rom, ram->wrom);
 	} else {
-		memset(loadtemp_local, 0, ram->blockmultiple * BLOCKSIZE * ram->blockcount);
-		scanrom_write_xor_shares(ram->rom, loadtemp_local, 0, ram->blockcount);
+
+		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
+		scanwrom_clear(ram->wrom);
+
+		ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
+		scanrom_clear(ram->rom);
 	}
 
-	free(loadtemp_local);
+	
 
 	return ram;
 }

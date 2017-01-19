@@ -98,7 +98,27 @@ void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom) {
 	scanrom_write_xor_shares(rom, wrom->local_data, 0, rom->blockcount);
 }
 
-scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
+void scanrom_clear(scanrom* rom) {
+	//receives one share from each party, encrypts them locally, and shares them
+
+	scanrom_encrypt_offline(rom->local_data, NULL, rom->local_halfkey, 0, rom->fullblocksize * rom->blockcount);
+
+	for (size_t index = 0; index < rom->blockcount; index++) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
+			if (ocCurrentParty() == 1) rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(NULL, 2);
+			else ocBroadcastChar(rom->local_data[index * rom->fullblocksize + ii], 2);
+		}
+	}
+
+	for (size_t index = 0; index < rom->blockcount; index++) {
+		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
+			if (ocCurrentParty() == 2 ) rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(NULL, 1);
+			else ocBroadcastChar(rom->local_data[index * rom->fullblocksize + ii], 1);
+		}
+	}
+}
+
+scanrom* scanrom_new(OcCopy* blockcpy, size_t n, void* key_local) {
 	offline_expand_init();
 	scanrom * rom = malloc(sizeof(scanrom));
 	size_t fullblocksize = blockcpy->eltsize/sizeof(obliv uint8_t);
@@ -167,11 +187,15 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 }
 
 void scanwrom_read_xor_shares(uint8_t * data, scanwrom* rom, size_t index, size_t len) {
-	memcpy(data, &rom->local_data[index * rom->fullblocksize], MIN(len*rom->fullblocksize, rom->blockcount - index));
+	memcpy(data, &rom->local_data[index * rom->fullblocksize], MIN(len*rom->fullblocksize, (rom->blockcount - index)*rom->fullblocksize));
 }
 
 void scanwrom_write_xor_shares(scanwrom* rom, uint8_t * data, size_t index, size_t len) {
-	memcpy(&rom->local_data[index * rom->fullblocksize], data, MIN(len*rom->fullblocksize, rom->blockcount - index));
+	memcpy(&rom->local_data[index * rom->fullblocksize], data, MIN(len*rom->fullblocksize, (rom->blockcount - index)*rom->fullblocksize));
+}
+
+void scanwrom_clear(scanwrom* rom) {
+	memset(rom->local_data, 0, rom->blockcount * rom->fullblocksize);
 }
 
 scanwrom* scanwrom_new(OcCopy* blockcpy, size_t n) {
@@ -183,7 +207,6 @@ scanwrom* scanwrom_new(OcCopy* blockcpy, size_t n) {
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
 	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
-	memset(rom->local_data, 0, n * fullblocksize);
 	flatoram_pma(&rom->local_blocktemp, 16, fullblocksize);
 	rom->blocktemp = calloc(3, fullblocksize * sizeof(obliv uint8_t));
 	return rom;

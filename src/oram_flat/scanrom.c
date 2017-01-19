@@ -27,16 +27,27 @@ void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t i
 
 	void * kex = offline_prf_keyschedule(key);
 
-	#pragma omp parallel for
-	for (size_t ii = index/BLOCKSIZE; ii < (index+len) / BLOCKSIZE; ii++) {
-		__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
-	    __m128i mr = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
-		offline_prf(&o[ii*BLOCKSIZE], &mr, kex);
-		#pragma omp simd aligned(o,i:16)
-		for (uint8_t jj=0;jj<BLOCKSIZE;jj++) {
-			o[ii*BLOCKSIZE+jj] ^= i[ii*BLOCKSIZE+jj];
+	if (in == NULL) {
+		#pragma omp parallel for
+		for (size_t ii = index/BLOCKSIZE; ii < (index+len) / BLOCKSIZE; ii++) {
+			__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
+		    __m128i mr = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
+			offline_prf(&o[ii*BLOCKSIZE], &mr, kex);
+		}
+	} else {
+		#pragma omp parallel for
+		for (size_t ii = index/BLOCKSIZE; ii < (index+len) / BLOCKSIZE; ii++) {
+			__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
+		    __m128i mr = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
+			offline_prf(&o[ii*BLOCKSIZE], &mr, kex);
+			#pragma omp simd aligned(o,i:16)
+			for (uint8_t jj=0;jj<BLOCKSIZE;jj++) {
+				o[ii*BLOCKSIZE+jj] ^= i[ii*BLOCKSIZE+jj];
+			}
 		}
 	}
+
+	
 	free(kex);
 }
 
