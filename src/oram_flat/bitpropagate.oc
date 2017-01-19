@@ -38,10 +38,10 @@ void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, Pro
 		size_t thislevel = ii- bp->startlevel -1;
 		omp_set_lock(&bp->locks[thislevel]);
 
-		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&Z_local[jj], bp->Z[thislevel*BLOCKSIZE+jj], 1);
+		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)Z_local)[jj], ((obliv uint64_t *)(&bp->Z[thislevel*BLOCKSIZE]))[jj], 1);
 		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 1);
 		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 1);
-		for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&Z_local[jj], bp->Z[thislevel*BLOCKSIZE+jj], 2);
+		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)Z_local)[jj], ((obliv uint64_t *)(&bp->Z[thislevel*BLOCKSIZE]))[jj], 2);
 		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 2);
 		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 2);
 	
@@ -148,8 +148,8 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_pair
 			ocCopyN(&ocCopyChar, &bp->blocktemp_B[ii*BLOCKSIZE], &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
 		}
 	}
-	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], bp->blocktemp_A[ii * BLOCKSIZE + jj], 1);
-	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) for (size_t jj = 0; jj < BLOCKSIZE; jj++) revealOblivChar(&bp->toplevel_local[ii * BLOCKSIZE + jj], bp->blocktemp_B[ii * BLOCKSIZE + jj], 2);
+	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)(&bp->toplevel_local[ii * BLOCKSIZE]))[jj], ((obliv uint64_t *)(&bp->blocktemp_A[ii * BLOCKSIZE]))[jj], 1);
+	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)(&bp->toplevel_local[ii * BLOCKSIZE]))[jj], ((obliv uint64_t *)(&bp->blocktemp_B[ii * BLOCKSIZE]))[jj], 2);
 
 	ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
 
@@ -196,11 +196,11 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 	if (ocCurrentParty() == 1) {
 		get_random_bytes(keyL, KEYSIZE);
 		get_random_bytes(keyR, KEYSIZE);
-		for (size_t ii=0; ii< KEYSIZE;ii++) ocBroadcastChar(keyL[ii],1);
-		for (size_t ii=0; ii< KEYSIZE;ii++) ocBroadcastChar(keyR[ii],1);
+		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ocBroadcastLLong(((uint64_t *)keyL)[ii],1);
+		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ocBroadcastLLong(((uint64_t *)keyR)[ii],1);
 	} else {
-		for (size_t ii=0; ii< KEYSIZE;ii++) keyL[ii] = ocBroadcastChar(NULL,1);
-		for (size_t ii=0; ii< KEYSIZE;ii++) keyR[ii] = ocBroadcastChar(NULL,1);
+		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyL)[ii] = ocBroadcastLLong(NULL,1);
+		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyR)[ii] = ocBroadcastLLong(NULL,1);
 	}
 
 	online_prf_keyschedule_double(&bp->keyL, &bp->keyR, keyL, keyR);
