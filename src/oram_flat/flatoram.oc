@@ -161,17 +161,13 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 	if (data != NULL) {
 
 		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
-		obliv uint8_t * loadtemp2 = calloc(ram->blockcount, ram->blockcpy.eltsize);
 
 		get_random_bytes(loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple);	
 
-		feedOblivCharArray(loadtemp, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 1);
-		feedOblivCharArray(loadtemp2, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 2);
+		feedOblivCharArray(loadtemp, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 2);
 
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) loadtemp[ii] ^= loadtemp2[ii];
+		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) loadtemp[ii] ^= feedOblivChar(loadtemp_local[ii], 1);
 		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount);ii++) revealOblivChar(&(loadtemp_local[ii]), loadtemp[ii], 2);
-
-		free(loadtemp2);
 
 		size_t blockid, subblockid;
 		for (size_t ii = 0; ii < ram->size; ii++) {

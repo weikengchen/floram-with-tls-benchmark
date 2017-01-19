@@ -43,8 +43,8 @@ void test_main(void*varg) {
 	oram_set_default_type(ORAM_OVERRIDE);
 	#endif
 
-	int elct = 4;
-	int elsz = 1;
+	size_t elct = 4;
+	size_t elsz = 1;
 	int samples = 1;
 
 	args_t * args_pass = varg;
@@ -52,13 +52,13 @@ void test_main(void*varg) {
 	optind = 0; // this allows us to getopt a second time
 	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
 		if (arg == 'e') {
-			elct = atoi(optarg);
+			elct = atoll(optarg);
 			if (elct <= 0) {
 				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
 				return;
 			}
 		} else if (arg == 's') {
-			elsz = atoi(optarg);
+			elsz = atoll(optarg);
 			if (elsz <= 0) {
 				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
 				return;
@@ -107,7 +107,7 @@ void test_main(void*varg) {
 
 	oram * o = oram_new(ORAM_TYPE_AUTO, &cpy, elct);
 
-	fprintf(stdout, "%d,%d", elct, elsz);
+	fprintf(stdout, "%lld,%lld", elct, elsz);
 
 	for (int kk = 0; kk < samples; kk++) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
@@ -131,6 +131,6 @@ void test_main(void*varg) {
 	//free(input);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%d, size: %d): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+	fprintf(stderr, "Write (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }

@@ -10,7 +10,6 @@ struct scanrom {
 	OcCopy * blockcpy;
 	uint8_t * local_data;
 	uint8_t * local_halfkey;
-	uint8_t * local_halfpad;
 	obliv uint8_t * halfkey_a;
 	obliv uint8_t * halfkey_b;
 	uint8_t * local_blocktemp;
@@ -70,11 +69,12 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 	//receives one share from each party, encrypts them locally, and shares them
 	size_t index = indexinit;
 
-	scanrom_encrypt_offline(&rom->local_blocktemp[index * rom->fullblocksize], data, rom->local_halfkey, index, rom->fullblocksize * MIN(len, rom->blockcount - index));
+	scanrom_encrypt_offline(&rom->local_data[index * rom->fullblocksize], data, rom->local_halfkey, index, rom->fullblocksize * MIN(len, rom->blockcount - index));
 
 	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 2);
+			if (ocCurrentParty() == 1) rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(NULL, 2);
+			else ocBroadcastChar(rom->local_data[index * rom->fullblocksize + ii], 2);
 		}
 	}
 
@@ -82,7 +82,8 @@ void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t indexin
 
 	for (; index < MIN(indexinit + len, rom->blockcount); index++) {
 		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			rom->local_data[index * rom->fullblocksize + ii] ^= ocBroadcastChar(rom->local_blocktemp[index * rom->fullblocksize + ii], 1);
+			if (ocCurrentParty() == 2 ) rom->local_data[index * rom->fullblocksize + ii] = ocBroadcastChar(NULL, 1);
+			else ocBroadcastChar(rom->local_data[index * rom->fullblocksize + ii], 1);
 		}
 	}
 }
@@ -106,10 +107,8 @@ scanrom* scanrom_new(OcCopy* blockcpy, int n, void* key_local) {
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
 	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
-	memset(rom->local_data, 0, n * fullblocksize);
-	flatoram_pma(&rom->local_halfpad, 16, n * fullblocksize);
 	rom->local_halfkey = malloc(KEYSIZE);
-	flatoram_pma(&rom->local_blocktemp, 16, n * fullblocksize);
+	flatoram_pma(&rom->local_blocktemp, 16, 2 * fullblocksize);
 	rom->blocktemp = calloc(fullblocksize * 3, sizeof(obliv uint8_t));
 	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
@@ -121,7 +120,6 @@ void scanrom_free(scanrom* rom) {
 	offline_expand_deinit();
 	free(rom->local_data);
 	free(rom->local_halfkey);
-	free(rom->local_halfpad);
 	free(rom->local_blocktemp);
 	free(rom->blocktemp);
 	free(rom->halfkey_a);

@@ -10,17 +10,15 @@ struct bitpropagator_offline {
 	void * Z;
 	bool * advicebits_l;
 	bool * advicebits_r;
-	void * level_data_1;
-	void * level_data_2;
-	void * level_bits_1;
-	void * level_bits_2;
+	void * level_data;
+	void * level_bits;
 	void * keyL;
 	void * keyR;
 	omp_lock_t * locks;
 };
 
 void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
-	memcpy(bpo->level_data_1, blocks, (1ll<<bpo->startlevel) * BLOCKSIZE);
+	memcpy(bpo->level_data, blocks, (1ll<<bpo->startlevel) * BLOCKSIZE);
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
 		omp_set_lock(&bpo->locks[ii]);
 	}
@@ -39,16 +37,16 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 	size_t thislevelblocks = (1ll<<bpo->startlevel);
 	size_t nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
 
-	uint64_t* a = (uint64_t *)bpo->level_data_1;
-	uint8_t* a2 = (uint8_t *)bpo->level_data_1;
-	uint64_t* b = (uint64_t *)bpo->level_data_2;
-	uint8_t* b2 = (uint8_t *)bpo->level_data_2;
+	uint64_t* a = (uint64_t *)bpo->level_data;
+	uint8_t* a2 = (uint8_t *)bpo->level_data;
+	uint64_t* b = (uint64_t *)local_output;
+	uint8_t* b2 = (uint8_t *)local_output;
 	uint64_t* t;
 	uint8_t* t2;
 	uint64_t* z;
 	bool advicebit_l, advicebit_r;
-	bool * a_bits = bpo->level_bits_1;
-	bool * b_bits = bpo->level_bits_2;
+	bool * a_bits = bpo->level_bits;
+	bool * b_bits = local_bit_output;
 	bool * t_bits;
 
 	#pragma omp parallel for
@@ -103,9 +101,6 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 		}
 	}
 
-	uint64_t* c = (uint64_t *)local_output;
-	uint8_t* c2 = (uint8_t *)local_output;
-
 	omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
 
 	thislevelblocks = nextlevelblocks;
@@ -119,25 +114,41 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 	b2 = a2; b = a; b_bits = a_bits;
 	a2 = t2; a = t; a_bits = t_bits;
 
-	#pragma omp parallel for
-	for (size_t ii = 0; ii < thislevelblocks; ii++) {
+	if (b == local_output) {
+		#pragma omp parallel for
+		for (size_t ii = 0; ii < thislevelblocks; ii++) {
+			if (ii%2 == 0) {
+				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+			} else {
+				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+			}
 
-		if (c != NULL) {
 			if (b_bits[ii/2]) {
-				#pragma omp simd aligned(c,a,z:16)
+				#pragma omp simd aligned(b,a,z:16)
 				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
-					c[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] = a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^ z[jj];
+					b[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] = a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^ z[jj];
 				}
 			} else {
-				memcpy(&c[ii*(BLOCKSIZE/sizeof(uint64_t))], &a[ii*(BLOCKSIZE/sizeof(uint64_t))], BLOCKSIZE);
+				memcpy(&b[ii*(BLOCKSIZE/sizeof(uint64_t))], &a[ii*(BLOCKSIZE/sizeof(uint64_t))], BLOCKSIZE);
 			}
 		}
 
-		if (local_bit_output != NULL) {
+		memcpy(b_bits, a_bits, thislevelblocks*sizeof(bool));
+
+	} else {
+		#pragma omp parallel for
+		for (size_t ii = 0; ii < thislevelblocks; ii++) {
 			if (ii%2 == 0) {
-				((bool *)local_bit_output)[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
 			} else {
-				((bool *)local_bit_output)[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+			}
+
+			if (b_bits[ii/2]) {
+				#pragma omp simd aligned(b,a,z:16)
+				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+					a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+				}
 			}
 		}
 	}
@@ -180,14 +191,12 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bpo->size = size;
 	bpo->startlevel = startlevel;
 	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
-	posix_memalign(&bpo->level_data_1,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
-	posix_memalign(&bpo->level_data_2,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
+	posix_memalign(&bpo->level_data,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);
 	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits_l = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->advicebits_r = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
-	bpo->level_bits_1 = malloc(size * sizeof(bool));
-	bpo->level_bits_2 = malloc(size * sizeof(bool));
+	bpo->level_bits = malloc(size * sizeof(bool));
 
 	bpo->keyL = offline_prf_keyschedule(keyL);
 	bpo->keyR = offline_prf_keyschedule(keyR); 
@@ -203,10 +212,8 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 		omp_destroy_lock(&bpo->locks[ii]);
 	}
 	offline_expand_deinit();
-	free(bpo->level_data_1);
-	free(bpo->level_data_2);
-	free(bpo->level_bits_1);
-	free(bpo->level_bits_2);
+	free(bpo->level_data);
+	free(bpo->level_bits);
 	free(bpo->advicebits_l);
 	free(bpo->advicebits_r);
 	free(bpo->Z);
