@@ -101,12 +101,14 @@ void test_main(void*varg) {
 	OcCopy cpy = ocCopyIntN(elsz);
 
 	uint64_t tally = 0;
+	uint32_t * input_raw = malloc(elsz * elct * sizeof(uint32_t));
 	obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
 
-	fprintf(stdout, "%d,%d", elct, elsz);
+	fprintf(stdout, "%lld,%lld", elct, elsz);
 
-	for (int kk = 0; kk < samples; kk++) {
-		for (int kkkkk = 0; kkkkk < (elsz * elct); kkkkk++) input[kkkkk] = feedOblivInt(rand(), 1);
+	for (size_t kk = 0; kk < samples; kk++) {
+		for (size_t ii = 0; ii < elct*elsz;ii++) input_raw[ii] = rand();
+		feedOblivIntArray(input, input_raw, elct * elsz, 1);
 		uint64_t startTime = current_timestamp();
 		oram * o = oram_from_array(ORAM_TYPE_AUTO, &cpy, elct, input);
 		uint64_t runtime = current_timestamp() - startTime;
