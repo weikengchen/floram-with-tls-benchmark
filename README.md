@@ -17,10 +17,10 @@ Features
 	* Breadth First Search (Naive Method)
 * Hash Functions
 	* Scrypt - based upon _[Stronger Key Derivation via Sequential Memory-hard Functions](https://www.tarsnap.com/scrypt/scrypt.pdf)_
-	* SHA256 and SHA512
+	* SHA256 and SHA512 (Naive Methods)
 * Oblivious Data Structures
 	* Queue - based upon _[Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)_
-* ORAM
+* ORAM - a single interface providing the following RAM constructions
 	* Circuit ORAM - based upon _[Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf)_; code contributed by Xiao Wang
 	* FSS Linear ORAM - based upon _Gigabyte-scale Scanning ORAMs for Secure Computation_ (forthcoming)
 	* Linear Scan
