@@ -53,26 +53,28 @@ void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t i
 
 
 void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blockvector, bool * controlbitvector, uint8_t*Zblock, bool expand, size_t fullblocksize, size_t blockcount) {
-	uint8_t * d = local_data;
-	uint8_t * b = blockvector;
-	uint8_t * z = Zblock;
+	uint64_t * d = local_data;
+	uint64_t * b = blockvector;
+	uint64_t * z = Zblock;
 
 	#pragma omp parallel for
 	for (size_t ii = 0; ii< blockcount; ii++) {
 		if (controlbitvector[ii]) {
 			#pragma omp simd aligned(d,b,z:16)
-			for (size_t jj = 0; jj < fullblocksize; jj++) {
-				d[ii * fullblocksize + jj] ^= b[ii * fullblocksize + jj] ^ z[jj];
+			for (size_t jj = 0; jj < fullblocksize/sizeof(uint64_t); jj++) {
+				d[ii * fullblocksize/sizeof(uint64_t) + jj] ^= b[ii * fullblocksize/sizeof(uint64_t) + jj] ^ z[jj];
 			}
 		} else {
 			#pragma omp simd aligned(d,b:16)
-			for (size_t jj = 0; jj < fullblocksize; jj++) {
-				d[ii * fullblocksize + jj] ^= b[ii * fullblocksize + jj];
+			for (size_t jj = 0; jj < fullblocksize/sizeof(uint64_t); jj++) {
+				d[ii * fullblocksize/sizeof(uint64_t) + jj] ^= b[ii * fullblocksize/sizeof(uint64_t) + jj];
 			}
 		}
 	}
 }
 
+
+// Unfinished
 void scanrom_transfer_duplexer(duplexer_fn fn1, duplexer_fn fn2, void* data, void * pd) {
 
 	#pragma omp parallel num_threads(2)

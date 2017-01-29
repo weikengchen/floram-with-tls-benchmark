@@ -32,13 +32,13 @@ struct scanwrom {
 
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
-	~obliv() scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
 	~obliv() {
+		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
 		feedOblivCharArray(data, rom->local_blocktemp, rom->fullblocksize, 1);
 		feedOblivCharArray(&rom->blocktemp[rom->fullblocksize], rom->local_blocktemp, rom->fullblocksize, 2);
 		for (size_t ii=0; ii < rom->fullblocksize; ii++) data[ii] ^= rom->blocktemp[rom->fullblocksize+ii];
+		memset(&rom->blocktemp[rom->fullblocksize], 0, rom->fullblocksize * sizeof(obliv uint8_t));
 	}
-	~obliv() memset(&rom->blocktemp[rom->fullblocksize], 0, rom->fullblocksize * sizeof(obliv uint8_t));
 
 	oaes_ctx * ctx;
 
@@ -158,7 +158,7 @@ void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
 	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 2);
 }
 
-void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_pair, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
+void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_delta, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
 	~obliv(en) {
 		memset(rom->blocktemp, 0 , rom->fullblocksize*sizeof(obliv uint8_t));
 		obliv if (en) {
@@ -170,14 +170,16 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 		// Blocktemp now contains the data delta
 
 		if (rom->blockmultiple == 1) {
-			memcpy(&rom->blocktemp[rom->fullblocksize], active_block_pair, 2*rom->fullblocksize * sizeof(obliv uint8_t));
+			for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
+				rom->blocktemp[ii] ^= active_block_delta[ii];
+			}
 		} else {
-			online_expand(&rom->blocktemp[rom->fullblocksize],active_block_pair,rom->blockmultiple);
-			online_expand(&rom->blocktemp[2*rom->fullblocksize],&active_block_pair[BLOCKSIZE],rom->blockmultiple);
-		}
-
-		for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
-			rom->blocktemp[ii] ^= rom->blocktemp[rom->fullblocksize + ii] ^ rom->blocktemp[2*rom->fullblocksize + ii];
+			//TODO: this case
+			//online_expand(&rom->blocktemp[rom->fullblocksize],active_block_pair,rom->blockmultiple);
+			//online_expand(&rom->blocktemp[2*rom->fullblocksize],&active_block_pair[BLOCKSIZE],rom->blockmultiple);
+			//for (size_t ii = 0; ii < rom->fullblocksize; ii++) {
+			//	rom->blocktemp[ii] ^= rom->blocktemp[rom->fullblocksize + ii] ^ rom->blocktemp[2*rom->fullblocksize + ii];
+			//}
 		}
 		for (size_t ii = 0; ii < rom->fullblocksize/sizeof(uint64_t); ii++) revealOblivLLong(&((uint64_t *)rom->local_blocktemp)[ii], ((obliv uint64_t *)rom->blocktemp)[ii], 2);
 		for (size_t ii = 0; ii < rom->fullblocksize/sizeof(uint64_t); ii++) revealOblivLLong(&((uint64_t *)rom->local_blocktemp)[ii], ((obliv uint64_t *)rom->blocktemp)[ii], 1);

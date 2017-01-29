@@ -6,194 +6,238 @@
 struct bitpropagator_offline {
 	size_t size;
 	size_t startlevel;
+	size_t thislevel;
 	size_t endlevel;
+	size_t thislevelblocks;
+	size_t nextlevelblocks;
 	void * Z;
 	bool * advicebits_l;
 	bool * advicebits_r;
-	void * level_data;
-	void * level_bits;
+	uint8_t * level_data;
+	uint64_t * lda;
+	uint64_t * ldb;
+	uint8_t * lda2;
+	uint8_t * ldb2;
+	bool * level_bits;
+	bool * lba;
+	bool * lbb;
 	void * keyL;
 	void * keyR;
-	omp_lock_t * locks;
 };
 
-void bitpropagator_offline_start(bitpropagator_offline * bpo, void * blocks) {
-	memcpy(bpo->level_data, blocks, (1ll<<bpo->startlevel) * BLOCKSIZE);
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_set_lock(&bpo->locks[ii]);
+typedef struct block_t {
+	uint64_t data[BLOCKSIZE/sizeof(uint64_t)];
+} block_t;
+
+void block_xor(block_t * a, block_t * b) {
+	#pragma omp simd
+	for (uint8_t ii = 0; ii < BLOCKSIZE/sizeof(uint64_t); ii++) {
+		a->data[ii] ^= b->data[ii];
 	}
 }
 
-void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, void * Z, bool advicebit_l, bool advicebit_r, size_t level) {
-	memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
-	bpo->advicebits_l[level- bpo->startlevel - 1] = advicebit_l;
-	bpo->advicebits_r[level- bpo->startlevel - 1] = advicebit_r;
-	omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
+#pragma omp declare reduction(^: block_t: block_xor(&omp_out, &omp_in)) initializer (omp_priv = { 0 })
+
+void bitpropagator_offline_start(uint8_t * local_output, bool * local_bit_output, uint64_t * accumulator_L, uint64_t * accumulator_R, bitpropagator_offline * bpo) {
+	bpo->thislevel = 0;
+	bpo->thislevelblocks = 1;
+	bpo->nextlevelblocks = 2;
+
+	bpo->lda = (uint64_t *)bpo->level_data;
+	bpo->lda2 = (uint8_t *)bpo->level_data;
+	bpo->ldb = (uint64_t *)local_output;
+	bpo->ldb2 = (uint8_t *)local_output;
+	bpo->lba = bpo->level_bits;
+	bpo->lbb = local_bit_output;
+
+	memset(accumulator_L, 0, BLOCKSIZE);
+	memset(accumulator_R, 0, BLOCKSIZE);
+	get_random_bytes(bpo->lda2, BLOCKSIZE);
+	if (ocCurrentParty() == 1) bpo->lda2[0] &= 0xFE;
+	else bpo->lda2[0] |= 1;
+
+	uint64_t * lda = bpo->lda;
+	uint64_t * ldb = bpo->ldb;
+
+	block_t accL;
+	block_t accR;
+
+	offline_prf(&bpo->ldb2[0], bpo->lda2, bpo->keyL);
+	offline_prf(&bpo->ldb2[BLOCKSIZE], bpo->lda2, bpo->keyR);
+	#pragma omp simd aligned(ldb, accumulator_L, accumulator_R:16) 
+	for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+		accumulator_L[jj] ^= ldb[jj];
+		accumulator_R[jj] ^= ldb[BLOCKSIZE/sizeof(uint64_t)+jj];
+	}
+
+	bpo->lba[0] = bpo->lda2[0] & 1;
 }
 
-void bitpropagator_offline_readblockvector(void * local_output, void * local_bit_output, bitpropagator_offline * bpo) {
+void bitpropagator_offline_process_round(uint8_t * accumulator_L, uint8_t * accumulator_R, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_offline * bpo) {
+	bpo->thislevel += 1;
+	bpo->thislevelblocks = bpo->nextlevelblocks;
+	bpo->nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - bpo->thislevel -1)) - 1) / (1ll<<(bpo->endlevel - bpo->thislevel -1));
+	if (bpo->thislevel == bpo->endlevel -1) bpo->nextlevelblocks = bpo->size;
 
-	size_t thislevel = bpo->startlevel;
-	size_t thislevelblocks = (1ll<<bpo->startlevel);
-	size_t nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
+	uint64_t* t; uint8_t* t2; bool * tb;
 
-	uint64_t* a = (uint64_t *)bpo->level_data;
-	uint8_t* a2 = (uint8_t *)bpo->level_data;
-	uint64_t* b = (uint64_t *)local_output;
-	uint8_t* b2 = (uint8_t *)local_output;
-	uint64_t* t;
-	uint8_t* t2;
-	uint64_t* z;
-	bool advicebit_l, advicebit_r;
-	bool * a_bits = bpo->level_bits;
-	bool * b_bits = local_bit_output;
-	bool * t_bits;
+	t2 = bpo->ldb2; t = bpo->ldb; tb = bpo->lbb;
+	bpo->ldb2 = bpo->lda2; bpo->ldb = bpo->lda; bpo->lbb = bpo->lba;
+	bpo->lda2 = t2; bpo->lda = t; bpo->lba = tb;
 
-	#pragma omp parallel for
-	for (size_t ii = 0; ii < thislevelblocks; ii++) {
-		if ((ii+1)*2 <= nextlevelblocks) {
-			offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
-			offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
-		} else if (ii*2+1 <= nextlevelblocks) {
-			offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
+	uint64_t * lda = bpo->lda;
+	uint64_t * ldb = bpo->ldb;
+
+	//memset(accumulator_L, 0, BLOCKSIZE);
+	//memset(accumulator_R, 0, BLOCKSIZE);
+
+	block_t accL = {0};
+	block_t accR = {0};
+
+	#pragma omp parallel for reduction(^:accL,accR)
+	for (int64_t ii =  0; ii < bpo->thislevelblocks ; ii++) {
+
+		if (ii%2 == 0) {
+			bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
+		} else {
+			bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_r);
 		}
-		a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
-	}
 
-	for (thislevel = bpo->startlevel +1; thislevel < bpo->endlevel; thislevel++) {
-		omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
-
-		thislevelblocks = nextlevelblocks;
-		nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
-		if (thislevel == bpo->endlevel -1) nextlevelblocks = bpo->size;
-
-		advicebit_l = bpo->advicebits_l[thislevel - bpo->startlevel -1];
-		advicebit_r = bpo->advicebits_r[thislevel - bpo->startlevel -1];
-
-		z = &((uint64_t *)bpo->Z)[(thislevel - bpo->startlevel -1) * (BLOCKSIZE/sizeof(uint64_t))];
-
-		t2 = b2; t = b; t_bits = b_bits;
-		b2 = a2; b = a; b_bits = a_bits;
-		a2 = t2; a = t; a_bits = t_bits;
-
-		#pragma omp parallel for
-		for (int64_t ii =  0; ii < thislevelblocks ; ii++) {
-
-			if (ii%2 == 0) {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
-			} else {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+		if (bpo->lbb[ii/2]) {
+			#pragma omp simd aligned(lda,z:16)
+			for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+				lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
 			}
-
-			if (b_bits[ii/2]) {
-				#pragma omp simd aligned(a,z:16)
-				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
-					a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
-				}
+		}
+	
+		if ((ii+1)*2 <= bpo->nextlevelblocks) {
+			offline_prf(&bpo->ldb2[ii*2*BLOCKSIZE], &bpo->lda2[ii*BLOCKSIZE], bpo->keyL);
+			offline_prf(&bpo->ldb2[(ii*2+1)*BLOCKSIZE], &bpo->lda2[ii*BLOCKSIZE], bpo->keyR);
+			#pragma omp simd aligned(ldb:16)
+			for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+				accL.data[jj] ^= ldb[ii*2*BLOCKSIZE/sizeof(uint64_t)+jj];
+				accR.data[jj] ^= ldb[(ii*2+1)*BLOCKSIZE/sizeof(uint64_t)+jj];
 			}
-		
-			if ((ii+1)*2 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
-				offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
-			} else if (ii*2+1 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
+		} else if (ii*2+1 <= bpo->nextlevelblocks) {
+			offline_prf(&bpo->ldb2[ii*2*BLOCKSIZE], &bpo->lda2[ii*BLOCKSIZE], bpo->keyL);
+			#pragma omp simd aligned(ldb:16)
+			for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+				accL.data[jj] ^= ldb[ii*2*BLOCKSIZE/sizeof(uint64_t)+jj];
 			}
 		}
 	}
 
-	omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
+	for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+		((uint64_t *)accumulator_L)[jj] = accL.data[jj];
+		((uint64_t *)accumulator_R)[jj] = accR.data[jj];
+	}
+}
 
-	thislevelblocks = nextlevelblocks;
+void bitpropagator_offline_finalize(uint8_t * accumulator, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_offline * bpo) {
+	bpo->thislevel += 1;
+	bpo->thislevelblocks = bpo->nextlevelblocks;
 
-	advicebit_l = bpo->advicebits_l[thislevel - bpo->startlevel -1];
-	advicebit_r = bpo->advicebits_r[thislevel - bpo->startlevel -1];
+	uint64_t* t; uint8_t* t2; bool * tb;
 
-	z = &((uint64_t *)bpo->Z)[(thislevel - bpo->startlevel -1) * (BLOCKSIZE/sizeof(uint64_t))];
+	t2 = bpo->ldb2; t = bpo->ldb; tb = bpo->lbb;
+	bpo->ldb2 = bpo->lda2; bpo->ldb = bpo->lda; bpo->lbb = bpo->lba;
+	bpo->lda2 = t2; bpo->lda = t; bpo->lba = tb;
 
-	t2 = b2; t = b; t_bits = b_bits;
-	b2 = a2; b = a; b_bits = a_bits;
-	a2 = t2; a = t; a_bits = t_bits;
+	uint64_t * lda = bpo->lda;
+	uint64_t * ldb = bpo->ldb;
 
-	if (b == local_output) {
-		#pragma omp parallel for
-		for (size_t ii = 0; ii < thislevelblocks; ii++) {
+	//memset(accumulator, 0, BLOCKSIZE);
+
+	block_t acc = {0};
+
+	if (bpo->thislevel%2==0) {
+		#pragma omp parallel for reduction(^:acc)
+		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+				bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
 			} else {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+				bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_r);
 			}
 
-			if (b_bits[ii/2]) {
-				#pragma omp simd aligned(b,a,z:16)
+			if (bpo->lbb[ii/2]) {
+				#pragma omp simd aligned(ldb,lda,z:16)
 				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
-					b[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] = a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^ z[jj];
+					ldb[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] = lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^ ((uint64_t *)z)[jj];
+					acc.data[jj] ^= ldb[ii*(BLOCKSIZE/sizeof(uint64_t))+jj];
 				}
 			} else {
-				memcpy(&b[ii*(BLOCKSIZE/sizeof(uint64_t))], &a[ii*(BLOCKSIZE/sizeof(uint64_t))], BLOCKSIZE);
+				memcpy(&bpo->ldb[ii*(BLOCKSIZE/sizeof(uint64_t))], &bpo->lda[ii*(BLOCKSIZE/sizeof(uint64_t))], BLOCKSIZE);
+				#pragma omp simd aligned(ldb:16)
+				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+					acc.data[jj] ^= ldb[ii*(BLOCKSIZE/sizeof(uint64_t))+jj];
+				}
 			}
 		}
 
-		memcpy(b_bits, a_bits, thislevelblocks*sizeof(bool));
+		memcpy(bpo->lbb, bpo->lba, bpo->thislevelblocks*sizeof(bool));
 
 	} else {
-		#pragma omp parallel for
-		for (size_t ii = 0; ii < thislevelblocks; ii++) {
+		#pragma omp parallel for reduction(^:acc)
+		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+				bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
 			} else {
-				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+				bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_r);
 			}
 
-			if (b_bits[ii/2]) {
-				#pragma omp simd aligned(b,a,z:16)
+			if (bpo->lbb[ii/2]) {
+				#pragma omp simd aligned(lda,z:16)
 				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
-					a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+					lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
+					acc.data[jj] ^= lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj];
+				}
+			} else {
+				#pragma omp simd aligned(lda:16)
+				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+					acc.data[jj] ^= lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj];
 				}
 			}
 		}
 	}
 
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_unset_lock(&bpo->locks[ii]);
+	for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+		((uint64_t *)accumulator)[jj] = acc.data[jj];
 	}
 }
 
-void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, void* indexp, void * local_output, void * local_bit_output, void* pd, bp_traverser_fn fn, bp_pusher_fn fn2, facb_fn cbfn, void* cbpass) {
+void bitpropagator_offline_parallelizer(void* bp, void* indexp, void *blockdelta, void * local_output, void * local_bit_output, void* pd, bp_traverser_fn fn, facb_fn cbfn, void* cbpass) {
 
 	omp_set_nested(true);
 
-	#pragma omp parallel num_threads(3)
+	#pragma omp parallel num_threads(2)
 	{
 		//OpenMP seems to get along with obliv-c just fine, so long as obliv-c only uses the master thread.
 		#pragma omp master
 		{
-			fn(bp, indexp);	
-			if (*cbfn!=NULL) {
-				cbfn(cbpass);
-			}
+			fn(blockdelta, local_output, local_bit_output, bp, indexp);
 		}
 		
-
-		#pragma omp single
-		{
-			#pragma omp task
-			fn2(bp, bpo, pd);
-
-			#pragma omp task
-			bitpropagator_offline_readblockvector(local_output, local_bit_output, bpo);
+		if (*cbfn!=NULL) {
+			#pragma omp single
+			{
+				#pragma omp task
+				{
+					if (omp_get_num_threads() > 1) cbfn(cbpass, pd);
+					else cbfn(cbpass, NULL);
+				}
+			}
 		}
 	}
 }
 
-bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel, uint8_t * keyL, uint8_t * keyR) {
+bitpropagator_offline * bitpropagator_offline_new(size_t size, uint8_t * keyL, uint8_t * keyR) {
 	offline_expand_init();
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
-	bpo->startlevel = startlevel;
+	bpo->startlevel = 0;
 	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
 	posix_memalign(&bpo->level_data,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);
-	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits_l = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->advicebits_r = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->level_bits = malloc(size * sizeof(bool));
@@ -201,16 +245,10 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t startlevel
 	bpo->keyL = offline_prf_keyschedule(keyL);
 	bpo->keyR = offline_prf_keyschedule(keyR); 
 
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_init_lock(&bpo->locks[ii]);
-	}
 	return bpo;
 }
 
 void bitpropagator_offline_free(bitpropagator_offline * bpo) {
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_destroy_lock(&bpo->locks[ii]);
-	}
 	offline_expand_deinit();
 	free(bpo->level_data);
 	free(bpo->level_bits);
@@ -219,6 +257,5 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 	free(bpo->Z);
 	free(bpo->keyL);
 	free(bpo->keyR);
-	free(bpo->locks);
 	free(bpo);
 }

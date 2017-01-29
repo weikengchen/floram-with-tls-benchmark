@@ -87,34 +87,28 @@ void test_main(void*varg) {
 
 	{
 
-		/*size_t propagatorblocks = 256;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks, MIN(2, LOG2LL(propagatorblocks)));
-		obliv uint8_t * active_block_pair = calloc(2, sizeof(obliv uint8_t) * 16);
+		size_t propagatorblocks = 256;
+		bitpropagator * bp = bitpropagator_new(propagatorblocks);
+		obliv uint8_t * active_block_delta = calloc(1, sizeof(obliv uint8_t) * 16);
 		uint8_t * local_output;
 		pma(&local_output, 16, propagatorblocks * 16);
 		bool * local_bit_output = malloc(propagatorblocks * sizeof(bool));
 
 		int64_t runtime = -current_timestamp();
 		int64_t ygc = -yaoGateCount();
-		bitpropagator_getblockvector(active_block_pair, local_output, local_bit_output, bp, 9);
+		bitpropagator_getblockvector(active_block_delta, local_output, local_bit_output, bp, 9);
 		runtime +=current_timestamp();
 		ygc += yaoGateCount();
 
 		printf("runtime: %d\n",runtime);
 		printf("gates:   %d\n\b",ygc);
 		
-		printf("active 1: ");
+		printf("active delta: ");
 		char temp;
 		for (int ii = 0; ii < 16; ii++) {
-			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[ii],0);
+			revealOblivChar(&temp,((obliv uint8_t *)active_block_delta)[ii],0);
 			printf("%02hhX",temp);
 		}
-		printf("\nactive 2: ");
-		for (int ii = 0; ii < 16; ii++) {
-			revealOblivChar(&temp,((obliv uint8_t *)active_block_pair)[16+ii],0);
-			printf("%02hhX",temp);
-		}
-		printf("\n");
 
 		printf("local: \n");
 		for (int ii = 0; ii < propagatorblocks; ii++) {
@@ -123,7 +117,7 @@ void test_main(void*varg) {
 				printf("%02hhX",local_output[ii*16+jj]);
 			}
 			printf(" %d\n", local_bit_output[ii]);
-		}*/
+		}
 		
 		/*OcCopy cpy = ocCopyCharN(16);
 		obliv uint8_t * key_local = calloc(1, 16);
@@ -246,7 +240,7 @@ void test_main(void*varg) {
 		free(zero);
 		*/
 
-		{
+		/*{
 			uint32_t input_raw[ELCT];
 			obliv uint32_t input[ELCT];
 
@@ -259,10 +253,10 @@ void test_main(void*varg) {
 
 			flatoram * o = flatoram_new(&ocCopyInt, input, ELCT);
 
-			/*flatoram * o = flatoram_new(&ocCopyInt, NULL, ELCT);
-			for (int ii = 0; ii < ELCT; ii++) {
-				flatoram_write(o, &input[ii], ii);
-			}*/
+			//flatoram * o = flatoram_new(&ocCopyInt, NULL, ELCT);
+			//for (int ii = 0; ii < ELCT; ii++) {
+			//	flatoram_write(o, &input[ii], ii);
+			//}
 
 			bool success = true;
 
@@ -280,7 +274,7 @@ void test_main(void*varg) {
 
 			fprintf(stderr, "Test Item: %-19s %-50s %s\n", "Flatoram", "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
-		}
+		}*/
 		
 	}
 	

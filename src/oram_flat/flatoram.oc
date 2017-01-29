@@ -3,6 +3,7 @@
 #include "scanrom.oh"
 #include "bitpropagate.oh"
 #include "ackutil.h"
+#include <obliv.h>
 
 struct flatoram {
 	OcCopy* cpy;
@@ -12,7 +13,7 @@ struct flatoram {
 	bitpropagator* bitpropagator;
 	obliv uint8_t* stash;
 	obliv int32_t* stashi;
-	obliv uint8_t* activeblock_pair;
+	obliv uint8_t* activeblock_delta;
 	uint8_t* blockvector_local;
 	bool * bitvector_local;
 	uint8_t* rom_key_half;
@@ -29,7 +30,7 @@ struct flatoram {
 void flatoram_read(void* data, flatoram* ram, obliv size_t index) obliv {
 	obliv size_t blockid = index / ram->elementsperblock;
 	obliv size_t subblockid = index % ram->elementsperblock;
-	~obliv() bitpropagator_getblockvector(ram->activeblock_pair, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid);
+	~obliv() bitpropagator_getblockvector(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid);
 	scanrom_read_with_bitvector(ram->blocktemp, ram->rom, blockid, ram->bitvector_local);
 	for (size_t ii = 0; ii < ram->period; ii ++) {
 		obliv if (blockid == ram->stashi[ii]) ocCopy(&ram->blockcpy, ram->blocktemp, element(&ram->blockcpy, ram->stash, ii));
@@ -56,7 +57,9 @@ typedef struct facb_pass {
 	obliv bool found;
 } facb_pass;
 
-void flatoram_scan_callback(facb_pass * input) {
+void flatoram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
+	if (pd != NULL) ocSetCurrentProto(pd);
+
 	flatoram * ram = input->ram;
 	obliv size_t blockid = input->blockid;
 	obliv size_t subblockid = input->subblockid;
@@ -83,7 +86,7 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 
 	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
 
-	~obliv() bitpropagator_getblockvector_with_callback(ram->activeblock_pair, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, flatoram_scan_callback, &facb_data);
+	~obliv() bitpropagator_getblockvector_with_callback(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, flatoram_scan_callback, &facb_data);
 
 	obliv if (facb_data.found == false) {
 		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);
@@ -96,7 +99,7 @@ void flatoram_apply(flatoram* ram, void* data, flatoram_block_access_function fn
 		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
 	}
 
-	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_pair, ram->blockvector_local, ram->bitvector_local, element(&ram->blockcpy, ram->stash, 0), ram->blocktemp);
+	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, element(&ram->blockcpy, ram->stash, 0), ram->blocktemp);
 	~obliv() {
 		ram->progress++;
 		if (ram->progress == ram->period) flatoram_refresh(ram);
@@ -130,11 +133,11 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 
 	ram->blockcpy=ocCopyCharN(ram->blockmultiple * BLOCKSIZE);
 
-	ram->bitpropagator = bitpropagator_new(ram->blockcount, MIN(5, LOG2LL(ram->blockcount)));
+	ram->bitpropagator = bitpropagator_new(ram->blockcount);
 	flatoram_pma(&ram->blockvector_local, 16, ram->blockcount * BLOCKSIZE);
 	flatoram_pma(&ram->bitvector_local, 16, ram->blockcount * sizeof(bool));
 	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
-	ram->activeblock_pair = calloc(2, BLOCKSIZE * sizeof(obliv uint8_t));
+	ram->activeblock_delta = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 
 	//ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
 
@@ -197,8 +200,6 @@ flatoram* flatoram_new(OcCopy* cpy, void* data, size_t n) {
 		scanrom_clear(ram->rom);
 	}
 
-	
-
 	return ram;
 }
 
@@ -208,7 +209,7 @@ void flatoram_free(flatoram* ram) {
 	scanwrom_free(ram->wrom);
 	free(ram->blocktemp);
 	free(ram->blocktemp_local);
-	free(ram->activeblock_pair);
+	free(ram->activeblock_delta);
 	free(ram->blockvector_local);
 	free(ram->bitvector_local);
 	free(ram->rom_key_half);
