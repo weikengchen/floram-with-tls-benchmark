@@ -1,9 +1,9 @@
 #include <obliv.oh>
-#include "oram_flat/flatoram_util.h"
-#include "oram_flat/bitpropagate.oh"
-#include "oram_flat/flatoram.oh"
-#include "oram_flat/bitpropagate.h"
-#include "oram_flat/scanrom.oh"
+#include "oram_fssl/floram_util.h"
+#include "oram_fssl/bitpropagate.oh"
+#include "oram_fssl/floram.oh"
+#include "oram_fssl/bitpropagate.h"
+#include "oram_fssl/scanrom.oh"
 #include <copy.oh>
 #include "test_generic.h"
 
@@ -62,7 +62,7 @@ struct scanwrom {
 	size_t fullblocksize;
 };
 
-struct flatoram {
+struct floram {
 	OcCopy* cpy;
 	OcCopy blockcpy;
 	scanwrom* wrom;
@@ -88,7 +88,7 @@ void test_main(void*varg) {
 	{
 
 		size_t propagatorblocks = 256;
-		bitpropagator * bp = bitpropagator_new(propagatorblocks);
+		bitpropagator * bp = bitpropagator_new(propagatorblocks,  2);
 		obliv uint8_t * active_block_delta = calloc(1, sizeof(obliv uint8_t) * 16);
 		uint8_t * local_output;
 		pma(&local_output, 16, propagatorblocks * 16);
@@ -251,11 +251,11 @@ void test_main(void*varg) {
 
 			//shuffle(order_raw, ELCT);
 
-			flatoram * o = flatoram_new(&ocCopyInt, input, ELCT);
+			floram * o = floram_new(&ocCopyInt, input, ELCT);
 
-			//flatoram * o = flatoram_new(&ocCopyInt, NULL, ELCT);
+			//floram * o = floram_new(&ocCopyInt, NULL, ELCT);
 			//for (int ii = 0; ii < ELCT; ii++) {
-			//	flatoram_write(o, &input[ii], ii);
+			//	floram_write(o, &input[ii], ii);
 			//}
 
 			bool success = true;
@@ -265,14 +265,14 @@ void test_main(void*varg) {
 				obliv uint32_t value;
 				size_t index_raw = ocBroadcastInt(rand()%ELCT, 1);
 				obliv size_t index = feedOblivLLong(index_raw, 2);
-				flatoram_read(&value, o, index);
+				floram_read(&value, o, index);
 				revealOblivInt(&temp, value, 0);
 				success &= (temp == input_raw[index_raw]);
 			}
 
-			flatoram_free(o);
+			floram_free(o);
 
-			fprintf(stderr, "Test Item: %-19s %-50s %s\n", "Flatoram", "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+			fprintf(stderr, "Test Item: %-19s %-50s %s\n", "floram", "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 		}*/
 		

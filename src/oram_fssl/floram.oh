@@ -1,0 +1,17 @@
+#ifndef FLORAM_OH
+#define FLORAM_OH
+#include <copy.oh>
+#include <obliv.oh>
+#include "floram.h"
+
+typedef struct floram floram;
+typedef void (*floram_block_access_function)(OcCopy *, void *, void *) obliv;
+
+void floram_read(void* data, floram* ram, obliv size_t index) obliv;
+void floram_write(floram* ram, void* data, obliv size_t index) obliv;
+void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv;
+
+floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg);
+void floram_free(floram* ram);
+
+#endif

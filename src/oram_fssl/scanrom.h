@@ -1,6 +1,6 @@
 #ifndef SCANROM_H
 #define SCANROM_H
-#include "flatoram.h"
+#include "floram.h"
 
 typedef void (* duplexer_fn)(void *, void *);
 

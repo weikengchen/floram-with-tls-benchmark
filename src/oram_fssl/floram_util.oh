@@ -1,7 +1,7 @@
-#ifndef FLATORAM_UTIL_OH
-#define FLATORAM_UTIL_OH
-#include "flatoram.oh"
-#include "flatoram_util.h"
+#ifndef floram_UTIL_OH
+#define floram_UTIL_OH
+#include "floram.oh"
+#include "floram_util.h"
 
 void* element(OcCopy* cpy,void* arr,uint32_t x) obliv;
 

@@ -9,7 +9,7 @@ static const char TESTNAME[] = "oram_benchmark";
 #define TEXT_HELP_SUPPLEMENTARY "\
   -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
   -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
-  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mflat\033[0m, and \033[1mlinear\033[0m.\n\n\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mfssl\033[0m, \033[1mfssl_cprg\033[0m, and \033[1mlinear\033[0m.\n\n\
   -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
 
 static const char options_string[] = "e:s:o:i:";
@@ -70,8 +70,10 @@ void test_main(void*varg) {
 				oram_set_default_type(ORAM_TYPE_CIRCUIT);
 			} else if (strcmp(optarg,"linear") == 0) {
 				oram_set_default_type(ORAM_TYPE_LINEAR);
-			} else if (strcmp(optarg,"flat") == 0) {
-				oram_set_default_type(ORAM_TYPE_FLAT);
+			} else if (strcmp(optarg,"fssl") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL);
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL_CPRG);
 			} else {
 				fprintf (stderr, "Invalid argument for -%c.\n", arg);
 				return;

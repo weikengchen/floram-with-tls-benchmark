@@ -4,7 +4,7 @@
 #include "endian.oh"
 #include "bitpropagate.oh"
 #include "bitpropagate.h"
-#include "flatoram_util.oh"
+#include "floram_util.oh"
 
 struct scanrom {
 	OcCopy * blockcpy;
@@ -126,9 +126,9 @@ scanrom* scanrom_new(OcCopy* blockcpy, size_t n, void* key_local) {
 	rom->blockmultiple = fullblocksize/BLOCKSIZE;
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
-	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
+	floram_pma(&rom->local_data, 16, n * fullblocksize);
 	rom->local_halfkey = malloc(KEYSIZE);
-	flatoram_pma(&rom->local_blocktemp, 16, 2 * fullblocksize);
+	floram_pma(&rom->local_blocktemp, 16, 2 * fullblocksize);
 	rom->blocktemp = calloc(fullblocksize * 3, sizeof(obliv uint8_t));
 	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
 	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
@@ -208,8 +208,8 @@ scanwrom* scanwrom_new(OcCopy* blockcpy, size_t n) {
 	rom->blockmultiple = fullblocksize/BLOCKSIZE;
 	rom->blockcount = n;
 	rom->blockcpy = blockcpy;
-	flatoram_pma(&rom->local_data, 16, n * fullblocksize);
-	flatoram_pma(&rom->local_blocktemp, 16, fullblocksize);
+	floram_pma(&rom->local_data, 16, n * fullblocksize);
+	floram_pma(&rom->local_blocktemp, 16, fullblocksize);
 	rom->blocktemp = calloc(3, fullblocksize * sizeof(obliv uint8_t));
 	return rom;
 }

@@ -1,4 +1,4 @@
-#include "flatoram_util.oh"
+#include "floram_util.oh"
 #include "../oaes.oh"
 
 void* element(OcCopy* cpy,void* arr,uint32_t x) obliv { return x*cpy->eltsize+(uint8_t*)arr; }

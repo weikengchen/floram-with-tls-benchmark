@@ -1,5 +1,5 @@
-#ifndef FLATORAM_H
-#define FLATORAM_H
+#ifndef FLORAM_H
+#define FLORAM_H
 #include <math.h>
 #include <string.h>
 #include <stdio.h>

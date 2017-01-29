@@ -1,4 +1,4 @@
-#include "flatoram_util.h"
+#include "floram_util.h"
 
 #include <omp.h>
 
@@ -10,7 +10,7 @@
 #include <tmmintrin.h>
 
 
-// gcc -c -O3 -maes -I/usr/include -I . -I ../../src/ -std=c99 -fopenmp flatoram_util.c -o flatoram_util.o -I ../ext/oblivc
+// gcc -c -O3 -maes -I/usr/include -I . -I ../../src/ -std=c99 -fopenmp floram_util.c -o floram_util.o -I ../ext/oblivc
 
 static int sslinits = 0;
 static void* sslzero;
@@ -28,7 +28,7 @@ void get_random_bytes(void *buf, size_t bytes) {
 	fclose(fp);
 }
 
-int flatoram_pma(void** dst, size_t alignment, size_t size) {
+int floram_pma(void** dst, size_t alignment, size_t size) {
 	return posix_memalign(dst, alignment, size);
 }
 

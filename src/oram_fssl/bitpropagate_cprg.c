@@ -1,9 +1,9 @@
-#include "bitpropagate.h"
-#include "flatoram_util.h"
+#include "bitpropagate_cprg.h"
+#include "floram_util.h"
 #include "ackutil.h"
 #include <omp.h>
 
-struct bitpropagator_offline {
+struct bitpropagator_cprg_offline {
 	size_t size;
 	size_t startlevel;
 	size_t thislevel;
@@ -38,7 +38,7 @@ void block_xor(block_t * a, block_t * b) {
 
 #pragma omp declare reduction(^: block_t: block_xor(&omp_out, &omp_in)) initializer (omp_priv = { 0 })
 
-void bitpropagator_offline_start(uint8_t * local_output, bool * local_bit_output, uint64_t * accumulator_L, uint64_t * accumulator_R, bitpropagator_offline * bpo) {
+void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_output, uint64_t * accumulator_L, uint64_t * accumulator_R, bitpropagator_cprg_offline * bpo) {
 	bpo->thislevel = 0;
 	bpo->thislevelblocks = 1;
 	bpo->nextlevelblocks = 2;
@@ -73,7 +73,7 @@ void bitpropagator_offline_start(uint8_t * local_output, bool * local_bit_output
 	bpo->lba[0] = bpo->lda2[0] & 1;
 }
 
-void bitpropagator_offline_process_round(uint8_t * accumulator_L, uint8_t * accumulator_R, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_offline * bpo) {
+void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t * accumulator_R, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_cprg_offline * bpo) {
 	bpo->thislevel += 1;
 	bpo->thislevelblocks = bpo->nextlevelblocks;
 	bpo->nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - bpo->thislevel -1)) - 1) / (1ll<<(bpo->endlevel - bpo->thislevel -1));
@@ -133,7 +133,7 @@ void bitpropagator_offline_process_round(uint8_t * accumulator_L, uint8_t * accu
 	}
 }
 
-void bitpropagator_offline_finalize(uint8_t * accumulator, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_offline * bpo) {
+void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_cprg_offline * bpo) {
 	bpo->thislevel += 1;
 	bpo->thislevelblocks = bpo->nextlevelblocks;
 
@@ -205,7 +205,7 @@ void bitpropagator_offline_finalize(uint8_t * accumulator, uint8_t * z, bool adv
 	}
 }
 
-void bitpropagator_offline_parallelizer(void* bp, void* indexp, void *blockdelta, void * local_output, void * local_bit_output, void* pd, bp_traverser_fn fn, facb_fn cbfn, void* cbpass) {
+void bitpropagator_cprg_offline_parallelizer(void* bp, void* indexp, void *blockdelta, void * local_output, void * local_bit_output, void* pd, bp_cprg_traverser_fn fn, facb_fn cbfn, void* cbpass) {
 
 	omp_set_nested(true);
 
@@ -230,9 +230,9 @@ void bitpropagator_offline_parallelizer(void* bp, void* indexp, void *blockdelta
 	}
 }
 
-bitpropagator_offline * bitpropagator_offline_new(size_t size, uint8_t * keyL, uint8_t * keyR) {
+bitpropagator_cprg_offline * bitpropagator_cprg_offline_new(size_t size, uint8_t * keyL, uint8_t * keyR) {
 	offline_expand_init();
-	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
+	bitpropagator_cprg_offline * bpo = malloc(sizeof(bitpropagator_cprg_offline));
 	bpo->size = size;
 	bpo->startlevel = 0;
 	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
@@ -248,7 +248,7 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, uint8_t * keyL, u
 	return bpo;
 }
 
-void bitpropagator_offline_free(bitpropagator_offline * bpo) {
+void bitpropagator_cprg_offline_free(bitpropagator_cprg_offline * bpo) {
 	offline_expand_deinit();
 	free(bpo->level_data);
 	free(bpo->level_bits);

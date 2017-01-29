@@ -1,6 +1,6 @@
 #ifndef SCANROM_OH
 #define SCANROM_OH
-#include "flatoram.oh"
+#include "floram.oh"
 
 typedef struct scanrom scanrom;
 typedef struct scanwrom scanwrom;

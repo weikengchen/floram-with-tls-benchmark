@@ -1,11 +1,12 @@
+#include "bitpropagate_cprg.oh"
 #include "bitpropagate.oh"
-#include "bitpropagate.h"
-#include "flatoram_util.oh"
+#include "bitpropagate_cprg.h"
+#include "floram_util.oh"
 #include "ackutil.h"
 #include <obliv.h>
 #include <stdio.h>
 
-struct bitpropagator {
+struct bitpropagator_cprg {
 	uint32_t startlevel;
 	uint32_t endlevel;
 	size_t size;
@@ -18,15 +19,15 @@ struct bitpropagator {
 	uint8_t * L_local;
 	uint8_t * R_local;
 	uint8_t * Z_local;
-	bitpropagator_offline * bpo;
+	bitpropagator_cprg_offline * bpo;
 };
 
-void bitpropagator_traverselevels(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t * indexp) {
+void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t * indexp) {
 
 	obliv uint32_t levelindex;
 	obliv size_t index = *indexp;
 
-	bitpropagator_offline_start(local_output, local_bit_output, bp->L_local, bp->R_local, bp->bpo);
+	bitpropagator_cprg_offline_start(local_output, local_bit_output, bp->L_local, bp->R_local, bp->bpo);
 
 	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
 
@@ -47,7 +48,7 @@ void bitpropagator_traverselevels(obliv uint8_t * active_block_delta, uint8_t * 
 			ocCopyN(&ocCopyChar, bp->Z, bp->diff_L, BLOCKSIZE);
 		}
 
-		bitpropagator_getadvice(bp->advicebits, bp->diff_L, bp->diff_R, levelindex);
+		bitpropagator_cprg_getadvice(bp->advicebits, bp->diff_L, bp->diff_R, levelindex);
 
 		bool advicebit_L_local;
 		bool advicebit_R_local;
@@ -60,9 +61,9 @@ void bitpropagator_traverselevels(obliv uint8_t * active_block_delta, uint8_t * 
 		for( size_t jj=0; jj< BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)bp->Z_local)[jj], ((obliv uint64_t *)bp->Z)[jj], 1);
 
 		if (ii < bp->endlevel) {
-			bitpropagator_offline_process_round(bp->L_local, bp->R_local, bp->Z_local, advicebit_L_local, advicebit_R_local, bp->bpo);	
+			bitpropagator_cprg_offline_process_round(bp->L_local, bp->R_local, bp->Z_local, advicebit_L_local, advicebit_R_local, bp->bpo);	
 		} else {
-			bitpropagator_offline_finalize(bp->L_local, bp->Z_local, advicebit_L_local, advicebit_R_local, bp->bpo);
+			bitpropagator_cprg_offline_finalize(bp->L_local, bp->Z_local, advicebit_L_local, advicebit_R_local, bp->bpo);
 		}
 	}
 
@@ -73,31 +74,31 @@ void bitpropagator_traverselevels(obliv uint8_t * active_block_delta, uint8_t * 
 	}
 }
 
-void bitpropagator_getblockvector(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index) {
-	bitpropagator_getblockvector_with_callback(active_block_delta, local_output, local_bit_output, bp, index, NULL, NULL);
+void bitpropagator_cprg_getblockvector(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t index) {
+	bitpropagator_cprg_getblockvector_with_callback(active_block_delta, local_output, local_bit_output, bp, index, NULL, NULL);
 }
 
-void bitpropagator_getblockvector_with_callback(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index, facb_fn cbfn, void* cbpass) {
+void bitpropagator_cprg_getblockvector_with_callback(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t index, facb_fn cbfn, void* cbpass) {
 
 #ifdef _OPENMP
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
 	ProtocolDesc pd2;
 	splitProtocol(&pd2, ocCurrentProto());
-	bitpropagator_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, &pd2, bitpropagator_traverselevels, cbfn, cbpass);
+	bitpropagator_cprg_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, &pd2, bitpropagator_cprg_traverselevels, cbfn, cbpass);
 	cleanupProtocol(&pd2);
 #else 
-	bitpropagator_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, NULL, bitpropagator_traverselevels, cbfn, cbpass);
+	bitpropagator_cprg_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, NULL, bitpropagator_cprg_traverselevels, cbfn, cbpass);
 #endif
 
 }
 
-void bitpropagator_getadvice(obliv bool * advicebits, obliv uint8_t * diff_L, obliv uint8_t * diff_R, obliv bool rightblock) {
+void bitpropagator_cprg_getadvice(obliv bool * advicebits, obliv uint8_t * diff_L, obliv uint8_t * diff_R, obliv bool rightblock) {
 	advicebits[0] = ((obliv bool *)diff_L)[0] ^ rightblock ^ 1;
 	advicebits[1] = ((obliv bool *)diff_R)[0] ^ rightblock;
 }
 
-bitpropagator * bitpropagator_new(size_t size) {
-	bitpropagator * bp = malloc(sizeof(bitpropagator));
+bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
+	bitpropagator_cprg * bp = malloc(sizeof(bitpropagator_cprg));
 	bp->size = size;
 	bp->startlevel = 0;
 	bp->endlevel = LOG2LL(size) + (((1ll << LOG2LL(size)) < size)? 1:0);
@@ -108,8 +109,8 @@ bitpropagator * bitpropagator_new(size_t size) {
 	bp->Z = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->advicebits = calloc(1, 2*sizeof(obliv bool));
 	bp->Z_local = malloc(BLOCKSIZE);
-	flatoram_pma(&bp->L_local, 16, BLOCKSIZE);
-	flatoram_pma(&bp->R_local, 16, BLOCKSIZE);
+	floram_pma(&bp->L_local, 16, BLOCKSIZE);
+	floram_pma(&bp->R_local, 16, BLOCKSIZE);
 
 	//Generator chooses keys so that we don't incur round trips. Since we're semi-honest I guess it's OK? Should probably change it anyway.
 	uint8_t * keyL = malloc(KEYSIZE);
@@ -123,14 +124,14 @@ bitpropagator * bitpropagator_new(size_t size) {
 		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyL)[ii] = ocBroadcastLLong(NULL,1);
 		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyR)[ii] = ocBroadcastLLong(NULL,1);
 	}
-	bp->bpo = bitpropagator_offline_new(size, keyL, keyR);
+	bp->bpo = bitpropagator_cprg_offline_new(size, keyL, keyR);
 	free(keyL);
 	free(keyR);
 
 	return bp;
 }
 
-void bitpropagator_free(bitpropagator * bp) {
+void bitpropagator_cprg_free(bitpropagator_cprg * bp) {
 	free(bp->diff_L);
 	free(bp->diff_R);
 	free(bp->blocktemp_L);
@@ -140,6 +141,6 @@ void bitpropagator_free(bitpropagator * bp) {
 	free(bp->L_local);
 	free(bp->R_local);
 	free(bp->advicebits);
-	bitpropagator_offline_free(bp->bpo);
+	bitpropagator_cprg_offline_free(bp->bpo);
 	free(bp);
 }

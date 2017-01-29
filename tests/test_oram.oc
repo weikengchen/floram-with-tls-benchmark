@@ -41,8 +41,10 @@ const char* getOramName(oram_type mode) {
 			return "Circuit ORAM:";
 		case ORAM_TYPE_LINEAR:
 			return "Linear Scan:";
-		case ORAM_TYPE_FLAT:
-			return "Flat ORAM:";
+		case ORAM_TYPE_FSSL:
+			return "FSS Linear ORAM:";
+		case ORAM_TYPE_FSSL_CPRG:
+			return "FSSL CPRG ORAM:";
 		default:
 			return "Unknown";
 	}
@@ -185,7 +187,8 @@ void testOramType(oram_type mode) {
 }
 
 void test_main(void*varg) {
-	testOramType(ORAM_TYPE_FLAT);
+	testOramType(ORAM_TYPE_FSSL);
+	testOramType(ORAM_TYPE_FSSL_CPRG);
 	testOramType(ORAM_TYPE_SQRT);
 	testOramType(ORAM_TYPE_CIRCUIT);
 	testOramType(ORAM_TYPE_LINEAR);

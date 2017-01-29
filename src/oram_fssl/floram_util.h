@@ -1,6 +1,6 @@
-#ifndef FLATORAM_UTIL_H
-#define FLATORAM_UTIL_H
-#include "flatoram.h"
+#ifndef floram_UTIL_H
+#define floram_UTIL_H
+#include "floram.h"
 
 //Note: the following macros CANNOT be used with obliv arguments (in case it wasn't obivious).
 
@@ -15,7 +15,7 @@
      _a < _b ? _a : _b; })
 
 void get_random_bytes(void *buf, size_t bytes);
-int flatoram_pma(void** dst, size_t alignment, size_t size);
+int floram_pma(void** dst, size_t alignment, size_t size);
 
 typedef void (* generic_function)(void *);
 void network_parallelizer(generic_function fn1, generic_function fn2, void* data1, void* data2);

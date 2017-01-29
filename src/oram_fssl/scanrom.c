@@ -1,5 +1,5 @@
 #include "scanrom.h"
-#include "flatoram_util.h"
+#include "floram_util.h"
 #include <wmmintrin.h>
 #include <tmmintrin.h>
 
