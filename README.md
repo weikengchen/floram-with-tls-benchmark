@@ -22,13 +22,14 @@ Features
 	* Queue - based upon _[Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)_
 * ORAM
 	* Circuit ORAM - based upon _[Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf)_; code contributed by Xiao Wang
-	* Linear Scan ORAM
+	* FSS Linear ORAM - based upon _Gigabyte-scale Scanning ORAMs for Secure Computation_ (forthcoming)
+	* Linear Scan
 	* Square Root ORAM - based upon _[Revisiting Square-Root ORAM: Efficient Random Access in Multi-Party Computation](https://oblivc.org/docs/sqoram.pdf)_; code contributed by Samee Zahur
 * Stable Matching
 	* Gale-Shapley - based upon _[Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)_
 	* Roth-Peranson - based upon _[Secure Stable Matching at Scale](http://oblivc.org/docs/matching.pdf)_
 * Symmetric Encryption
-	* AES128 - based upon _An ASIC Implementation of the AES SBoxes_ (Wolkenstorfer et al., 2002) and _[Faster Secure Two-Party Computation Using Garbled Circuits](https://www.cs.umd.edu/~jkatz/papers/usenix2011.pdf)_
+	* AES128 - based upon _[A Small Depth-16 Circuit for the AES S-Box](https://eprint.iacr.org/2011/332.pdf)_
 	* ChaCha20 - based upon _[ChaCha, a Variant of Salsa20](https://cr.yp.to/chacha/chacha-20080128.pdf)_
 	* Salsa20 - based upon _[The Salsa20 Family of Stream Ciphers](https://cr.yp.to/snuffle/salsafamily-20071225.pdf)_
 
