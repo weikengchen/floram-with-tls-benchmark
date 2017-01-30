@@ -10,7 +10,6 @@ struct bitpropagator {
 	uint32_t endlevel;
 	size_t size;
 	obliv uint8_t * toplevel;
-	obliv uint8_t * toplevel2;
 	uint8_t * toplevel_local;
 	obliv uint8_t * blockzero;
 	obliv uint8_t * blocktemp_A;
@@ -130,9 +129,7 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 
 	//Collect a set of random blocks for the top level
 	get_random_bytes(bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
-	feedOblivCharArray(bp->toplevel, bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE, 1);
-	feedOblivCharArray(bp->toplevel2, bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE, 2);
-	for (size_t ii = 0; ii < ((1ll << bp->startlevel) + 1) * BLOCKSIZE; ii++) bp->toplevel[ii] ^= bp->toplevel2[ii];
+	ocFromSharedCharN(ocCurrentProto(), bp->toplevel, bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
 
 	//now send identical blocks for all except the one branch that we're interested in.
 	obliv size_t levelindex = index >> (bp->endlevel - bp->startlevel);
@@ -180,7 +177,6 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 	bp->endlevel = LOG2LL(size) + (((1ll << LOG2LL(size)) < size)? 1:0);
 	bp->startlevel = MIN(startlevel,bp->endlevel-1);
 	bp->toplevel = calloc((1ll << bp->startlevel) + 1, BLOCKSIZE * sizeof(obliv uint8_t));
-	bp->toplevel2 = calloc((1ll << bp->startlevel) + 1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->toplevel_local = malloc(((1ll << bp->startlevel) + 1) * BLOCKSIZE);
 	bp->blockzero = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->blocktemp_A = calloc((1ll << bp->startlevel), BLOCKSIZE * sizeof(obliv uint8_t));
@@ -222,7 +218,6 @@ bitpropagator * bitpropagator_new(size_t size, uint32_t startlevel) {
 
 void bitpropagator_free(bitpropagator * bp) {
 	free(bp->toplevel);
-	free(bp->toplevel2);
 	free(bp->toplevel_local);
 	free(bp->blockzero);
 	free(bp->blocktemp_A);

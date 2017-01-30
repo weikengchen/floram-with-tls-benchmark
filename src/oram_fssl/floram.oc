@@ -5,6 +5,7 @@
 #include "bitpropagate_cprg.oh"
 #include "ackutil.h"
 #include <obliv.h>
+#include <copy.oh>
 
 struct floram {
 	OcCopy* cpy;
@@ -177,14 +178,6 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg) {
 
 		uint8_t * loadtemp_local;
 		floram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
-		obliv uint8_t * loadtemp = calloc(ram->blockcount, ram->blockcpy.eltsize);
-
-		get_random_bytes(loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple);	
-
-		feedOblivCharArray(loadtemp, loadtemp_local, BLOCKSIZE * ram->blockcount * ram->blockmultiple, 2);
-
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount)/sizeof(uint64_t);ii++) ((obliv uint64_t *)loadtemp)[ii] ^= feedOblivLLong(((uint64_t *)loadtemp_local)[ii], 1);
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount)/sizeof(uint64_t);ii++) revealOblivLLong(&(((uint64_t *)loadtemp_local)[ii]), ((obliv uint64_t *)loadtemp)[ii], 2);
 
 		size_t blockid, subblockid;
 		for (size_t ii = 0; ii < ram->size; ii++) {
@@ -193,14 +186,8 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg) {
 
 			size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
 
-			for (size_t jj = 0; jj < elosize; jj++){
-				loadtemp[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize + jj] ^= ((obliv uint8_t *)element(cpy,data,ii))[jj];
-			}
+			ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
 		}
-
-		for (size_t ii = 0; ii<(ram->blockmultiple * BLOCKSIZE * ram->blockcount)/sizeof(uint64_t);ii++) revealOblivLLong(&(((uint64_t *)loadtemp_local)[ii]), ((obliv uint64_t *)loadtemp)[ii], 1);
-
-		free(loadtemp);
 		
 		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
 		scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);

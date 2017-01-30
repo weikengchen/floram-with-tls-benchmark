@@ -4,14 +4,12 @@
 #include "floram_util.oh"
 #include "ackutil.h"
 #include <obliv.h>
-#include <stdio.h>
+#include <copy.oh>
 
 struct bitpropagator_cprg {
 	uint32_t startlevel;
 	uint32_t endlevel;
 	size_t size;
-	obliv uint8_t * blocktemp_L;
-	obliv uint8_t * blocktemp_R;
 	obliv uint8_t * diff_L;
 	obliv uint8_t * diff_R;
 	obliv uint8_t * Z;
@@ -33,14 +31,8 @@ void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8
 
 		levelindex = (index >> (bp->endlevel - ii)) & 1;
 
-		feedOblivCharArray(bp->diff_L, bp->L_local, BLOCKSIZE, 1);
-		feedOblivCharArray(bp->diff_R, bp->R_local, BLOCKSIZE, 1);
-		feedOblivCharArray(bp->blocktemp_L, bp->L_local, BLOCKSIZE, 2);
-		feedOblivCharArray(bp->blocktemp_R, bp->R_local, BLOCKSIZE, 2);
-		for( size_t jj=0; jj< BLOCKSIZE/sizeof(uint64_t); jj++) {
-			((obliv uint64_t *)bp->diff_L)[jj] ^= ((obliv uint64_t *)bp->blocktemp_L)[jj];
-			((obliv uint64_t *)bp->diff_R)[jj] ^= ((obliv uint64_t *)bp->blocktemp_R)[jj];
-		}
+		ocFromSharedCharN(ocCurrentProto(), bp->diff_L, bp->L_local, BLOCKSIZE);
+		ocFromSharedCharN(ocCurrentProto(), bp->diff_R, bp->R_local, BLOCKSIZE);
 		
 		obliv if (levelindex == 0) {
 			ocCopyN(&ocCopyChar, bp->Z, bp->diff_R, BLOCKSIZE);
@@ -67,11 +59,7 @@ void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8
 		}
 	}
 
-	feedOblivCharArray(active_block_delta, bp->L_local, BLOCKSIZE, 1);
-	feedOblivCharArray(bp->blocktemp_L, bp->L_local, BLOCKSIZE, 2);
-	for( size_t jj=0; jj< BLOCKSIZE/sizeof(uint64_t); jj++) {
-		((obliv uint64_t *)active_block_delta)[jj] ^= ((obliv uint64_t *)bp->blocktemp_L)[jj];
-	}
+	ocFromSharedCharN(ocCurrentProto(), active_block_delta, bp->L_local, BLOCKSIZE);
 }
 
 void bitpropagator_cprg_getblockvector(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t index) {
@@ -104,8 +92,6 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
 	bp->endlevel = LOG2LL(size) + (((1ll << LOG2LL(size)) < size)? 1:0);
 	bp->diff_L = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->diff_R = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
-	bp->blocktemp_L = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
-	bp->blocktemp_R = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->Z = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->advicebits = calloc(1, 2*sizeof(obliv bool));
 	bp->Z_local = malloc(BLOCKSIZE);
@@ -134,8 +120,6 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
 void bitpropagator_cprg_free(bitpropagator_cprg * bp) {
 	free(bp->diff_L);
 	free(bp->diff_R);
-	free(bp->blocktemp_L);
-	free(bp->blocktemp_R);
 	free(bp->Z);
 	free(bp->Z_local);
 	free(bp->L_local);

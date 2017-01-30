@@ -5,6 +5,8 @@
 #include "bitpropagate.oh"
 #include "bitpropagate.h"
 #include "floram_util.oh"
+#include <obliv.h>
+#include <copy.oh>
 
 struct scanrom {
 	OcCopy * blockcpy;
@@ -34,9 +36,7 @@ struct scanwrom {
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
 	~obliv() {
 		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->fullblocksize, rom->blockcount);
-		feedOblivCharArray(data, rom->local_blocktemp, rom->fullblocksize, 1);
-		feedOblivCharArray(&rom->blocktemp[rom->fullblocksize], rom->local_blocktemp, rom->fullblocksize, 2);
-		for (size_t ii=0; ii < rom->fullblocksize; ii++) data[ii] ^= rom->blocktemp[rom->fullblocksize+ii];
+		ocFromSharedCharN(ocCurrentProto(), data, rom->local_blocktemp, rom->fullblocksize);
 		memset(&rom->blocktemp[rom->fullblocksize], 0, rom->fullblocksize * sizeof(obliv uint8_t));
 	}
 
@@ -154,8 +154,7 @@ void scanrom_free(scanrom* rom) {
 
 
 void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
-	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] = feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 1);
-	for (size_t ii = 0; ii < rom->fullblocksize; ii++) data[ii] ^= feedOblivChar(rom->local_data[index * (rom->fullblocksize) + ii], 2);
+	ocFromSharedCharN(ocCurrentProto(), data, &rom->local_data[index * (rom->fullblocksize)], rom->fullblocksize);
 }
 
 void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_delta, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
