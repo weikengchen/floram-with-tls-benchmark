@@ -47,7 +47,6 @@ void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t i
 		}
 	}
 
-	
 	free(kex);
 }
 

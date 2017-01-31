@@ -2,19 +2,8 @@
 
 #include <omp.h>
 
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
-
 #include <wmmintrin.h>
 #include <tmmintrin.h>
-
-
-// gcc -c -O3 -maes -I/usr/include -I . -I ../../src/ -std=c99 -fopenmp floram_util.c -o floram_util.o -I ../ext/oblivc
-
-static int sslinits = 0;
-static void* sslzero;
-static omp_lock_t * ssllocks;
 
 void get_random_bytes(void *buf, size_t bytes) {
 	//only supported on recent linuxes, unfortunately.
@@ -59,19 +48,6 @@ void openmp_thread_cleanup(void) {
 	//for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_destroy_lock(&ssllocks[ii]);
 	//OPENSSL_free(ssllocks);
 }
-
-void network_parallelizer(generic_function fn1, generic_function fn2, void* data1, void* data2) {
-	//#pragma omp sections
-	{
-		//#pragma omp section
-		fn1(data1);
-
-		//#pragma omp section
-		fn2(data2);
-	}
-}
-
-
 
 void offline_expand_init() {
 	/*if (sslinits == 0) {
