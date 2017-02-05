@@ -96,11 +96,13 @@ void test_main(void*varg) {
 		}
 	}
 
-	fprintf(stdout, "# ORAM INIT (elct, elsz, sample 1, sample 2, ... sample n)\n");
+	fprintf(stdout, "# ORAM INIT (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
 
 	OcCopy cpy = ocCopyIntN(elsz);
 
 	uint64_t tally = 0;
+	uint64_t tallygates = 0;
+	uint64_t tallybytes = 0;
 	uint32_t * input_raw = malloc(elsz * elct * sizeof(uint32_t));
 	obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
 
@@ -109,19 +111,24 @@ void test_main(void*varg) {
 	for (size_t kk = 0; kk < samples; kk++) {
 		for (size_t ii = 0; ii < elct*elsz;ii++) input_raw[ii] = rand();
 		feedOblivIntArray(input, input_raw, elct * elsz, 1);
-		uint64_t startTime = current_timestamp();
+		int64_t runtime = -current_timestamp();
+		int64_t rungates = -yaoGateCount();
+		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
 		oram * o = oram_from_array(ORAM_TYPE_AUTO, &cpy, elct, input);
-		uint64_t runtime = current_timestamp() - startTime;
-
-		fprintf(stdout, ",%llu", runtime);
+		runtime += current_timestamp();
+		rungates += yaoGateCount();
+		runbytes += tcp2PBytesSent(ocCurrentProto());
+		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 		fflush(stdout);
 		tally += runtime;
+		tallygates += rungates;
+		tallybytes += runbytes;
 
 		oram_free(o);
 	}
 
 	free(input);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Init (count:%d, size: %d): %llu microseconds avg\n", elct, elsz, tally / samples);
+	fprintf(stderr, "Init (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }

@@ -97,7 +97,7 @@ void test_main(void*varg) {
 		}
 	}
 
-	fprintf(stdout, "# ORAM ACCESS (WRITE) (elct, elsz, sample 1, sample 2, ... sample n)\n");
+	fprintf(stdout, "# ORAM ACCESS (WRITE) (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
 
 	OcCopy cpy = ocCopyIntN(elsz);
 
@@ -114,13 +114,12 @@ void test_main(void*varg) {
 	for (int kk = 0; kk < samples; kk++) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
-		uint64_t startTime = current_timestamp();
-		int64_t rungates = - yaoGateCount();
-		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
-		//oram_write(o, &input[index_raw*elsz], index);
 		obliv uint32_t input = feedOblivInt(rand(), 1);
+		int64_t runtime = -current_timestamp();
+		int64_t rungates = -yaoGateCount();
+		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
 		oram_write(o, &input, index);
-		uint64_t runtime = current_timestamp() - startTime;
+		runtime += current_timestamp();
 		rungates += yaoGateCount();
 		runbytes += tcp2PBytesSent(ocCurrentProto());
 		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
