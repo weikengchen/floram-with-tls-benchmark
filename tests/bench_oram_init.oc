@@ -2,6 +2,7 @@
 #include "oram.oh"
 #include <copy.oh>
 #include "test_generic.h"
+#include <obliv.h>
 
 #define SAMPLES 30
 
