@@ -11,7 +11,7 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv;
 void floram_write(floram* ram, void* data, obliv size_t index) obliv;
 void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv;
 
-floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg);
+floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_shares);
 void floram_free(floram* ram);
 
 #endif

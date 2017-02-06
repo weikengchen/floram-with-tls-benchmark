@@ -1,0 +1,129 @@
+#include <obliv.oh>
+#include "oram_fssl/floram.oh"
+#include <copy.oh>
+#include "test_generic.h"
+#include <obliv.h>
+
+#define SAMPLES 30
+
+static const char TESTNAME[] = "oram_init_benchmark";
+
+#define TEXT_HELP_SUPPLEMENTARY "\
+  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tsearch through \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tperform \x1b[4mNUMBER\x1b[0m searches on the same data\n\n\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, and \033[1mlinear\033[0m.\n\n\
+  -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
+
+static const char options_string[] = "e:s:o:i:";
+static struct option long_options[] = {
+	{"element-count", required_argument, NULL, 'e'},
+	{"element-size", required_argument, NULL, 's'},
+	{"oram-type", required_argument, NULL, 'o'},
+	{"samples", required_argument, NULL, 'i'},
+	{0, 0, 0, 0}
+};
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return options_string;
+}
+
+struct option* get_long_options() {
+	return long_options;
+}
+
+void print_supplementary_help() {
+	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
+}
+
+void test_main(void*varg) {
+
+	#ifdef ORAM_OVERRIDE
+	oram_set_default_type(ORAM_OVERRIDE);
+	#endif
+
+	size_t elct = 4;
+	size_t elsz = 1;
+	int samples = 1;
+	bool cprg = false;
+
+	args_t * args_pass = varg;
+	int arg;
+	optind = 0; // this allows us to getopt a second time
+	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
+		if (arg == 'e') {
+			elct = atoll(optarg);
+			if (elct <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 's') {
+			elsz = atoll(optarg);
+			if (elsz <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 'o') {
+			if (strcmp(optarg,"fssl") == 0) {
+				cprg = false;
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				cprg = true;
+			} else {
+				fprintf (stderr, "Invalid argument for -%c.\n", arg);
+				return;
+			}
+		} else if (arg == 'i') {
+			samples = atoi(optarg);
+			if (samples <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == '?' || arg == ':') {
+			if (optopt == 'e' || optopt == 's' || optopt == 'o' || optopt == 'i') {
+				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				return;
+			} else {
+				fprintf (stderr, "Option -%c not recognized.\n", optopt);
+				return;
+			}
+		} else {
+			abort();
+		}
+	}
+
+	fprintf(stdout, "# ORAM INIT (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+
+	OcCopy cpy = ocCopyIntN(elsz);
+
+	uint64_t tally = 0;
+	uint64_t tallygates = 0;
+	uint64_t tallybytes = 0;
+	uint32_t * input_raw = malloc(elsz * elct * sizeof(uint32_t));
+
+	fprintf(stdout, "%lld,%lld", elct, elsz);
+
+	for (size_t kk = 0; kk < samples; kk++) {
+		for (size_t ii = 0; ii < elct*elsz;ii++) input_raw[ii] = rand();
+		int64_t runtime = -current_timestamp();
+		int64_t rungates = -yaoGateCount();
+		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+		floram * o = floram_new(&cpy, input_raw, elct, cprg, true);
+		runtime += current_timestamp();
+		rungates += yaoGateCount();
+		runbytes += tcp2PBytesSent(ocCurrentProto());
+		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
+		fflush(stdout);
+		tally += runtime;
+		tallygates += rungates;
+		tallybytes += runbytes;
+
+		floram_free(o);
+	}
+
+	fprintf(stdout, "\n");
+	fprintf(stderr, "Init (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+
+}

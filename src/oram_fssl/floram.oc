@@ -120,7 +120,7 @@ void floram_write(floram* ram, void* data, obliv size_t index) obliv {
 	floram_apply(ram, data, writer_function, index);
 }
 
-floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg) {
+floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_shares) {
 	floram * ram = malloc(sizeof(floram));
 	ram->cpy = cpy;
 	ram->size = n;
@@ -176,25 +176,35 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg) {
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
 
-		uint8_t * loadtemp_local;
-		floram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
+		if (from_shares) {
 
-		size_t blockid, subblockid;
-		for (size_t ii = 0; ii < ram->size; ii++) {
-			blockid = ii / ram->elementsperblock;
-			subblockid = ii % ram->elementsperblock;
+			ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
+			scanwrom_write_xor_shares(ram->wrom, data, 0, ram->blockcount);
 
-			size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
+		} else {
 
-			ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
+			uint8_t * loadtemp_local;
+			floram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
+
+			size_t blockid, subblockid;
+			for (size_t ii = 0; ii < ram->size; ii++) {
+				blockid = ii / ram->elementsperblock;
+				subblockid = ii % ram->elementsperblock;
+
+				size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
+
+				ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
+			}
+			
+			ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
+			scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
+			free(loadtemp_local);
+
 		}
-		
-		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
-		scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
-		free(loadtemp_local);
 
 		ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
 		scanrom_import_from_scanwrom(ram->rom, ram->wrom);
+
 	} else {
 
 		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
