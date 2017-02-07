@@ -88,14 +88,49 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 	uint64_t * lda = bpo->lda;
 	uint64_t * ldb = bpo->ldb;
 
-	//memset(accumulator_L, 0, BLOCKSIZE);
-	//memset(accumulator_R, 0, BLOCKSIZE);
-
 	block_t accL = {0};
 	block_t accR = {0};
 
 	#pragma omp parallel for reduction(^:accL,accR)
-	for (int64_t ii =  0; ii < bpo->thislevelblocks ; ii++) {
+	for (size_t ii = 0; ii < 4*(bpo->nextlevelblocks/8); ii+=4) {
+		bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
+		bpo->lba[ii+1] = (bpo->lda2[(ii+1)*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_r);
+		bpo->lba[ii+2] = (bpo->lda2[(ii+2)*BLOCKSIZE] & 1) ^ (bpo->lbb[(ii+2)/2] & advicebit_l);
+		bpo->lba[ii+3] = (bpo->lda2[(ii+3)*BLOCKSIZE] & 1) ^ (bpo->lbb[(ii+2)/2] & advicebit_r);
+
+		if (bpo->lbb[ii/2]) {
+			#pragma omp simd aligned(lda,z:16)
+			for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+				lda[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
+				lda[(ii+1)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
+			}
+		}
+
+		if (bpo->lbb[(ii+2)/2]) {
+			#pragma omp simd aligned(lda,z:16)
+			for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+				lda[(ii+2)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
+				lda[(ii+3)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= ((uint64_t *)z)[jj];
+			}
+		}
+
+		offline_prf_oct(&bpo->ldb2[ii*2*BLOCKSIZE], &bpo->ldb2[(ii*2+1)*BLOCKSIZE], &bpo->ldb2[(ii*2+2)*BLOCKSIZE], &bpo->ldb2[(ii*2+3)*BLOCKSIZE],
+						&bpo->ldb2[(ii*2+4)*BLOCKSIZE], &bpo->ldb2[(ii*2+5)*BLOCKSIZE], &bpo->ldb2[(ii*2+6)*BLOCKSIZE], &bpo->ldb2[(ii*2+7)*BLOCKSIZE],
+						&bpo->lda2[ii*BLOCKSIZE],  &bpo->lda2[ii*BLOCKSIZE], &bpo->lda2[(ii+1)*BLOCKSIZE], &bpo->lda2[(ii+1)*BLOCKSIZE],
+						&bpo->lda2[(ii+2)*BLOCKSIZE],  &bpo->lda2[(ii+2)*BLOCKSIZE], &bpo->lda2[(ii+3)*BLOCKSIZE], &bpo->lda2[(ii+3)*BLOCKSIZE],
+						bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR,
+						bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR);
+
+		#pragma omp simd aligned(ldb:16)
+		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+			accL.data[jj] ^= ldb[ii*2*BLOCKSIZE/sizeof(uint64_t)+jj] ^ ldb[(ii*2+2)*BLOCKSIZE/sizeof(uint64_t)+jj]
+								^ ldb[(ii*2+4)*BLOCKSIZE/sizeof(uint64_t)+jj] ^ ldb[(ii*2+6)*BLOCKSIZE/sizeof(uint64_t)+jj];
+			accR.data[jj] ^= ldb[(ii*2+1)*BLOCKSIZE/sizeof(uint64_t)+jj] ^ ldb[(ii*2+3)*BLOCKSIZE/sizeof(uint64_t)+jj]
+								^ ldb[(ii*2+5)*BLOCKSIZE/sizeof(uint64_t)+jj] ^ ldb[(ii*2+7)*BLOCKSIZE/sizeof(uint64_t)+jj];
+		}
+	}
+
+	for (size_t ii = 4*(bpo->nextlevelblocks/8); ii < bpo->thislevelblocks ; ii++) {
 
 		if (ii%2 == 0) {
 			bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
@@ -145,8 +180,6 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 
 	uint64_t * lda = bpo->lda;
 	uint64_t * ldb = bpo->ldb;
-
-	//memset(accumulator, 0, BLOCKSIZE);
 
 	block_t acc = {0};
 

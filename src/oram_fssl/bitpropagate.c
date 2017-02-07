@@ -50,7 +50,13 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 	bool * t_bits;
 
 	#pragma omp parallel for
-	for (size_t ii = 0; ii < thislevelblocks; ii++) {
+	for (size_t ii = 0; ii < 2*(nextlevelblocks/4); ii+=2) {
+		offline_prf_quad(&b2[ii*2*BLOCKSIZE], &b2[(ii*2+1)*BLOCKSIZE], &b2[(ii*2+2)*BLOCKSIZE], &b2[(ii*2+3)*BLOCKSIZE], &a2[ii*BLOCKSIZE],  &a2[ii*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR);
+		a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
+		a_bits[ii+1] = a2[(ii+1)*BLOCKSIZE] & 1;	
+	}
+
+	for (size_t ii = 2*(nextlevelblocks/4); ii < thislevelblocks; ii++) {
 		if ((ii+1)*2 <= nextlevelblocks) {
 			offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
 			offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
@@ -77,7 +83,36 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 		a2 = t2; a = t; a_bits = t_bits;
 
 		#pragma omp parallel for
-		for (int64_t ii =  0; ii < thislevelblocks ; ii++) {
+		for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
+			a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+			a_bits[ii+1] = (a2[(ii+1)*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+			a_bits[ii+2] = (a2[(ii+2)*BLOCKSIZE] & 1) ^ (b_bits[(ii+2)/2] & advicebit_l);
+			a_bits[ii+3] = (a2[(ii+3)*BLOCKSIZE] & 1) ^ (b_bits[(ii+2)/2] & advicebit_r);
+
+			if (b_bits[ii/2]) {
+				#pragma omp simd aligned(a,z:16)
+				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+					a[ii*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+					a[(ii+1)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+				}
+			}
+			if (b_bits[(ii+2)/2]) {
+				#pragma omp simd aligned(a,z:16)
+				for (uint8_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) {
+					a[(ii+2)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+					a[(ii+3)*(BLOCKSIZE/sizeof(uint64_t))+jj] ^= z[jj];
+				}
+			}
+
+			offline_prf_oct(&b2[ii*2*BLOCKSIZE], &b2[(ii*2+1)*BLOCKSIZE], &b2[(ii*2+2)*BLOCKSIZE], &b2[(ii*2+3)*BLOCKSIZE],
+							&b2[(ii*2+4)*BLOCKSIZE], &b2[(ii*2+5)*BLOCKSIZE], &b2[(ii*2+6)*BLOCKSIZE], &b2[(ii*2+7)*BLOCKSIZE],
+							&a2[ii*BLOCKSIZE],  &a2[ii*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE],
+							&a2[(ii+2)*BLOCKSIZE],  &a2[(ii+2)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE],
+							bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR,
+							bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR);
+		}
+
+		for (size_t ii = 4*(nextlevelblocks/8); ii < thislevelblocks ; ii++) {
 
 			if (ii%2 == 0) {
 				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
