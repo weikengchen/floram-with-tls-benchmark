@@ -24,7 +24,13 @@ void oram_init(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
 	o->size = size;
 	o->cpy = cpy;
 	if (mode == ORAM_TYPE_AUTO) {
-		o->mode = default_oram_type;
+		if (default_oram_type == ORAM_TYPE_AUTO) {
+			if (size >= 16777216) o->mode = ORAM_TYPE_FSSL;
+			else if (size > 262144) o->mode = ORAM_TYPE_FSSL_CPRG;
+			else o->mode = ORAM_TYPE_SQRT;
+		} else {
+			o->mode = default_oram_type;
+		}
 	} else {
 		o->mode = mode;	
 	}

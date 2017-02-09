@@ -69,6 +69,10 @@ void test_main(void*varg) {
 				oram_set_default_type(ORAM_TYPE_CIRCUIT);
 			} else if (strcmp(optarg,"linear") == 0) {
 				oram_set_default_type(ORAM_TYPE_LINEAR);
+			} else if (strcmp(optarg,"fssl") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL);
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL_CPRG);
 			} else {
 				fprintf (stderr, "Invalid argument for -%c.\n", arg);
 				return;
@@ -97,20 +101,20 @@ void test_main(void*varg) {
 
 	{
 	
-		ograph_edge * edges = calloc(adjacency_count * vertices, sizeof(ograph_edge));
+		ograph_edge * edges = calloc(adjacency_count, sizeof(ograph_edge));
 		uint64_t tally = 0;
 
 		fprintf(stdout, "%d,%d", vertices, adjacency_count);
 		fflush(stdout);
 
 		for (int kk = 0; kk < samples; kk++) {
-			for (int ll = 0; ll < adjacency_count * vertices; ll++) {
+			for (int ll = 0; ll < adjacency_count; ll++) {
 				edges[ll].v1 = feedOblivInt(rand_range(0,vertices), 1);
-				edges[ll].v2 = feedOblivInt(rand_range(0,vertices), 2);
+				edges[ll].v2 = feedOblivInt(rand_range(0,vertices), 1);
 			}
 
 			uint64_t startTime = current_timestamp();
-			ograph_adjacency_matrix * adj = ograph_build_adjacency_matrix(vertices, edges, adjacency_count * vertices);
+			ograph_adjacency_matrix * adj = ograph_build_adjacency_matrix(vertices, edges, adjacency_count);
 			ograph_vertex_list * result = ograph_breadth_first_search(adj, feedOblivInt(rand_range(0,vertices), 1));
 			uint64_t runtime = current_timestamp() - startTime;
 
