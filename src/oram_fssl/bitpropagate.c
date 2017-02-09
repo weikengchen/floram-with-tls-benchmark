@@ -156,7 +156,6 @@ void bitpropagator_offline_readblockvector(void * local_output, void * local_bit
 		t2 = b2; t = b; t_bits = b_bits;
 		b2 = a2; b = a; b_bits = a_bits;
 		a2 = t2; a = t; a_bits = t_bits;
-
 		
 		#pragma omp for
 		for (size_t ii = 0; ii < thislevelblocks; ii++) {

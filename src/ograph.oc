@@ -75,22 +75,6 @@ ograph_vertex_list * ograph_vertex_list_new(size_t size) {
 	return result;
 }
 
-static void ograph_get_nth_adjacent_vertex(uint32_t * out, ograph_adjacency_matrix * adj, obliv uint32_t vertex, obliv uint32_t n) {
-	obliv uint32_t two32[2];
-	oram_read(two32, adj->layout, vertex);
-	oram_read(out, adj->matrix, two32[0]+n);
-}
-
-static void ograph_get_nth_adjacent_vertex_from_triple(ograph_vertex_list * out, ograph_adjacency_matrix * adj, obliv uint32_t * vertex, obliv uint32_t n) {
-	oram_read(out, adj->matrix, vertex[1]+n);
-}
-
-static void ograph_get_nth_adjacent_vertex_obliv(uint32_t * out, ograph_adjacency_matrix * adj, obliv uint32_t vertex, obliv uint32_t n) obliv {
-	obliv uint32_t two32[2];
-	oram_read(two32, adj->layout, vertex);
-	oram_read(out, adj->matrix, two32[0]+n);
-}
-
 static void ograph_get_nth_adjacent_vertex_from_triple_obliv(ograph_vertex_list * out, ograph_adjacency_matrix * adj, obliv uint32_t * vertex, obliv uint32_t n) obliv {
 	oram_read(out, adj->matrix, vertex[1]+n);
 }

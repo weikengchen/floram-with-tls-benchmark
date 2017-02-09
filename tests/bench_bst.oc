@@ -117,13 +117,13 @@ void test_main(void*varg) {
 		obliv uint32_t needle;
 		obliv uint32_t otemp;
 
-		for (int kk = 0; kk < samples; kk++) {
+		otemp = 0;
+		for (int ll = 0; ll < elct; ll++) {
+			otemp += feedOblivInt(rand()%8, ll%2);
+			input[4*ll] = otemp;
+		}
 
-			otemp = 0;
-			for (int ll = 0; ll < elct; ll++) {
-				otemp += feedOblivInt(rand()%8, ll%2);
-				input[4*ll] = otemp;
-			}
+		for (int kk = 0; kk < samples; kk++) {
 
 			uint64_t startTime = current_timestamp();
 
