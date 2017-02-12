@@ -104,7 +104,7 @@ void test_main(void*varg) {
 	uint64_t tally = 0;
 	uint64_t tallygates = 0;
 	uint64_t tallybytes = 0;
-	//obliv uint32_t * input = calloc(elsz * elct, sizeof(obliv uint32_t));
+	obliv uint32_t * input = calloc(1, elsz * sizeof(obliv uint32_t));
 	//for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
 
 	oram * o = oram_new(ORAM_TYPE_AUTO, &cpy, elct);
@@ -114,11 +114,11 @@ void test_main(void*varg) {
 	for (int kk = 0; kk < samples; kk++) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
-		obliv uint32_t input = feedOblivInt(rand(), 1);
+		for (int kk = 0; kk < elsz; kk++) input[kk] = feedOblivInt(rand(), 1);
 		int64_t runtime = -current_timestamp();
 		int64_t rungates = -yaoGateCount();
 		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
-		oram_write(o, &input, index);
+		oram_write(o, input, index);
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
 		runbytes += tcp2PBytesSent(ocCurrentProto());
@@ -129,7 +129,7 @@ void test_main(void*varg) {
 		tallybytes += runbytes;
 	}
 
-	//free(input);
+	free(input);
 	oram_free(o);
 	fprintf(stdout, "\n");
 	fprintf(stderr, "Write (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
