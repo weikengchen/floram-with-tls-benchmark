@@ -143,6 +143,10 @@ void test_main(void * varg) {
 				oram_set_default_type(ORAM_TYPE_CIRCUIT);
 			} else if (strcmp(optarg,"linear") == 0) {
 				oram_set_default_type(ORAM_TYPE_LINEAR);
+			} else if (strcmp(optarg,"fssl") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL);
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				oram_set_default_type(ORAM_TYPE_FSSL_CPRG);
 			} else {
 				fprintf (stderr, "Invalid argument for -%c.\n", arg);
 				return;
