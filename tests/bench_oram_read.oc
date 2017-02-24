@@ -4,7 +4,7 @@
 #include "test_generic.h"
 #include <obliv.h>
 
-static const char TESTNAME[] = "oram_benchmark";
+static const char TESTNAME[] = "oram_read_benchmark";
 
 #define TEXT_HELP_SUPPLEMENTARY "\
   -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
@@ -97,15 +97,14 @@ void test_main(void*varg) {
 		}
 	}
 
-	fprintf(stdout, "# ORAM ACCESS (WRITE) (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+	fprintf(stdout, "# ORAM ACCESS (READ) (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
 
 	OcCopy cpy = ocCopyIntN(elsz);
 
 	uint64_t tally = 0;
 	uint64_t tallygates = 0;
 	uint64_t tallybytes = 0;
-	obliv uint32_t * input = calloc(1, elsz * sizeof(obliv uint32_t));
-	//for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
+	obliv uint32_t * output = calloc(1, elsz * sizeof(obliv uint32_t));
 
 	oram * o = oram_new(ORAM_TYPE_AUTO, &cpy, elct);
 
@@ -114,11 +113,10 @@ void test_main(void*varg) {
 	for (int ii = 0; ii < samples; ii++) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
 		obliv uint32_t index = feedOblivInt(index_raw, 2);
-		for (int kk = 0; kk < elsz; kk++) input[kk] = feedOblivInt(rand(), 1);
 		int64_t runtime = -current_timestamp();
 		int64_t rungates = -yaoGateCount();
 		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
-		oram_write(o, input, index);
+		oram_read(output, o, index);
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
 		runbytes += tcp2PBytesSent(ocCurrentProto());
@@ -129,9 +127,9 @@ void test_main(void*varg) {
 		tallybytes += runbytes;
 	}
 
-	free(input);
+	free(output);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+	fprintf(stderr, "Read (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }
