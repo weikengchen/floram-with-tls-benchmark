@@ -147,7 +147,7 @@ void test_main(void*varg) {
 
 		fprintf(stdout, "\n");
 		fflush(stdout);
-		fprintf(stderr, "SCRYPT (N:%d): %d microseconds avg\n", N, tally / samples);
+		fprintf(stderr, "Scrypt (N:%d): %d microseconds avg\n", N, tally / samples);
 	}
 
 }

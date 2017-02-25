@@ -10,6 +10,7 @@
 #include <getopt.h>
 #include <math.h>
 #include <alloca.h>
+#include <obliv.h>
 
 #include "ackutil.h"
 

@@ -2,7 +2,6 @@
 #include "oram.oh"
 #include <copy.oh>
 #include "test_generic.h"
-#include <obliv.h>
 
 static const char TESTNAME[] = "oram_read_benchmark";
 
@@ -97,7 +96,7 @@ void test_main(void*varg) {
 		}
 	}
 
-	fprintf(stdout, "# ORAM ACCESS (READ) (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+	fprintf(stdout, "# ORAM ACCESS (READ) (element count, element size, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
 
 	OcCopy cpy = ocCopyIntN(elsz);
 
@@ -130,6 +129,6 @@ void test_main(void*varg) {
 	free(output);
 	oram_free(o);
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Read (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+	fprintf(stderr, "ORAM Read (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }

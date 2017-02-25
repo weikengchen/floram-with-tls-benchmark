@@ -20,20 +20,24 @@ void oram_set_default_type(oram_type new_type) {
 	default_oram_type = new_type;
 }
 
-void oram_init(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
+void oram_init_obj(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
 	o->size = size;
 	o->cpy = cpy;
 	if (mode == ORAM_TYPE_AUTO) {
 		if (default_oram_type == ORAM_TYPE_AUTO) {
-			if (size >= 16777216) o->mode = ORAM_TYPE_FSSL;
+			if (size > 16777216) o->mode = ORAM_TYPE_FSSL;
 			else if (size > 262144) o->mode = ORAM_TYPE_FSSL_CPRG;
-			else o->mode = ORAM_TYPE_SQRT;
+			else if (size > 64) o->mode = ORAM_TYPE_SQRT;
+			else o->mode = ORAM_TYPE_LINEAR;
 		} else {
 			o->mode = default_oram_type;
 		}
 	} else {
 		o->mode = mode;	
 	}
+}
+
+void oram_init_subtype(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
 	if (o->mode == ORAM_TYPE_LINEAR) {
 		o->data = calloc(o->size, o->cpy->eltsize);
 		if (src != NULL) {
@@ -63,6 +67,11 @@ void oram_init(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
 	}
 }
 
+void oram_init(oram* o, oram_type mode, OcCopy * cpy, size_t size, void * src) {
+	oram_init_obj(o, mode, cpy, size, src);
+	oram_init_subtype(o, mode, cpy, size, src);
+}
+
 oram * oram_new(oram_type mode, OcCopy * cpy, size_t size) {
 	oram * ram = malloc(sizeof(oram));
 	oram_init(ram, mode, cpy, size, NULL);
@@ -74,6 +83,22 @@ oram * oram_from_array(oram_type mode, OcCopy * cpy, size_t size, void * src) {
 	oram_init(ram, mode, cpy, size, src);
 	return ram;
 }
+
+oram * oram_from_shares(oram_type mode, OcCopy * cpy, size_t size, void * src) {
+	oram * ram = malloc(sizeof(oram));
+	oram_init_obj(ram, mode, cpy, size, src);
+	if (ram->mode == ORAM_TYPE_FSSL) {
+		ram->data = floram_new(ram->cpy, src, size, false, true);
+	} else if (ram->mode == ORAM_TYPE_FSSL_CPRG) {
+		ram->data = floram_new(ram->cpy, src, size, true, true);
+	} else {
+		obliv uint8_t * import_temp = calloc(size, cpy->eltsize);
+		ocFromSharedCharN(ocCurrentProto(), import_temp, src, size * (cpy->eltsize/sizeof(obliv uint8_t)));
+		oram_init_subtype(ram, mode, cpy, size, import_temp);
+		free(import_temp);
+	}
+	return ram;
+};
 
 void oram_free(oram* o) {
 	if (o->mode == ORAM_TYPE_LINEAR) {

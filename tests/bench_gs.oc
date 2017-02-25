@@ -141,7 +141,7 @@ void test_main(void*varg) {
 		free(output);
 
 		fprintf(stdout, "\n");
-		fprintf(stderr, "GALE SHAPLEY (pairs:%d): %llu microseconds avg\n", pairs, tally/samples);
+		fprintf(stderr, "Gale Shapley (pairs:%d): %llu microseconds avg\n", pairs, tally/samples);
 	}
 
 }

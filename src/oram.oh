@@ -21,6 +21,7 @@ void oram_set_default_type(oram_type);
 
 oram * oram_new(oram_type, OcCopy * cpy, size_t);
 oram * oram_from_array(oram_type, OcCopy * cpy, size_t, void *);
+oram * oram_from_shares(oram_type, OcCopy * cpy, size_t, void *);
 void oram_free(oram *);
 
 size_t oram_size(oram *);

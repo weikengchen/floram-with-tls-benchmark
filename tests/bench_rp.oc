@@ -342,9 +342,9 @@ void test_main(void * varg) {
 
 		fprintf(stdout, "\n");
 #ifdef OMATCH_EXTENDED_BENCHMARK 			
-		fprintf(stderr, "ROTH PERANSON (proposers:%d, proposer rankings bound:%d, reviewers:%d, reviewer rankings bound:%d, max positions:%d): xor: (%llu microseconds, %llu gates), setup: (%llu microseconds, %llu gates), permutation: (%llu microseconds, %llu gates), propose/reject: (%llu microseconds, %llu gates)\n", proposers, pratings_max, reviewers, rratings_max, positions_max, xortimetally/samples, xorgatestally/samples, tally.setup_time/samples, tally.setup_gates/samples, tally.permutation_time/samples, tally.permutation_gates/samples, tally.proposereject_time/samples, tally.proposereject_gates/samples);
+		fprintf(stderr, "Roth Peranson (proposers:%d, proposer rankings bound:%d, reviewers:%d, reviewer rankings bound:%d, max positions:%d): xor: (%llu microseconds, %llu gates), setup: (%llu microseconds, %llu gates), permutation: (%llu microseconds, %llu gates), propose/reject: (%llu microseconds, %llu gates)\n", proposers, pratings_max, reviewers, rratings_max, positions_max, xortimetally/samples, xorgatestally/samples, tally.setup_time/samples, tally.setup_gates/samples, tally.permutation_time/samples, tally.permutation_gates/samples, tally.proposereject_time/samples, tally.proposereject_gates/samples);
 #else
-		fprintf(stderr, "ROTH PERANSON (proposers:%d, proposer rankings bound:%d, reviewers:%d, reviewer rankings bound:%d, max positions:%d): %llu microseconds avg\n", proposers, pratings_max, reviewers, rratings_max, positions_max, tally/samples);
+		fprintf(stderr, "Roth Peranson (proposers:%d, proposer rankings bound:%d, reviewers:%d, reviewer rankings bound:%d, max positions:%d): %llu microseconds avg\n", proposers, pratings_max, reviewers, rratings_max, positions_max, tally/samples);
 #endif
 	}
 

@@ -1,21 +1,20 @@
 #include <obliv.oh>
+#include "osearch.oh"
 #include "oram.oh"
-#include <copy.oh>
 #include "test_generic.h"
-#include <obliv.h>
 
-static const char TESTNAME[] = "oram_benchmark";
+static const char TESTNAME[] = "obs_benchmark";
 
 #define TEXT_HELP_SUPPLEMENTARY "\
-  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
-  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
-  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mfssl\033[0m, \033[1mfssl_cprg\033[0m, and \033[1mlinear\033[0m.\n\n\
+  -e \x1b[4mNUMBER\x1b[0m, --elements=\x1b[4mNUMBER\x1b[0m \n\t\tsearch through \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --searches=\x1b[4mNUMBER\x1b[0m \n\t\tperform \x1b[4mNUMBER\x1b[0m searches on the same data\n\n\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\tforce all ORAMs to be \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, and \033[1mlinear\033[0m.\n\n\
   -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
 
 static const char options_string[] = "e:s:o:i:";
 static struct option long_options[] = {
-	{"element-count", required_argument, NULL, 'e'},
-	{"element-size", required_argument, NULL, 's'},
+	{"elements", required_argument, NULL, 'e'},
+	{"searches", required_argument, NULL, 's'},
 	{"oram-type", required_argument, NULL, 'o'},
 	{"samples", required_argument, NULL, 'i'},
 	{0, 0, 0, 0}
@@ -37,29 +36,36 @@ void print_supplementary_help() {
 	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
 }
 
+obliv int cmpInt(OcCopy * cpy, void * a, void * b) obliv {
+	obliv uint32_t * aa = (obliv uint32_t *) a;
+	obliv uint32_t * bb = (obliv uint32_t *) b;
+	return (*aa > *bb) - (*aa < *bb);
+}
+
 void test_main(void*varg) {
 
 	#ifdef ORAM_OVERRIDE
 	oram_set_default_type(ORAM_OVERRIDE);
 	#endif
 
-	size_t elct = 4;
-	size_t elsz = 1;
+	int elct = 32;
+	int searchct = 1;
 	int samples = 1;
+	bool from_shares = false;
 
 	args_t * args_pass = varg;
 	int arg;
 	optind = 0; // this allows us to getopt a second time
 	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
 		if (arg == 'e') {
-			elct = atoll(optarg);
+			elct = atoi(optarg);
 			if (elct <= 0) {
 				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
 				return;
 			}
 		} else if (arg == 's') {
-			elsz = atoll(optarg);
-			if (elsz <= 0) {
+			searchct = atoi(optarg);
+			if (searchct <= 0) {
 				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
 				return;
 			}
@@ -71,8 +77,10 @@ void test_main(void*varg) {
 			} else if (strcmp(optarg,"linear") == 0) {
 				oram_set_default_type(ORAM_TYPE_LINEAR);
 			} else if (strcmp(optarg,"fssl") == 0) {
+				from_shares = true;
 				oram_set_default_type(ORAM_TYPE_FSSL);
 			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				from_shares = true;
 				oram_set_default_type(ORAM_TYPE_FSSL_CPRG);
 			} else {
 				fprintf (stderr, "Invalid argument for -%c.\n", arg);
@@ -97,28 +105,59 @@ void test_main(void*varg) {
 		}
 	}
 
-	fprintf(stdout, "# ORAM ACCESS (WRITE) (elct, elsz, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+	fprintf(stdout, "# BINARY SEARCH (elements, searches, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+	fflush(stdout);
 
-	OcCopy cpy = ocCopyIntN(elsz);
-
+	OcCopy cpy = ocCopyIntN(4);
 	uint64_t tally = 0;
 	uint64_t tallygates = 0;
 	uint64_t tallybytes = 0;
-	obliv uint32_t * input = calloc(1, elsz * sizeof(obliv uint32_t));
-	//for (int kk = 0; kk < (elsz * elct); kk++) input[kk] = feedOblivInt(rand(), 1);
 
-	oram * o = oram_new(ORAM_TYPE_AUTO, &cpy, elct);
+	fprintf(stdout, "%d,%d", elct, searchct);
+	fflush(stdout);
 
-	fprintf(stdout, "%lld,%lld", elct, elsz);
+	void * input;
+	obliv uint32_t output;
+	obliv uint32_t * needles = calloc(searchct, sizeof(obliv uint32_t));
 
-	for (int ii = 0; ii < samples; ii++) {
-		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
-		obliv uint32_t index = feedOblivInt(index_raw, 2);
-		for (int kk = 0; kk < elsz; kk++) input[kk] = feedOblivInt(rand(), 1);
+	if (from_shares) input = calloc(elct, 4*sizeof(uint32_t));
+	else input = calloc(elct, 4*sizeof(obliv uint32_t));		
+
+	for (int kk = 0; kk < samples; kk++) {
+		uint32_t temp = 0;
+		for (int ll = 0; ll < elct; ll++) {
+			temp += rand()%8;
+			if (from_shares) {
+				if (ocCurrentParty() == 1) {
+					((uint32_t *)input)[4*ll] = rand();
+					ocBroadcastInt(temp ^ ((uint32_t *)input)[4*ll], 1);
+				} else {
+					((uint32_t *)input)[4*ll] = ocBroadcastInt(NULL, 1);
+				}
+			} else {
+				((obliv uint32_t *)input)[4*ll] = feedOblivInt(temp,1);
+			}
+		}
+
+		for (int ll = 0; ll < searchct; ll++) {
+			if (from_shares) {
+				size_t needlei = 4 * ocBroadcastInt(rand()%elct, 1);
+				needles[ll] = feedOblivInt(((uint32_t *)input)[needlei], 1) ^ feedOblivInt(((uint32_t *)input)[needlei], 2);
+			}
+			else needles[ll] = ((obliv uint32_t *)input)[4 * ocBroadcastInt(rand()%elct, 1)];
+		}
+
+		oram * o;
+
 		int64_t runtime = -current_timestamp();
 		int64_t rungates = -yaoGateCount();
 		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
-		oram_write(o, input, index);
+
+		if (from_shares) o = oram_from_shares(ORAM_TYPE_AUTO, &cpy, elct, input);
+		else o = oram_from_array(ORAM_TYPE_AUTO, &cpy, elct, input);
+
+		for (int ll = 0; ll < searchct; ll++) obinary_search_oram(&cpy, &output, o, &needles[ll], &cmpInt);
+
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
 		runbytes += tcp2PBytesSent(ocCurrentProto());
@@ -127,11 +166,14 @@ void test_main(void*varg) {
 		tally += runtime;
 		tallygates += rungates;
 		tallybytes += runbytes;
+
+		oram_free(o);
 	}
 
+	free(needles);
 	free(input);
-	oram_free(o);
+
 	fprintf(stdout, "\n");
-	fprintf(stderr, "Write (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+	fprintf(stderr, "Binary Search (elements:%d, searches:%d): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, searchct, tally / samples, tallygates/samples, tallybytes/samples);
 
 }

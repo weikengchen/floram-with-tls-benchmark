@@ -2,6 +2,15 @@
 #include "oram.oh"
 #include "test_generic.h"
 
+#define TEXT_HELP_SUPPLEMENTARY "\
+  -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\ttest only \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mfssl\033[0m, \033[1mfssl_cprg\033[0m, and \033[1mlinear\033[0m.\n\n"
+
+static const char options_string[] = "o:";
+static struct option long_options[] = {
+	{"oram-type", required_argument, NULL, 'o'},
+	{0, 0, 0, 0}
+};
+
 static const char TESTNAME[] = "oram";
 
 #define ELCT 256
@@ -11,14 +20,16 @@ char* get_test_name() {
 }
 
 char* get_supplementary_options_string() {
-	return NULL;
+	return options_string;
 }
 
 struct option* get_long_options() {
-	return NULL;
+	return long_options;
 }
 
-void print_supplementary_help() {}
+void print_supplementary_help() {
+	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
+}
 
 void shuffle(uint32_t *array, size_t n) {
 	if (n > 1) {
@@ -123,6 +134,33 @@ void testOramType(oram_type mode) {
 	}
 
 	{
+		uint32_t input_raw[ELCT];
+		uint32_t expected_output[ELCT];
+
+		for (int ii = 0; ii < ELCT; ii++) {
+			input_raw[ii] = rand();
+			expected_output[ii] = ocBroadcastInt(input_raw[ii], 1) ^ ocBroadcastInt(input_raw[ii], 2);
+		}
+
+		oram * o = oram_from_shares(mode, &ocCopyInt, ELCT, input_raw);
+
+		bool success = true;
+
+		for (int ii = 0; ii < ELCT; ii++) {
+			uint32_t temp;
+			obliv uint32_t value;
+			oram_read(&value, o, ii);
+			revealOblivInt(&temp, value, 0);
+			success &= (temp == expected_output[ii]);
+		}
+
+		oram_free(o);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_from_shares", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
 
 		oram * o = oram_new(mode, &ocCopyInt, ELCT);
 
@@ -187,9 +225,50 @@ void testOramType(oram_type mode) {
 }
 
 void test_main(void*varg) {
-	testOramType(ORAM_TYPE_FSSL);
-	testOramType(ORAM_TYPE_FSSL_CPRG);
-	testOramType(ORAM_TYPE_SQRT);
-	testOramType(ORAM_TYPE_CIRCUIT);
-	testOramType(ORAM_TYPE_LINEAR);
+
+	bool all_orams = true;
+	oram_type manual_type;
+
+	args_t * args_pass = varg;
+	int arg;
+	optind = 0; // this allows us to getopt a second time
+	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
+		if (arg == 'o') {
+			if (strcmp(optarg,"sqrt") == 0) {
+				manual_type = ORAM_TYPE_SQRT;
+			} else if (strcmp(optarg,"circuit") == 0) {
+				manual_type = ORAM_TYPE_CIRCUIT;
+			} else if (strcmp(optarg,"linear") == 0) {
+				manual_type = ORAM_TYPE_LINEAR;
+			} else if (strcmp(optarg,"fssl") == 0) {
+				manual_type = ORAM_TYPE_FSSL;
+			} else if (strcmp(optarg,"fssl_cprg") == 0) {
+				manual_type = ORAM_TYPE_FSSL_CPRG;
+			} else {
+				fprintf (stderr, "Invalid argument for -%c.\n", arg);
+				return;
+			}
+			all_orams = false;
+		} else if (arg == '?' || arg == ':') {
+			if (optopt == 'o') {
+				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				return;
+			} else {
+				fprintf (stderr, "Option -%c not recognized.\n", optopt);
+				return;
+			}
+		} else {
+			abort();
+		}
+	}
+
+	if (all_orams) {
+		testOramType(ORAM_TYPE_FSSL);
+		testOramType(ORAM_TYPE_FSSL_CPRG);
+		testOramType(ORAM_TYPE_SQRT);
+		testOramType(ORAM_TYPE_CIRCUIT);
+		testOramType(ORAM_TYPE_LINEAR);
+	} else {
+		testOramType(manual_type);
+	}
 }
