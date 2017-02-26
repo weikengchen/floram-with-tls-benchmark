@@ -215,3 +215,48 @@ obliv bool oram_apply(oram * o, void * input, block_access_function fn, obliv si
 
 	return success;
 }
+
+obliv bool oram_read_public(void * output, oram * o, size_t index) obliv {
+	obliv bool success = false;
+
+	if ((index < o->size) & (index >= 0)) {
+		if (o->mode == ORAM_TYPE_FSSL || o->mode == ORAM_TYPE_FSSL_CPRG) {
+			floram_read_public(output, o->data, index);
+			success = true;
+		} else {
+			success = oram_read(output, o, index);
+		}
+	}
+
+	return success;
+}
+
+obliv bool oram_write_public(oram * o, void * input, size_t index) obliv {
+	obliv bool success = false;
+
+	if ((index < o->size) & (index >= 0)) {
+		if (o->mode == ORAM_TYPE_FSSL || o->mode == ORAM_TYPE_FSSL_CPRG) {
+			floram_write_public(o->data, input, index);
+			success = true;
+		} else {
+			success = oram_write(o, input, index);
+		}
+	}
+
+	return success;
+}
+
+obliv bool oram_apply_public(oram * o, void * input, block_access_function fn, size_t index) obliv {
+	obliv bool success = false;
+
+	if ((index < o->size) & (index >= 0)) {
+		if (o->mode == ORAM_TYPE_FSSL || o->mode == ORAM_TYPE_FSSL_CPRG) {
+			floram_apply_public(o->data, input, fn, index);
+			success = true;
+		} else {
+			success = oram_apply(o, input, fn, index);
+		}
+	}
+
+	return success;
+}

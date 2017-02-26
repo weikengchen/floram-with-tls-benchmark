@@ -157,6 +157,10 @@ void scanwrom_read(obliv uint8_t* data, scanwrom* rom, size_t index) {
 	ocFromSharedCharN(ocCurrentProto(), data, &rom->local_data[index * (rom->fullblocksize)], rom->fullblocksize);
 }
 
+void scanwrom_write(scanwrom* rom, obliv uint8_t* data, size_t index) {
+	ocToSharedCharN(ocCurrentProto(), &rom->local_data[index * (rom->fullblocksize)], data, rom->fullblocksize);
+}
+
 void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_delta, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
 	~obliv(en) {
 		memset(rom->blocktemp, 0 , rom->fullblocksize*sizeof(obliv uint8_t));

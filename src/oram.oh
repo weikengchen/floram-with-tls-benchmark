@@ -30,4 +30,8 @@ obliv bool oram_read(void *, oram *, obliv size_t) obliv;
 obliv bool oram_write(oram *, void *, obliv size_t) obliv;
 obliv bool oram_apply(oram *, void *, block_access_function, obliv size_t) obliv;
 
+obliv bool oram_read_public(void *, oram *, size_t) obliv;
+obliv bool oram_write_public(oram *, void *, size_t) obliv;
+obliv bool oram_apply_public(oram *, void *, block_access_function, size_t) obliv;
+
 #endif

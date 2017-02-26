@@ -40,6 +40,16 @@ typedef struct facb_pass {
 	obliv bool found;
 } facb_pass;
 
+void floram_refresh(floram* ram) {
+	ram->progress = 0;
+	get_random_bytes(ram->rom_key_half, KEYSIZE);
+	scanrom_set_key(ram->rom, ram->rom_key_half);
+	scanrom_import_from_scanwrom(ram->rom, ram->wrom);
+	for (size_t ii = 0; ii < ram->period; ii++) {
+		ram->stashi[ii] = -1;
+	}
+}
+
 void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	if (pd != NULL) ocSetCurrentProto(pd);
 
@@ -79,16 +89,6 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 	}
 }
 
-void floram_refresh(floram* ram) {
-	ram->progress = 0;
-	get_random_bytes(ram->rom_key_half, KEYSIZE);
-	scanrom_set_key(ram->rom, ram->rom_key_half);
-	scanrom_import_from_scanwrom(ram->rom, ram->wrom);
-	for (size_t ii = 0; ii < ram->period; ii++) {
-		ram->stashi[ii] = -1;
-	}
-}
-
 void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv {
 	obliv size_t blockid = index / ram->elementsperblock;
 	obliv size_t subblockid = index % ram->elementsperblock;
@@ -121,6 +121,34 @@ void writer_function(OcCopy * cpy, void * oram_block, void * ext_block) obliv {
 
 void floram_write(floram* ram, void* data, obliv size_t index) obliv {
 	floram_apply(ram, data, writer_function, index);
+}
+
+void floram_read_public(void* data, floram* ram, size_t index) obliv {
+	size_t blockid = index / ram->elementsperblock;
+	size_t subblockid = index % ram->elementsperblock;
+
+	~obliv() scanwrom_read(ram->blocktemp, ram->wrom, blockid);
+	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
+		if (subblockid == jj) ocCopy(ram->cpy, data, element(ram->cpy, ram->blocktemp, jj));
+	}
+}
+
+void floram_apply_public(floram* ram, void* data, floram_block_access_function fn, size_t index) obliv {
+	size_t blockid = index / ram->elementsperblock;
+	size_t subblockid = index % ram->elementsperblock;
+
+	~obliv()  scanwrom_read(ram->blocktemp, ram->wrom, blockid);
+	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
+		if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->blocktemp, jj), data);
+	}
+	for (size_t jj = 0; jj < ram->progress; jj++) {
+		obliv if (blockid == ram->stashi[jj]) ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, jj), ram->blocktemp);
+	}
+	~obliv() scanwrom_write(ram->wrom, ram->blocktemp, blockid);
+}
+
+void floram_write_public(floram* ram, void* data, size_t index) obliv {
+	floram_apply_public(ram, data, writer_function, index);
 }
 
 floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_shares) {

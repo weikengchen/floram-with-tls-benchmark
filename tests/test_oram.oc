@@ -78,7 +78,7 @@ void testOramType(oram_type mode) {
 
 		for (int ii = 0; ii < ELCT; ii++) {
 			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
-			obliv uint32_t value = feedOblivInt(input_raw[ii], 2);
+			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
 			oram_write(o, &value, index);
 		}
 
@@ -102,6 +102,42 @@ void testOramType(oram_type mode) {
 	{
 		uint32_t input_raw[ELCT];
 		uint32_t order_raw[ELCT];
+
+		for (int ii = 0; ii < ELCT; ii++) {
+			input_raw[ii] = ii;
+			order_raw[ii] = ii;
+		}
+
+		shuffle(order_raw, ELCT);
+
+		oram * o = oram_new(mode, &ocCopyInt, ELCT);
+
+		for (int ii = 0; ii < ELCT; ii++) {
+			size_t index = ocBroadcastInt(order_raw[ii], 1);
+			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
+			oram_write_public(o, &value, index);
+		}
+
+		bool success = true;
+
+		for (int ii = 0; ii < ELCT; ii++) {
+			uint32_t temp;
+			obliv uint32_t value;
+			size_t index = ocBroadcastInt(order_raw[ii], 1);
+			oram_read_public(&value, o, index);
+			revealOblivInt(&temp, value, 0);
+			success &= (temp == input_raw[ii]);
+		}
+
+		oram_free(o);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write_public/oram_read_public", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t input_raw[ELCT];
+		uint32_t order_raw[ELCT];
 		obliv uint32_t input[ELCT];
 
 		for (int ii = 0; ii < ELCT; ii++) {
@@ -112,7 +148,7 @@ void testOramType(oram_type mode) {
 		shuffle(order_raw, ELCT);
 
 		for (int ii = 0; ii < ELCT; ii++) {
-			input[ocBroadcastInt(order_raw[ii], 1)] = feedOblivInt(input_raw[ii], 2);
+			input[ocBroadcastInt(order_raw[ii], 1)] = feedOblivInt(input_raw[ii], 1);
 		}
 		oram * o = oram_from_array(mode, &ocCopyInt, ELCT, input);
 
@@ -121,8 +157,7 @@ void testOramType(oram_type mode) {
 		for (int ii = 0; ii < ELCT; ii++) {
 			uint32_t temp;
 			obliv uint32_t value;
-			obliv size_t index = feedOblivLong(order_raw[ii], 1);
-			oram_read(&value, o, index);
+			oram_read_public(&value, o, ocBroadcastInt(order_raw[ii], 1));
 			revealOblivInt(&temp, value, 0);
 			success &= (temp == input_raw[ii]);
 		}
@@ -149,7 +184,7 @@ void testOramType(oram_type mode) {
 		for (int ii = 0; ii < ELCT; ii++) {
 			uint32_t temp;
 			obliv uint32_t value;
-			oram_read(&value, o, ii);
+			oram_read_public(&value, o, ii);
 			revealOblivInt(&temp, value, 0);
 			success &= (temp == expected_output[ii]);
 		}
@@ -170,7 +205,7 @@ void testOramType(oram_type mode) {
 			bool temp;
 			obliv bool write_success;
 			obliv size_t index = feedOblivLong(ii, 1);
-			obliv uint32_t value = feedOblivInt(rand(), 2);
+			obliv uint32_t value = feedOblivInt(rand(), 1);
 			write_success = oram_write(o, &value, index);
 			revealOblivBool(&temp, write_success, 0);
 			success &= (temp == true && (ii >= 0 || ii < ELCT)) != (temp == false && (ii < 0 || ii >= ELCT));
@@ -198,7 +233,7 @@ void testOramType(oram_type mode) {
 
 		for (int ii = 0; ii < 256; ii++) {
 			obliv size_t index = feedOblivLong(order_raw[ii], 1);
-			obliv uint32_t value = feedOblivInt(input_raw[ii], 2);
+			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
 			oram_write(o, &value, index);
 		}
 
