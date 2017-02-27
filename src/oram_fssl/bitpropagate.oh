@@ -9,7 +9,7 @@ typedef void (* facb_fn)(void *, void*);
 void bitpropagator_getblockvector(obliv uint8_t * activeblock_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index);
 void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index, facb_fn cbfn, void* cbpass);
 void bitpropagator_getadvice(obliv bool * advicebits, obliv uint8_t * blocks_A, obliv uint8_t * blocks_B, obliv bool rightblock);
-bitpropagator * bitpropagator_new(size_t size, uint32_t truncated_levels);
+bitpropagator * bitpropagator_new(size_t size, size_t blockmultiple, uint32_t truncated_levels);
 void bitpropagator_free(bitpropagator * bp);
 
 #endif

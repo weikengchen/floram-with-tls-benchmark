@@ -9,7 +9,8 @@
 
 struct floram {
 	OcCopy* cpy;
-	OcCopy blockcpy;
+	OcCopy memblockcpy;
+	size_t memblocksize;
 	scanwrom* wrom;
 	scanrom* rom;
 	void* bitpropagator;
@@ -58,12 +59,12 @@ void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	obliv size_t subblockid = input->subblockid;
 	obliv bool found = false;
 	if (ram->progress > 0) {
-		ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, ram->progress), ram->stash);
+		ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, ram->progress), ram->stash);
 		ram->stashi[ram->progress] = ram->stashi[0];
 		ram->stashi[0] = -1;
 		for (size_t ii = 1; ii <= ram->progress; ii ++) {
 			obliv if (blockid == ram->stashi[ii]) {
-				ocCopy(&ram->blockcpy, ram->stash, element(&ram->blockcpy, ram->stash, ii));
+				ocCopy(&ram->memblockcpy, ram->stash, element(&ram->memblockcpy, ram->stash, ii));
 				ram->stashi[0] = ram->stashi[ii];
 				ram->stashi[ii] = -1;
 				found = true;
@@ -102,13 +103,13 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		ram->stashi[0] = blockid;
 	}
 
-	ocCopy(&ram->blockcpy, ram->blocktemp, ram->stash);
+	ocCopy(&ram->memblockcpy, ram->blocktemp, ram->stash);
 
 	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
 		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
 	}
 
-	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, element(&ram->blockcpy, ram->stash, 0), ram->blocktemp);
+	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, element(&ram->memblockcpy, ram->stash, 0), ram->blocktemp);
 	~obliv() {
 		ram->progress++;
 		if (ram->progress == ram->period) floram_refresh(ram);
@@ -142,7 +143,7 @@ void floram_apply_public(floram* ram, void* data, floram_block_access_function f
 		if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->blocktemp, jj), data);
 	}
 	for (size_t jj = 0; jj < ram->progress; jj++) {
-		obliv if (blockid == ram->stashi[jj]) ocCopy(&ram->blockcpy, element(&ram->blockcpy, ram->stash, jj), ram->blocktemp);
+		obliv if (blockid == ram->stashi[jj]) ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, jj), ram->blocktemp);
 	}
 	~obliv() scanwrom_write(ram->wrom, ram->blocktemp, blockid);
 }
@@ -159,7 +160,7 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 	ram->cprg = cprg;
 
 	size_t elementsize = cpy->eltsize/sizeof(obliv uint8_t);
-	if (elementsize >= BLOCKSIZE/2) {
+	if (elementsize > BLOCKSIZE/2) {
 		ram->blockcount = n;
 		ram->blockmultiple = ((elementsize / BLOCKSIZE) + (elementsize%BLOCKSIZE?1:0));
 		ram->elementsperblock = 1;
@@ -169,31 +170,30 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 		ram->blockcount = (n/ram->elementsperblock) + (n%ram->elementsperblock?1:0);
 	}
 
-	ram->blockcpy=ocCopyCharN(ram->blockmultiple * BLOCKSIZE);
+	ram->memblocksize = BLOCKSIZE * ram->blockmultiple;
+	ram->memblockcpy=ocCopyCharN(ram->memblocksize);
 
 	if (cprg) {
 		ram->bgb = bitpropagator_cprg_getblockvector;
 		ram->bgbc = bitpropagator_cprg_getblockvector_with_callback;
 		ram->bf = bitpropagator_cprg_free;
-		ram->bitpropagator = bitpropagator_cprg_new(ram->blockcount);
+		ram->bitpropagator = bitpropagator_cprg_new(ram->blockcount, ram->blockmultiple);
 	} else {
 		ram->bgb = bitpropagator_getblockvector;
 		ram->bgbc = bitpropagator_getblockvector_with_callback;
 		ram->bf = bitpropagator_free;
-		ram->bitpropagator = bitpropagator_new(ram->blockcount,  MIN(5, LOG2LL(ram->blockcount)));
+		ram->bitpropagator = bitpropagator_new(ram->blockcount, ram->blockmultiple,  MIN(5, LOG2LL(ram->blockcount)));
 	}
 
-	floram_pma(&ram->blockvector_local, 16, ram->blockcount * BLOCKSIZE);
+	floram_pma(&ram->blockvector_local, 16, ram->blockcount * ram->memblocksize);
 	floram_pma(&ram->bitvector_local, 16, ram->blockcount * sizeof(bool));
-	ram->blocktemp_local = malloc(ram->blockmultiple * BLOCKSIZE);
-	ram->activeblock_delta = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
-
-	//ram->period = (uint32_t)ceil(sqrt(ram->blockcount));
+	ram->blocktemp_local = malloc(ram->memblocksize);
+	ram->activeblock_delta = calloc(1, ram->memblocksize * sizeof(obliv uint8_t));
 
 	// Based on B = 128*b; c = B*p/2+n*b/p = 64*p+n/p; dc/dp = 64-n/p^2; dc/dp = 0 when p = sqrt(n)/8
-	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/(8));
-	ram->blocktemp = calloc(1, ram->blockcpy.eltsize);
-	ram->stash = calloc(ram->period, ram->blockcpy.eltsize);
+	ram->period = (uint32_t)ceil(sqrt(ram->blockcount)/8);
+	ram->blocktemp = calloc(1, ram->memblockcpy.eltsize);
+	ram->stash = calloc(ram->period, ram->memblockcpy.eltsize);
 	ram->stashi = calloc(ram->period, sizeof(obliv size_t));
 	for (size_t ii = 0; ii < ram->period; ii++) {
 		ram->stashi[ii] = -1;
@@ -207,15 +207,24 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 	//Now fill the scanrom with data, if there is data with which to fill it
 	if (data != NULL) {
 
+		uint8_t * loadtemp_local;
+		floram_pma(&loadtemp_local, 16, ram->memblocksize*ram->blockcount);
+
 		if (from_shares) {
 
-			ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
-			scanwrom_write_xor_shares(ram->wrom, data, 0, ram->blockcount);
+			size_t blockid;
+			for (size_t ii = 0; ii < ram->size; ii++) {
+				blockid = ii / ram->elementsperblock;
+
+				size_t subblocksize = ram->elementsperblock*(cpy->eltsize/sizeof(obliv uint8_t));
+
+				memcpy(&loadtemp_local[blockid * ram->memblocksize], &data[blockid * subblocksize], subblocksize);
+			}
+
+			ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
+			scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
 
 		} else {
-
-			uint8_t * loadtemp_local;
-			floram_pma(&loadtemp_local, 16, ram->blockcount * ram->blockmultiple * BLOCKSIZE);
 
 			size_t blockid, subblockid;
 			for (size_t ii = 0; ii < ram->size; ii++) {
@@ -224,24 +233,25 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 
 				size_t elosize = cpy->eltsize/sizeof(obliv uint8_t);
 
-				ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * BLOCKSIZE * ram->blockmultiple + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
+				ocToSharedCharN(ocCurrentProto(), &loadtemp_local[blockid * ram->memblocksize + subblockid*elosize], ((obliv uint8_t *)element(cpy,data,ii)), elosize);
 			}
 			
-			ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
+			ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
 			scanwrom_write_xor_shares(ram->wrom, loadtemp_local, 0, ram->blockcount);
-			free(loadtemp_local);
 
 		}
 
-		ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
+		free(loadtemp_local);
+
+		ram->rom = scanrom_new(ram->memblocksize, ram->blockcount, ram->rom_key_half);
 		scanrom_import_from_scanwrom(ram->rom, ram->wrom);
 
 	} else {
 
-		ram->wrom = scanwrom_new(&ram->blockcpy, ram->blockcount);
+		ram->wrom = scanwrom_new(ram->memblocksize, ram->blockcount);
 		scanwrom_clear(ram->wrom);
 
-		ram->rom = scanrom_new(&ram->blockcpy, ram->blockcount, ram->rom_key_half);
+		ram->rom = scanrom_new(ram->memblocksize, ram->blockcount, ram->rom_key_half);
 		scanrom_clear(ram->rom);
 	}
 

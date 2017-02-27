@@ -3,17 +3,22 @@
 #include "test_generic.h"
 
 #define TEXT_HELP_SUPPLEMENTARY "\
+  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\ttest ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\ttest ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
   -o \x1b[4mTYPE\x1b[0m, --oram-type=\x1b[4mTYPE\x1b[0m \n\t\ttest only \x1b[4mTYPE\x1b[0m ORAMs. Valid types are \033[1msqrt\033[0m, \033[1mcircuit\033[0m, \033[1mfssl\033[0m, \033[1mfssl_cprg\033[0m, and \033[1mlinear\033[0m.\n\n"
 
-static const char options_string[] = "o:";
+static const char options_string[] = "e:s:o:";
 static struct option long_options[] = {
+	{"element-count", required_argument, NULL, 'e'},
+	{"element-size", required_argument, NULL, 's'},
 	{"oram-type", required_argument, NULL, 'o'},
 	{0, 0, 0, 0}
 };
 
 static const char TESTNAME[] = "oram";
 
-#define ELCT 256
+#define ELCT_DEFAULT 256
+#define ELSZ_DEFAULT 1
 
 char* get_test_name() {
 	return TESTNAME;
@@ -31,7 +36,7 @@ void print_supplementary_help() {
 	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
 }
 
-void shuffle(uint32_t *array, size_t n) {
+void shuffle(size_t *array, size_t n) {
 	if (n > 1) {
 		size_t i;
 		for (i = 0; i < n - 1; i++) 
@@ -61,198 +66,252 @@ const char* getOramName(oram_type mode) {
 	}
 }
 
-void testOramType(oram_type mode) {
+void testOramType(oram_type mode, size_t elct, size_t elsz) {
 
 	{
-		uint32_t input_raw[ELCT];
-		uint32_t order_raw[ELCT];
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input_raw[ii] = ii;
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
 			order_raw[ii] = ii;
 		}
 
-		shuffle(order_raw, ELCT);
+		shuffle(order_raw, elct);
 
-		oram * o = oram_new(mode, &ocCopyInt, ELCT);
+		OcCopy cpy = ocCopyIntN(elsz);
 
-		for (int ii = 0; ii < ELCT; ii++) {
+		oram * o = oram_new(mode, &cpy, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
 			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
-			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
-			oram_write(o, &value, index);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+			oram_write(o, value, index);
 		}
 
 		bool success = true;
 
-		for (int ii = 0; ii < ELCT; ii++) {
+		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
-			obliv uint32_t value;
 			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
-			oram_read(&value, o, index);
-			revealOblivInt(&temp, value, 0);
-			success &= (temp == input_raw[ii]);
+			oram_read(value, o, index);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == input_raw[ii*elsz+jj]);
+			}
 		}
 
 		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write/oram_read", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 	}
 
 	{
-		uint32_t input_raw[ELCT];
-		uint32_t order_raw[ELCT];
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input_raw[ii] = ii;
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
 			order_raw[ii] = ii;
 		}
 
-		shuffle(order_raw, ELCT);
+		shuffle(order_raw, elct);
 
-		oram * o = oram_new(mode, &ocCopyInt, ELCT);
+		OcCopy cpy = ocCopyIntN(elsz);
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			size_t index = ocBroadcastInt(order_raw[ii], 1);
-			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
-			oram_write_public(o, &value, index);
+		oram * o = oram_new(mode, &cpy, elct);
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
+			oram_write_public(o, value, index);
 		}
 
 		bool success = true;
 
-		for (int ii = 0; ii < ELCT; ii++) {
+		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
-			obliv uint32_t value;
-			size_t index = ocBroadcastInt(order_raw[ii], 1);
-			oram_read_public(&value, o, index);
-			revealOblivInt(&temp, value, 0);
-			success &= (temp == input_raw[ii]);
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			oram_read_public(value, o, index);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == input_raw[ii*elsz+jj]);
+			}
 		}
 
 		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write_public/oram_read_public", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 	}
 
 	{
-		uint32_t input_raw[ELCT];
-		uint32_t order_raw[ELCT];
-		obliv uint32_t input[ELCT];
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * input = calloc(elct, elsz*sizeof(obliv uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input_raw[ii] = ii;
+		for (int ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
 			order_raw[ii] = ii;
 		}
 
-		shuffle(order_raw, ELCT);
+		shuffle(order_raw, elct);
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input[ocBroadcastInt(order_raw[ii], 1)] = feedOblivInt(input_raw[ii], 1);
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input[ocBroadcastInt(order_raw[ii], 1)*elsz+jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
 		}
-		oram * o = oram_from_array(mode, &ocCopyInt, ELCT, input);
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_array(mode, &cpy, elct, input);
 
 		bool success = true;
 
-		for (int ii = 0; ii < ELCT; ii++) {
+		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
-			obliv uint32_t value;
-			oram_read_public(&value, o, ocBroadcastInt(order_raw[ii], 1));
-			revealOblivInt(&temp, value, 0);
-			success &= (temp == input_raw[ii]);
+			size_t index = ocBroadcastLLong(order_raw[ii], 1);
+			oram_read_public(value, o, index);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == input_raw[ii*elsz+jj]);
+			}
 		}
 
 		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(input);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_from_array", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 	}
 
 	{
-		uint32_t input_raw[ELCT];
-		uint32_t expected_output[ELCT];
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		uint32_t * expected_output = malloc(elct * elsz * sizeof(uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input_raw[ii] = rand();
-			expected_output[ii] = ocBroadcastInt(input_raw[ii], 1) ^ ocBroadcastInt(input_raw[ii], 2);
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = rand();
+			for (size_t jj = 0; jj < elsz; jj++) expected_output[ii*elsz+jj] = ocBroadcastInt(input_raw[ii*elsz+jj], 1) ^ ocBroadcastInt(input_raw[ii*elsz+jj], 2);
 		}
 
-		oram * o = oram_from_shares(mode, &ocCopyInt, ELCT, input_raw);
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_shares(mode, &cpy, elct, input_raw);
 
 		bool success = true;
 
-		for (int ii = 0; ii < ELCT; ii++) {
+		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
-			obliv uint32_t value;
-			oram_read_public(&value, o, ii);
-			revealOblivInt(&temp, value, 0);
-			success &= (temp == expected_output[ii]);
+			oram_read_public(value, o, ii);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == expected_output[ii*elsz+jj]);
+			}
 		}
 
 		oram_free(o);
+		free(input_raw);
+		free(expected_output);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_from_shares", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 	}
 
 	{
-
-		oram * o = oram_new(mode, &ocCopyInt, ELCT);
+		OcCopy cpy = ocCopyIntN(elsz);
+		oram * o = oram_new(mode, &cpy, elct);
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
 		bool success = true;
 
-		for (int ii = -2; ii < 258; ii++) {
+		for (long long int ii = -2; ii < 2; ii++) {
 			bool temp;
 			obliv bool write_success;
-			obliv size_t index = feedOblivLong(ii, 1);
-			obliv uint32_t value = feedOblivInt(rand(), 1);
-			write_success = oram_write(o, &value, index);
+			obliv size_t index = feedOblivLLong(ii, 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(rand(), 1);
+			write_success = oram_write(o, value, index);
 			revealOblivBool(&temp, write_success, 0);
-			success &= (temp == true && (ii >= 0 || ii < ELCT)) != (temp == false && (ii < 0 || ii >= ELCT));
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		for (long long int ii = elct -2; ii < elct +2; ii++) {
+			bool temp;
+			obliv bool write_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			for (size_t jj = 0; jj < elsz; jj++) value[jj] = feedOblivInt(rand(), 1);
+			write_success = oram_write(o, value, index);
+			revealOblivBool(&temp, write_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
 		}
 
 		oram_free(o);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write - bounds checking", (success)?STATUS_SUCCESS:STATUS_FAILURE);
-
 	}
 
 	{
-		uint32_t input_raw[ELCT];
-		uint32_t order_raw[ELCT];
+		uint32_t * input_raw = malloc(elct * elsz * sizeof(uint32_t));
+		size_t * order_raw = malloc(elct * sizeof(size_t));
+		obliv uint32_t * input = calloc(elct, elsz * sizeof(obliv uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
 
-		for (int ii = 0; ii < ELCT; ii++) {
-			input_raw[ii] = rand();
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input_raw[ii*elsz+jj] = ocBroadcastInt(rand(), 1);
 			order_raw[ii] = ii;
 		}
 
-		shuffle(input_raw, ELCT);
-		shuffle(order_raw, ELCT);
+		shuffle(order_raw, elct);
 
-		oram * o = oram_new(mode, &ocCopyInt, ELCT);
-
-		for (int ii = 0; ii < 256; ii++) {
-			obliv size_t index = feedOblivLong(order_raw[ii], 1);
-			obliv uint32_t value = feedOblivInt(input_raw[ii], 1);
-			oram_write(o, &value, index);
+		for (size_t ii = 0; ii < elct; ii++) {
+			for (size_t jj = 0; jj < elsz; jj++) input[ocBroadcastInt(order_raw[ii], 1)*elsz+jj] = feedOblivInt(input_raw[ii*elsz+jj], 1);
 		}
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_from_array(mode, &cpy, elct, input);
 
 		bool success = true;
 
-		for (int ii = -2; ii < ELCT + 2; ii++) {
+		for (long long int ii = -2; ii < 2; ii++) {
 			bool temp;
 			obliv bool read_success;
-			obliv uint32_t value;
-			obliv size_t index = feedOblivLong(ii, 1);
-			read_success = oram_read(&value, o, index);
+			obliv size_t index = feedOblivLLong(ii, 1);
+			read_success = oram_read(value, o, index);
 			revealOblivBool(&temp, read_success, 0);
-			success &= (temp == true && (ii >= 0 || ii < ELCT)) != (temp == false && (ii < 0 || ii >= ELCT));
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
+		}
+
+		for (long long int ii = elct -2; ii < elct + 2; ii++) {
+			bool temp;
+			obliv bool read_success;
+			obliv size_t index = feedOblivLLong(ii, 1);
+			read_success = oram_read(value, o, index);
+			revealOblivBool(&temp, read_success, 0);
+			success &= (temp == true && (ii >= 0 || ii < elct)) != (temp == false && (ii < 0 || ii >= elct));
 		}
 
 		oram_free(o);
+		free(input_raw);
+		free(order_raw);
+		free(input);
+		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_read - bounds checking", (success)?STATUS_SUCCESS:STATUS_FAILURE);
-
 	}
 
 	fprintf(stderr, "\n");
@@ -263,12 +322,26 @@ void test_main(void*varg) {
 
 	bool all_orams = true;
 	oram_type manual_type;
+	size_t elct = ELCT_DEFAULT;
+	size_t elsz = ELSZ_DEFAULT;
 
 	args_t * args_pass = varg;
 	int arg;
 	optind = 0; // this allows us to getopt a second time
 	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
-		if (arg == 'o') {
+		if (arg == 'e') {
+			elct = atoll(optarg);
+			if (elct <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 's') {
+			elsz = atoll(optarg);
+			if (elsz <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 'o') {
 			if (strcmp(optarg,"sqrt") == 0) {
 				manual_type = ORAM_TYPE_SQRT;
 			} else if (strcmp(optarg,"circuit") == 0) {
@@ -285,7 +358,7 @@ void test_main(void*varg) {
 			}
 			all_orams = false;
 		} else if (arg == '?' || arg == ':') {
-			if (optopt == 'o') {
+			if (optopt == 'o' || optopt == 'e' || optopt == 's') {
 				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
 				return;
 			} else {
@@ -298,12 +371,12 @@ void test_main(void*varg) {
 	}
 
 	if (all_orams) {
-		testOramType(ORAM_TYPE_FSSL);
-		testOramType(ORAM_TYPE_FSSL_CPRG);
-		testOramType(ORAM_TYPE_SQRT);
-		testOramType(ORAM_TYPE_CIRCUIT);
-		testOramType(ORAM_TYPE_LINEAR);
+		testOramType(ORAM_TYPE_FSSL, elct, elsz);
+		testOramType(ORAM_TYPE_FSSL_CPRG, elct, elsz);
+		testOramType(ORAM_TYPE_SQRT, elct, elsz);
+		testOramType(ORAM_TYPE_CIRCUIT, elct, elsz);
+		testOramType(ORAM_TYPE_LINEAR, elct, elsz);
 	} else {
-		testOramType(manual_type);
+		testOramType(manual_type, elct, elsz);
 	}
 }

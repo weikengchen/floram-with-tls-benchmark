@@ -10,6 +10,7 @@ struct bitpropagator_cprg {
 	uint32_t startlevel;
 	uint32_t endlevel;
 	size_t size;
+	size_t blockmultiple;
 	obliv uint8_t * diff_L;
 	obliv uint8_t * diff_R;
 	obliv uint8_t * Z;
@@ -59,7 +60,7 @@ void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8
 		}
 	}
 
-	ocFromSharedCharN(ocCurrentProto(), active_block_delta, bp->L_local, BLOCKSIZE);
+	ocFromSharedCharN(ocCurrentProto(), active_block_delta, bp->L_local, BLOCKSIZE*bp->blockmultiple);
 }
 
 void bitpropagator_cprg_getblockvector(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t index) {
@@ -85,9 +86,10 @@ void bitpropagator_cprg_getadvice(obliv bool * advicebits, obliv uint8_t * diff_
 	advicebits[1] = ((obliv bool *)diff_R)[0] ^ rightblock;
 }
 
-bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
+bitpropagator_cprg * bitpropagator_cprg_new(size_t size, size_t blockmultiple) {
 	bitpropagator_cprg * bp = malloc(sizeof(bitpropagator_cprg));
 	bp->size = size;
+	bp->blockmultiple = blockmultiple;
 	bp->startlevel = 0;
 	bp->endlevel = LOG2LL(size) + (((1ll << LOG2LL(size)) < size)? 1:0);
 	bp->diff_L = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
@@ -95,7 +97,7 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
 	bp->Z = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->advicebits = calloc(1, 2*sizeof(obliv bool));
 	bp->Z_local = malloc(BLOCKSIZE);
-	floram_pma(&bp->L_local, 16, BLOCKSIZE);
+	floram_pma(&bp->L_local, 16, BLOCKSIZE*blockmultiple);
 	floram_pma(&bp->R_local, 16, BLOCKSIZE);
 
 	//Generator chooses keys so that we don't incur round trips. Since we're semi-honest I guess it's OK? Should probably change it anyway.
@@ -110,7 +112,7 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size) {
 		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyL)[ii] = ocBroadcastLLong(NULL,1);
 		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyR)[ii] = ocBroadcastLLong(NULL,1);
 	}
-	bp->bpo = bitpropagator_cprg_offline_new(size, keyL, keyR);
+	bp->bpo = bitpropagator_cprg_offline_new(size, bp->blockmultiple, keyL, keyR);
 	free(keyL);
 	free(keyR);
 

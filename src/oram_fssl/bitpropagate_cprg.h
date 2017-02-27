@@ -13,7 +13,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 
 void bitpropagator_cprg_offline_parallelizer(void* bp, void* indexp, void* blockdelta, void * local_output, void * local_bit_output, void* pd, bp_cprg_traverser_fn fn, facb_fn cbfn, void* cbpass);
 
-bitpropagator_cprg_offline * bitpropagator_cprg_offline_new(size_t size, uint8_t * keyL, uint8_t * keyR);
+bitpropagator_cprg_offline * bitpropagator_cprg_offline_new(size_t size, size_t blockmultiple, uint8_t * keyL, uint8_t * keyR);
 void bitpropagator_cprg_offline_free(bitpropagator_cprg_offline * bpo);
 
 #endif
