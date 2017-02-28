@@ -108,12 +108,12 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 		//XOR the live branches with Z if they will also be XORed by the offline component
 		obliv if (control_bit_A) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->activeblock_A[jj] ^= bp->Z[jj];
+				bp->activeblock_A[jj] ^= Z[jj];
 			}
 		}
 		obliv if (control_bit_B) {
 			for (size_t jj = 0; jj < BLOCKSIZE; jj ++) {
-				bp->activeblock_B[jj] ^= bp->Z[jj];
+				bp->activeblock_B[jj] ^= Z[jj];
 			}
 		}
 

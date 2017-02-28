@@ -53,10 +53,15 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		bool * b_bits = local_bit_output;
 		bool * t_bits;
 
+		if (thislevel == bpo->endlevel - 1 && b2 == local_output) {
+			expansion_stride = (BLOCKSIZE * bpo->blockmultiple);
+		} else {
+			expansion_stride = BLOCKSIZE;
+		}
 		#pragma omp for
 		for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
-			offline_prf_oct(&b2[ii*2*BLOCKSIZE], &b2[(ii*2+1)*BLOCKSIZE], &b2[(ii*2+2)*BLOCKSIZE], &b2[(ii*2+3)*BLOCKSIZE],
-							&b2[(ii*2+4)*BLOCKSIZE], &b2[(ii*2+5)*BLOCKSIZE], &b2[(ii*2+6)*BLOCKSIZE], &b2[(ii*2+7)*BLOCKSIZE],
+			offline_prf_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
+							&b2[(ii*2+4)*expansion_stride], &b2[(ii*2+5)*expansion_stride], &b2[(ii*2+6)*expansion_stride], &b2[(ii*2+7)*expansion_stride],
 							&a2[ii*BLOCKSIZE],  &a2[ii*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE],
 							&a2[(ii+2)*BLOCKSIZE], &a2[(ii+2)*BLOCKSIZE],&a2[(ii+3)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE],
 							bpo->keyL, bpo->keyR, bpo->keyL, bpo->keyR,
@@ -67,13 +72,13 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			a_bits[ii+3] = a2[(ii+3)*BLOCKSIZE] & 1;
 		}
 
-		#pragma omp for
+		#pragma omp single
 		for (size_t ii = 4*(nextlevelblocks/8); ii < thislevelblocks; ii++) {
 			if ((ii+1)*2 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
-				offline_prf(&b2[(ii*2+1)*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyR);
+				offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
+				offline_prf(&b2[(ii*2+1)*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyR);
 			} else if (ii*2+1 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*BLOCKSIZE], &a2[ii*BLOCKSIZE], bpo->keyL);
+				offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
 			}
 			a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
 		}
@@ -189,9 +194,9 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 				}
 			} else {
 				if (ii%2 == 0) {
-					a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
+					a_bits[ii] = (a2[ii*(BLOCKSIZE * bpo->blockmultiple)] & 1) ^ (b_bits[ii/2] & advicebit_l);
 				} else {
-					a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
+					a_bits[ii] = (a2[ii*(BLOCKSIZE * bpo->blockmultiple)] & 1) ^ (b_bits[ii/2] & advicebit_r);
 				}
 
 				if (b_bits[ii/2]) {
@@ -203,6 +208,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			}
 		}
 
+		#pragma omp single
 		if (b == local_output) memcpy(b_bits, a_bits, thislevelblocks*sizeof(bool));
 
 		if (bpo->blockmultiple > 1) {

@@ -198,6 +198,78 @@ void test_main(void*varg) {
 		}
 	}
 
+	{
+		// test agains OpenSSL
+		obliv uint8_t input[16*BLOCKCOUNT];
+		obliv uint8_t iv[16];
+		obliv uint8_t key[16];
+		obliv uint8_t output[16*BLOCKCOUNT];
+		uint8_t input_raw[16*BLOCKCOUNT];
+		uint8_t iv_raw[16];
+		uint8_t key_raw[16];
+		uint8_t expected_output[16*BLOCKCOUNT];
+
+		
+
+		for (int ii = 0; ii < 16*BLOCKCOUNT/sizeof(uint32_t); ii++) {
+			input[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 1);
+			revealOblivInt(&input_raw[ii*sizeof(uint32_t)], input[ii*sizeof(uint32_t)], 0);
+		}
+		
+		for (int ii = 0; ii < 16/sizeof(uint32_t); ii++) {
+			key[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+			revealOblivInt(&key_raw[ii*sizeof(uint32_t)], key[ii*sizeof(uint32_t)], 0);
+			iv[ii*sizeof(uint32_t)] = feedOblivInt(rand(), 2);
+			revealOblivInt(&iv_raw[ii*sizeof(uint32_t)], iv[ii*sizeof(uint32_t)], 0);
+		}
+
+		// OpenSSL setup
+		ERR_load_crypto_strings();
+		OpenSSL_add_all_algorithms();
+		OPENSSL_config(NULL);
+		EVP_CIPHER_CTX *ctx;
+		if(!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
+		if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, key_raw, iv_raw)) handleErrors();
+		if(1 != EVP_CIPHER_CTX_set_padding(ctx, 0)) handleErrors();
+
+		int len;
+		for (int ii = 0; ii < BLOCKCOUNT; ii ++) if(1 != EVP_EncryptUpdate(ctx, &expected_output[16*ii], &len, &input_raw[16*ii], 16)) handleErrors();
+
+		// OpenSSL Cleanup
+		EVP_CIPHER_CTX_free(ctx);
+		CONF_modules_unload(1);
+		EVP_cleanup();
+		CRYPTO_cleanup_all_ex_data();
+		ERR_remove_state(0);
+		ERR_free_strings();
+
+		oaes_ctx * ctx2 = oaes_128_ctx_ctr_new(key, iv);
+		for (int ii = 0; ii < BLOCKCOUNT/2; ii++) oaes_128_encdec_double(&output[32*ii], &output[32*ii+16], ctx2, &input[32*ii], &input[32*ii+16]);
+		oaes_128_ctx_free(ctx2);
+
+		bool success = true;
+		for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+			uint8_t temp;
+			revealOblivChar(&temp, output[ii], 0);
+			success &= (temp == expected_output[ii]);
+		}
+
+		fprintf(stderr, "Test Item: %-70s %s\n", "oaes_128_encdec_double - 64 random blocks", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+		if (!success) {
+			fprintf(stderr, "\tExpected Output:\t");
+			for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+				fprintf(stderr, "%02hhX", expected_output[ii]);
+			}
+			fprintf(stderr, "\n\tActual Output: \t\t");
+			for (int ii = 0; ii < 16*BLOCKCOUNT; ii++) {
+				uint8_t temp;
+				revealOblivChar(&temp, output[ii], 0);
+				fprintf(stderr, "%02hhX", temp);
+			}
+			fprintf(stderr, "\n");
+		}
+	}
+
 	
 
 	fprintf(stderr, "\n");

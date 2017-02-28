@@ -79,7 +79,7 @@ void offline_expand_deinit() {
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
+	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
 
 
 void offline_expand_2(uint8_t * dest, uint8_t * src) {
@@ -150,7 +150,7 @@ void * offline_prf_keyschedule(uint8_t * src) {
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
+	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
 
 	__m128i * r = malloc(11*sizeof(__m128i));
 
@@ -428,8 +428,7 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff)); \
-
+	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
 
     // this version handles the case when n!=2 using a loop
 
