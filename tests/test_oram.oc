@@ -139,7 +139,7 @@ void testOramType(oram_type mode, size_t elct, size_t elsz) {
 		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
 			size_t index = ocBroadcastLLong(order_raw[ii], 1);
-			oram_read(value, o, index);
+			oram_read_public(value, o, index);
 			for (size_t jj = 0; jj < elsz; jj++){
 				revealOblivInt(&temp, value[jj], 0);
 				success &= (temp == input_raw[ii*elsz+jj]);

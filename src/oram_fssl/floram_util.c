@@ -27,129 +27,11 @@ int floram_zpma(void** dst, size_t alignment, size_t size) {
    return res;
 }
 
-// Locking callback
-void openmp_locking_callback(int mode, int type, char *file, int line) {
-	//if (mode & CRYPTO_LOCK) {
-	//	omp_set_lock(&ssllocks[type]);
-	//} else {
-	//	omp_unset_lock(&ssllocks[type]);
-	//}
-}
-
-// Thread ID callback
-unsigned long openmp_thread_id(void) {
-	return (unsigned long)omp_get_thread_num();
-}
-
-void openmp_thread_setup(void) {
-	//ssllocks = OPENSSL_malloc(CRYPTO_num_locks() * sizeof(omp_lock_t));
-	//for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_init_lock(&ssllocks[ii]);
-	//CRYPTO_set_id_callback((unsigned long (*)())openmp_thread_id);
-	//CRYPTO_set_locking_callback((void (*)())openmp_locking_callback);
-}
-
-void openmp_thread_cleanup(void) {
-	//CRYPTO_set_id_callback(NULL);
-	//CRYPTO_set_locking_callback(NULL);
-	//for (int ii=0; ii<CRYPTO_num_locks(); ii++) omp_destroy_lock(&ssllocks[ii]);
-	//OPENSSL_free(ssllocks);
-}
-
-void offline_expand_init() {
-	/*if (sslinits == 0) {
-		openmp_thread_setup();
-		ERR_load_crypto_strings();
-		OpenSSL_add_all_algorithms();
-		OPENSSL_config(NULL);
-		sslzero = calloc(1, 16);
-	}
-	sslinits++;*/
-}
-
-void offline_expand_deinit() {
-	/*if (sslinits == 1) {
-		ENGINE_cleanup(); 
-		CONF_modules_unload(1);
-		EVP_cleanup();
-		CRYPTO_cleanup_all_ex_data();
-		ERR_remove_state(0);
-		ERR_free_strings();
-		free(sslzero);
-		sslzero = NULL;
-		openmp_thread_cleanup();
-	}
-	sslinits--;*/
-}
-
 #define KE(NK,OK,RND) NK = OK;	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
-
-
-void offline_expand_2(uint8_t * dest, uint8_t * src) {
-
-    __m128i seed;
-    seed = _mm_load_si128((__m128i *) src);
-
-	__m128i nk; // next key
-	__m128i ml,mr, ok;
-	ok = seed;
-
-    ml = _mm_xor_si128(ml, ml); 				// msg = 0
-    mr = _mm_set_epi64((__m64)0l,(__m64)1l);	// msg = 1
-
-    // round 0
-    ml = _mm_xor_si128(ml, ok);
-    mr = _mm_xor_si128(mr, ok);
-
-	// key expand 1 KEYEXP128(rk[0], 0x01);
-	KE(nk, ok, 0x01)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x02)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x04)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x08)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x10)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x20)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x40)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x80)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x1b)
-    ml = _mm_aesenc_si128(ml, ok);
-    mr = _mm_aesenc_si128(mr, ok);
-
-	KE(nk, ok, 0x36)
-    ml = _mm_aesenclast_si128(ml, ok);
-    mr = _mm_aesenclast_si128(mr, ok);
-
-    _mm_storeu_si128((__m128i*) dest, ml);
-    uint8_t* pp = (dest+16);
-    _mm_storeu_si128((__m128i*) pp, mr);
-
-}
 
 void * offline_prf_keyschedule(uint8_t * src) {
 #define KE2(NK,OK,RND) NK = OK;	\
@@ -198,89 +80,6 @@ void offline_prf(uint8_t * dest, uint8_t * src, void * ri) {
     mr = _mm_xor_si128(mr, or);
     _mm_storeu_si128((__m128i*) dest, mr);
 
-}
-
-void offline_prf_quad(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4, uint8_t * src1, uint8_t * src2, uint8_t * src3, uint8_t * src4, void * ri1, void * ri2 , void * ri3 , void * ri4) {
-	__m128i or1, or2, or3, or4, mr1, mr2, mr3, mr4;
-	__m128i * r1 = ri1;
-	__m128i * r2 = ri2;
-	__m128i * r3 = ri3;
-	__m128i * r4 = ri4;
-
-    or1 = _mm_load_si128((__m128i *) src1);
-    or2 = _mm_load_si128((__m128i *) src2);
-    or3 = _mm_load_si128((__m128i *) src3);
-    or4 = _mm_load_si128((__m128i *) src4);
-
-    mr1 = or1;
-    mr2 = or2;
-    mr3 = or3;
-    mr4 = or4;
-
-    mr1 = _mm_xor_si128(mr1, r1[0]);
-    mr2 = _mm_xor_si128(mr2, r2[0]);
-    mr3 = _mm_xor_si128(mr3, r3[0]);
-    mr4 = _mm_xor_si128(mr4, r4[0]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[1]);
-    mr2 = _mm_aesenc_si128(mr2, r2[1]);
-    mr3 = _mm_aesenc_si128(mr3, r3[1]);
-    mr4 = _mm_aesenc_si128(mr4, r4[1]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[2]);
-    mr2 = _mm_aesenc_si128(mr2, r2[2]);
-    mr3 = _mm_aesenc_si128(mr3, r3[2]);
-    mr4 = _mm_aesenc_si128(mr4, r4[2]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[3]);
-    mr2 = _mm_aesenc_si128(mr2, r2[3]);
-    mr3 = _mm_aesenc_si128(mr3, r3[3]);
-    mr4 = _mm_aesenc_si128(mr4, r4[3]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[4]);
-    mr2 = _mm_aesenc_si128(mr2, r2[4]);
-    mr3 = _mm_aesenc_si128(mr3, r3[4]);
-    mr4 = _mm_aesenc_si128(mr4, r4[4]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[5]);
-    mr2 = _mm_aesenc_si128(mr2, r2[5]);
-    mr3 = _mm_aesenc_si128(mr3, r3[5]);
-    mr4 = _mm_aesenc_si128(mr4, r4[5]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[6]);
-    mr2 = _mm_aesenc_si128(mr2, r2[6]);
-    mr3 = _mm_aesenc_si128(mr3, r3[6]);
-    mr4 = _mm_aesenc_si128(mr4, r4[6]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[7]);
-    mr2 = _mm_aesenc_si128(mr2, r2[7]);
-    mr3 = _mm_aesenc_si128(mr3, r3[7]);
-    mr4 = _mm_aesenc_si128(mr4, r4[7]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[8]);
-    mr2 = _mm_aesenc_si128(mr2, r2[8]);
-    mr3 = _mm_aesenc_si128(mr3, r3[8]);
-    mr4 = _mm_aesenc_si128(mr4, r4[8]);
-
-    mr1 = _mm_aesenc_si128(mr1, r1[9]);
-    mr2 = _mm_aesenc_si128(mr2, r2[9]);
-    mr3 = _mm_aesenc_si128(mr3, r3[9]);
-    mr4 = _mm_aesenc_si128(mr4, r4[9]);
-
-    mr1 = _mm_aesenclast_si128(mr1, r1[10]);
-    mr2 = _mm_aesenclast_si128(mr2, r2[10]);
-    mr3 = _mm_aesenclast_si128(mr3, r3[10]);
-    mr4 = _mm_aesenclast_si128(mr4, r4[10]);
-
-    mr1 = _mm_xor_si128(mr1, or1);
-    mr2 = _mm_xor_si128(mr2, or2);
-    mr3 = _mm_xor_si128(mr3, or3);
-    mr4 = _mm_xor_si128(mr4, or4);
-
-    _mm_storeu_si128((__m128i*) dest1, mr1);
-    _mm_storeu_si128((__m128i*) dest2, mr2);
-    _mm_storeu_si128((__m128i*) dest3, mr3);
-    _mm_storeu_si128((__m128i*) dest4, mr4);
 }
 
 void offline_prf_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4,
@@ -442,7 +241,7 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
     seed = _mm_load_si128((__m128i *) src);
 
 	__m128i r1,r2,r3,r4,r5,r6,r7,r8,r9,r10; // next key
-	__m128i mr, mr1, mr2, mr3, mr4, ok;
+	__m128i mr, ok;
 	ok = seed;
 
 	KE2(r1, ok, 0x01)
@@ -458,9 +257,10 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 
 	__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
 
-	size_t li=0;
+    #pragma omp parallel for
+	for(size_t li=0; li<n-n%4; li+=4) {
+        __m128i mr1, mr2, mr3, mr4;
 
-	for(; li<n-n%4; li+=4) {
 		mr1 = _mm_set_epi64((__m64)(li+i),(__m64)0l);
 		mr2 = _mm_set_epi64((__m64)(li+i+1),(__m64)0l);
 		mr3 = _mm_set_epi64((__m64)(li+i+2),(__m64)0l);
@@ -536,7 +336,7 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 	    _mm_storeu_si128((__m128i*) pp4, mr4);
 	}
 
-	for(; li<n; li++) {
+	for(size_t li = n-n%4; li<n; li++) {
 	    mr = _mm_set_epi64((__m64)(li+i),(__m64)0l);	// msg = li
 		mr = _mm_shuffle_epi8 (mr, mask);
 

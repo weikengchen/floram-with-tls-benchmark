@@ -18,14 +18,11 @@ void get_random_bytes(void *buf, size_t bytes);
 int floram_pma(void** dst, size_t alignment, size_t size);
 int floram_zpma(void** dst, size_t alignment, size_t size);
 
-void offline_expand_init();
-void offline_expand_deinit();
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n);
 void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n);
 
 void * offline_prf_keyschedule(uint8_t * src);
 void offline_prf(uint8_t * dest, uint8_t * src, void * r);
-void offline_prf_quad(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4, uint8_t * src1, uint8_t * src2, uint8_t * src3, uint8_t * src4, void * ri1, void * ri2 , void * ri3 , void * ri4);
 void offline_prf_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4,
 						uint8_t * dest5, uint8_t * dest6, uint8_t * dest7, uint8_t * dest8, 
 						uint8_t * src1, uint8_t * src2, uint8_t * src3, uint8_t * src4,

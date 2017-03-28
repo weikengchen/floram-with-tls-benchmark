@@ -294,7 +294,6 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 }
 
 bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t blockmultiple, size_t startlevel, uint8_t * keyL, uint8_t * keyR) {
-	offline_expand_init();
 	bitpropagator_offline * bpo = malloc(sizeof(bitpropagator_offline));
 	bpo->size = size;
 	bpo->blockmultiple = blockmultiple;
@@ -320,7 +319,6 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
 		omp_destroy_lock(&bpo->locks[ii]);
 	}
-	offline_expand_deinit();
 	free(bpo->level_data);
 	free(bpo->level_bits);
 	free(bpo->advicebits_l);

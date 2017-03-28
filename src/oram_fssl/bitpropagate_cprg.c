@@ -338,7 +338,6 @@ void bitpropagator_cprg_offline_parallelizer(void* bp, void* indexp, void *block
 }
 
 bitpropagator_cprg_offline * bitpropagator_cprg_offline_new(size_t size, size_t blockmultiple, uint8_t * keyL, uint8_t * keyR) {
-	offline_expand_init();
 	bitpropagator_cprg_offline * bpo = malloc(sizeof(bitpropagator_cprg_offline));
 	bpo->size = size;
 	bpo->blockmultiple = blockmultiple;
@@ -357,7 +356,6 @@ bitpropagator_cprg_offline * bitpropagator_cprg_offline_new(size_t size, size_t 
 }
 
 void bitpropagator_cprg_offline_free(bitpropagator_cprg_offline * bpo) {
-	offline_expand_deinit();
 	free(bpo->level_data);
 	free(bpo->level_bits);
 	free(bpo->advicebits_l);
