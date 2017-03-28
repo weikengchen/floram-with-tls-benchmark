@@ -97,8 +97,8 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size, size_t blockmultiple) {
 	bp->Z = calloc(1, BLOCKSIZE * sizeof(obliv uint8_t));
 	bp->advicebits = calloc(1, 2*sizeof(obliv bool));
 	bp->Z_local = malloc(BLOCKSIZE);
-	floram_pma(&bp->L_local, 16, BLOCKSIZE*blockmultiple);
-	floram_pma(&bp->R_local, 16, BLOCKSIZE);
+	floram_zpma(&bp->L_local, 16, BLOCKSIZE*blockmultiple);
+	floram_zpma(&bp->R_local, 16, BLOCKSIZE);
 
 	//Generator chooses keys so that we don't incur round trips. Since we're semi-honest I guess it's OK? Should probably change it anyway.
 	uint8_t * keyL = malloc(KEYSIZE);

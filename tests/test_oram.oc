@@ -91,15 +91,16 @@ void testOramType(oram_type mode, size_t elct, size_t elsz) {
 		}
 
 		bool success = true;
-
 		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
 			obliv size_t index = feedOblivLLong(order_raw[ii], 1);
 			oram_read(value, o, index);
+			bool thissuccess = true;
 			for (size_t jj = 0; jj < elsz; jj++){
 				revealOblivInt(&temp, value[jj], 0);
-				success &= (temp == input_raw[ii*elsz+jj]);
+				thissuccess &= (temp == input_raw[ii*elsz+jj]);
 			}
+			success &= thissuccess;
 		}
 
 		oram_free(o);
@@ -138,7 +139,7 @@ void testOramType(oram_type mode, size_t elct, size_t elsz) {
 		for (size_t ii = 0; ii < elct; ii++) {
 			uint32_t temp;
 			size_t index = ocBroadcastLLong(order_raw[ii], 1);
-			oram_read_public(value, o, index);
+			oram_read(value, o, index);
 			for (size_t jj = 0; jj < elsz; jj++){
 				revealOblivInt(&temp, value[jj], 0);
 				success &= (temp == input_raw[ii*elsz+jj]);
@@ -151,6 +152,62 @@ void testOramType(oram_type mode, size_t elct, size_t elsz) {
 		free(value);
 
 		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "oram_write_public/oram_read_public", (success)?STATUS_SUCCESS:STATUS_FAILURE);
+
+	}
+
+	{
+		uint32_t * raw_value = calloc(elsz, sizeof(uint32_t));
+		obliv uint32_t * value = calloc(elsz, sizeof(obliv uint32_t));
+		uint32_t * expected_output = calloc(elsz*elct, sizeof(uint32_t));
+
+		OcCopy cpy = ocCopyIntN(elsz);
+
+		oram * o = oram_new(mode, &cpy, elct);
+
+		bool success = true;
+		for (size_t ii = 0; ii < 2*elct; ii++) {
+			size_t raw_index = ocBroadcastInt(rand()%elct,1);
+			obliv size_t index = feedOblivLLong(raw_index, 1);
+			if (ocBroadcastInt(rand()%2,1)) {
+				for (size_t jj = 0; jj < elsz; jj++) {
+					raw_value[jj] = ocBroadcastInt(rand(),1);
+					expected_output[raw_index * elsz + jj] = raw_value[jj];
+					value[jj] = feedOblivInt(raw_value[jj], 1);
+				}
+				if (ocBroadcastInt(rand()%2,1)) {
+					oram_write(o, value, index);
+				} else {
+					oram_write_public(o, value, raw_index);
+				}
+			} else {
+				if (ocBroadcastInt(rand()%2,1)) {
+					oram_read(value, o, index);
+				} else {
+					oram_read_public(value, o, raw_index);
+				}
+				uint32_t temp;
+				for (size_t jj = 0; jj < elsz; jj++) {
+					revealOblivInt(&temp, value[jj], 0);
+					success &= (temp == expected_output[raw_index*elsz+jj]);
+				}
+			}
+		}
+
+		for (size_t ii = 0; ii < elct; ii++) {
+			uint32_t temp;
+			oram_read_public(value, o, ii);
+			for (size_t jj = 0; jj < elsz; jj++){
+				revealOblivInt(&temp, value[jj], 0);
+				success &= (temp == expected_output[ii*elsz+jj]);
+			}
+		}
+
+		oram_free(o);
+		free(raw_value);
+		free(expected_output);
+		free(value);
+
+		fprintf(stderr, "Test Item: %-19s %-50s %s\n", getOramName(mode), "2n random private/public accesses", (success)?STATUS_SUCCESS:STATUS_FAILURE);
 
 	}
 

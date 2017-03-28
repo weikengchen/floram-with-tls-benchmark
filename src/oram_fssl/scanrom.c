@@ -21,77 +21,35 @@ void scanrom_read_with_bitvector_offline(uint8_t * data, uint8_t * local_data, b
 	}
 }
 
-
+#ifdef SCANROM_DISABLE_ENCRYPTION
 void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t index, size_t blockmultiple, size_t blockcount) {
-#define OCTBLOCK(II,JJ) &o[(II+JJ)*BLOCKSIZE] 
-
-	uint8_t * o = out;
-	uint8_t * i = in;
-
-	void * kex = offline_prf_keyschedule(key);
-	__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
-	__m128i mr1, mr2, mr3, mr4, mr5, mr6, mr7, mr8;
-
 	if (in == NULL) {
-		size_t ii;
-		#pragma omp parallel for
-		for (ii = index*blockmultiple; ii < ((index+blockcount)*blockmultiple)-((index+blockcount)*blockmultiple)%8; ii+= 8) {
-		    mr1 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
-		    mr2 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+1,(__m64)0l), mask);
-		    mr3 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+2,(__m64)0l), mask);
-		    mr4 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+3,(__m64)0l), mask);
-		    mr5 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+4,(__m64)0l), mask);
-		    mr6 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+5,(__m64)0l), mask);
-		    mr7 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+6,(__m64)0l), mask);
-		    mr8 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+7,(__m64)0l), mask);
-			offline_prf_oct(OCTBLOCK(ii,0),OCTBLOCK(ii,1),OCTBLOCK(ii,2),OCTBLOCK(ii,3),OCTBLOCK(ii,4),OCTBLOCK(ii,5),OCTBLOCK(ii,6),OCTBLOCK(ii,7),
-							&mr1, &mr2, &mr3, &mr4, &mr5, &mr6, &mr7, &mr8, kex, kex, kex, kex, kex, kex, kex, kex);
-		}
-		for (; ii < ((index+blockcount)*blockmultiple); ii+= 1) {
-			__m128i mr1 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
-			offline_prf(&o[ii*BLOCKSIZE], &mr1, kex);
-		}
+		memset(out, 0, BLOCKSIZE * blockcount * blockmultiple);
 	} else {
-		size_t ii;
-		#pragma omp parallel for
-		for (ii = index*blockmultiple; ii < ((index+blockcount)*blockmultiple)-((index+blockcount)*blockmultiple)%8; ii+= 8) {
-		    mr1 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
-		    mr2 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+1,(__m64)0l), mask);
-		    mr3 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+2,(__m64)0l), mask);
-		    mr4 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+3,(__m64)0l), mask);
-		    mr5 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+4,(__m64)0l), mask);
-		    mr6 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+5,(__m64)0l), mask);
-		    mr7 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+6,(__m64)0l), mask);
-		    mr8 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii+7,(__m64)0l), mask);
-			offline_prf_oct(OCTBLOCK(ii,0),OCTBLOCK(ii,1),OCTBLOCK(ii,2),OCTBLOCK(ii,3),OCTBLOCK(ii,4),OCTBLOCK(ii,5),OCTBLOCK(ii,6),OCTBLOCK(ii,7),
-							&mr1, &mr2, &mr3, &mr4, &mr5, &mr6, &mr7, &mr8, kex, kex, kex, kex, kex, kex, kex, kex);
-			#pragma omp simd aligned(o:16)
-			for (size_t jj = ii*BLOCKSIZE; jj < (ii+8)*BLOCKSIZE; jj++) {
-				o[jj] ^= i[jj];
-			}
-		}
-		for (; ii < ((index+blockcount)*blockmultiple); ii+= 1) {
-			__m128i mr1 = _mm_shuffle_epi8 (_mm_set_epi64((__m64)ii,(__m64)0l), mask);
-			offline_prf(&o[ii*BLOCKSIZE], &mr1, kex);
-			#pragma omp simd aligned(o,i:16)
-			for (size_t jj = ii*BLOCKSIZE; jj < (ii+1)*BLOCKSIZE; jj++) {
-				o[jj] ^= i[jj];
-			}
+		memcpy(out, in, BLOCKSIZE * blockcount * blockmultiple);
+	}
+}
+#else
+void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t index, size_t blockmultiple, size_t blockcount) {
+	//TODO multithread:
+	offline_expand_from(out, key, index*blockmultiple, blockcount * blockmultiple);
+	if (in != NULL) {
+		#pragma omp parallel for simd
+		for (size_t ii = 0; ii < blockcount * blockmultiple * BLOCKSIZE / sizeof(uint64_t); ii++) {
+			((uint64_t *)out)[ii] ^= ((uint64_t *)in)[ii];
 		}
 	}
-
-	free(kex);
 }
+#endif
 
-
-void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blockvector, bool * controlbitvector, uint8_t*Zblock, size_t memblocksize, size_t blockcount) {
+void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blockvector, bool * bitvector, uint8_t*Zblock, size_t memblocksize, size_t blockcount) {
 	uint64_t * d = local_data;
 	uint64_t * b = blockvector;
 	uint64_t * z = Zblock;
 
 	#pragma omp parallel for
 	for (size_t ii = 0; ii< blockcount; ii++) {
-		if (controlbitvector[ii]) {
+		if (bitvector[ii]) {
 			#pragma omp simd aligned(d,b,z:16)
 			for (size_t jj = 0; jj < memblocksize/sizeof(uint64_t); jj++) {
 				d[ii * memblocksize/sizeof(uint64_t) + jj] ^= b[ii * memblocksize/sizeof(uint64_t) + jj] ^ z[jj];

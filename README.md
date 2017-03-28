@@ -22,7 +22,7 @@ Features
 	* Queue - based upon _[Circuit Structures for Improving Efficiency of Security and Privacy Tools](http://www.ieee-security.org/TC/SP2013/papers/4977a493.pdf)_
 * ORAM - a single interface providing the following RAM constructions
 	* Circuit ORAM - based upon _[Circuit Oram: On Tightness of the Goldreich-Ostrovsky Lower Bound](https://eprint.iacr.org/2014/672.pdf)_; code contributed by Xiao Wang
-	* FSS Linear ORAM - based upon _Gigabyte-scale Scanning ORAMs for Secure Computation_ (forthcoming)
+	* FLORAM and FLORAM-CPRG - based upon _Scaling ORAMs for Secure Computation_ (forthcoming)
 	* Linear Scan
 	* Square Root ORAM - based upon _[Revisiting Square-Root ORAM: Efficient Random Access in Multi-Party Computation](https://oblivc.org/docs/sqoram.pdf)_; code contributed by Samee Zahur
 * Stable Matching

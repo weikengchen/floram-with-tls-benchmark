@@ -16,6 +16,7 @@
 
 void get_random_bytes(void *buf, size_t bytes);
 int floram_pma(void** dst, size_t alignment, size_t size);
+int floram_zpma(void** dst, size_t alignment, size_t size);
 
 void offline_expand_init();
 void offline_expand_deinit();

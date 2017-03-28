@@ -21,6 +21,12 @@ int floram_pma(void** dst, size_t alignment, size_t size) {
 	return posix_memalign(dst, alignment, size);
 }
 
+int floram_zpma(void** dst, size_t alignment, size_t size) {
+   int res = posix_memalign(dst, alignment, size);
+   memset(*dst, 0, size);
+   return res;
+}
+
 // Locking callback
 void openmp_locking_callback(int mode, int type, char *file, int line) {
 	//if (mode & CRYPTO_LOCK) {
@@ -452,13 +458,13 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 
 	__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
 
-	size_t li=i;
+	size_t li=0;
 
 	for(; li<n-n%4; li+=4) {
-		mr1 = _mm_set_epi64((__m64)li,(__m64)0l);
-		mr2 = _mm_set_epi64((__m64)li+1,(__m64)0l);
-		mr3 = _mm_set_epi64((__m64)li+2,(__m64)0l);
-		mr4 = _mm_set_epi64((__m64)li+3,(__m64)0l);
+		mr1 = _mm_set_epi64((__m64)(li+i),(__m64)0l);
+		mr2 = _mm_set_epi64((__m64)(li+i+1),(__m64)0l);
+		mr3 = _mm_set_epi64((__m64)(li+i+2),(__m64)0l);
+		mr4 = _mm_set_epi64((__m64)(li+i+3),(__m64)0l);
 		mr1 = _mm_shuffle_epi8 (mr1, mask);
 		mr2 = _mm_shuffle_epi8 (mr2, mask);
 		mr3 = _mm_shuffle_epi8 (mr3, mask);
@@ -531,7 +537,7 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 	}
 
 	for(; li<n; li++) {
-	    mr = _mm_set_epi64((__m64)li,(__m64)0l);	// msg = li
+	    mr = _mm_set_epi64((__m64)(li+i),(__m64)0l);	// msg = li
 		mr = _mm_shuffle_epi8 (mr, mask);
 
 	    mr = _mm_xor_si128(mr, ok);					// round 0

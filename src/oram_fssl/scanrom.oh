@@ -10,6 +10,7 @@ void scanrom_read(obliv uint8_t * data, scanrom* rom, size_t index);
 void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len);
 void scanrom_set_key(scanrom* rom, uint8_t* key_local);
 void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom);
+void scanrom_import_from_scanwrom_range(scanrom * rom, scanwrom * wrom, size_t index, size_t len);
 void scanrom_clear(scanrom* rom);
 
 scanrom* scanrom_new(size_t memblocksize, size_t n, void* key_local);

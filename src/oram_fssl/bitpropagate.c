@@ -58,6 +58,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		} else {
 			expansion_stride = BLOCKSIZE;
 		}
+
 		#pragma omp for
 		for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
 			offline_prf_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
