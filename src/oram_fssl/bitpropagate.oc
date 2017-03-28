@@ -29,7 +29,7 @@ struct bitpropagator {
 
 void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, ProtocolDesc* pd) {
 
-	ocSetCurrentProto(pd);
+	if (pd != NULL) ocSetCurrentProto(pd);
 
 	bool advicebit_local_l, advicebit_local_r;
 	uint8_t * Z_local = malloc(BLOCKSIZE);
@@ -171,11 +171,15 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 
+#ifdef _OPENMP
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
 	ProtocolDesc pd2;
 	splitProtocol(&pd2, ocCurrentProto());
 	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, &pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
 	cleanupProtocol(&pd2);
+#else 
+	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, NULL, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
+#endif
 
 	//write output
 	ocCopyN(&ocCopyChar, activeblock_delta, bp->activeblock_A, BLOCKSIZE*bp->blockmultiple);

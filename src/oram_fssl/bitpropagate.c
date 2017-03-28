@@ -315,7 +315,10 @@ void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, v
 		#pragma omp single
 		{
 			#pragma omp task
-			fn2(bp, bpo, pd);
+			{
+				if (omp_get_num_threads() > 1) fn2(bp, bpo, pd);
+				else fn2(bp, bpo, NULL);
+			}			
 
 			#pragma omp task
 			bitpropagator_offline_readblockvector(local_output, local_bit_output, bpo);
