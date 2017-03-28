@@ -44,6 +44,10 @@ void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_o
 	bpo->thislevelblocks = 1;
 	bpo->nextlevelblocks = 2;
 
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
+
 	bpo->lda = (uint64_t *)bpo->level_data;
 	bpo->lda2 = (uint8_t *)bpo->level_data;
 	bpo->ldb = (uint64_t *)local_output;
@@ -72,6 +76,10 @@ void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_o
 	}
 
 	bpo->lba[0] = bpo->lda2[0] & 1;
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
 }
 
 void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t * accumulator_R, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_cprg_offline * bpo) {
@@ -79,6 +87,10 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 	bpo->thislevelblocks = bpo->nextlevelblocks;
 	bpo->nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - bpo->thislevel -1)) - 1) / (1ll<<(bpo->endlevel - bpo->thislevel -1));
 	if (bpo->thislevel == bpo->endlevel -1) bpo->nextlevelblocks = bpo->size;
+
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
 
 	uint64_t* t; uint8_t* t2; bool * tb;
 	size_t expansion_stride;
@@ -174,11 +186,19 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 		((uint64_t *)accumulator_L)[jj] = accL.data[jj];
 		((uint64_t *)accumulator_R)[jj] = accR.data[jj];
 	}
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
 }
 
 void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, bool advicebit_l, bool advicebit_r, bitpropagator_cprg_offline * bpo) {
 	bpo->thislevel += 1;
 	bpo->thislevelblocks = bpo->nextlevelblocks;
+
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
 
 	uint64_t* t; uint8_t* t2; bool * tb;
 
@@ -310,6 +330,10 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 			((uint64_t *)accumulator)[jj*BLOCKSIZE/sizeof(uint64_t)+ii] = acc.data[ii];
 		}
 	}
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
+#endif
 }
 
 void bitpropagator_cprg_offline_parallelizer(void* bp, void* indexp, void *blockdelta, void * local_output, void * local_bit_output, void* pd, bp_cprg_traverser_fn fn, facb_fn cbfn, void* cbpass) {

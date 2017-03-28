@@ -42,6 +42,10 @@ typedef struct facb_pass {
 } facb_pass;
 
 void floram_refresh(floram* ram) {
+#ifdef PROFILE_SCHEDULING
+	printf("BEGIN REFRESH %lld\n", current_timestamp());
+#endif
+
 	ram->progress = 0;
 	get_random_bytes(ram->rom_key_half, KEYSIZE);
 	scanrom_set_key(ram->rom, ram->rom_key_half);
@@ -49,10 +53,18 @@ void floram_refresh(floram* ram) {
 	for (size_t ii = 0; ii < ram->period; ii++) {
 		ram->stashi[ii] = -1;
 	}
+
+#ifdef PROFILE_SCHEDULING
+	printf("END REFRESH %lld\n", current_timestamp());
+#endif
 }
 
 void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	if (pd != NULL) ocSetCurrentProto(pd);
+
+#ifdef PROFILE_SCHEDULING
+	printf("BEGIN STASH SCAN %lld\n", current_timestamp());
+#endif
 
 	floram * ram = input->ram;
 	obliv size_t blockid = input->blockid;
@@ -73,6 +85,10 @@ void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 		}
 	}
 	input->found=found;
+
+#ifdef PROFILE_SCHEDULING
+	printf("END STASH SCAN %lld\n", current_timestamp());
+#endif
 }
 
 void floram_read(void* data, floram* ram, obliv size_t index) obliv {
@@ -94,6 +110,10 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 }
 
 void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv {
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("BEGIN APPLY %lld\n", current_timestamp());
+#endif
+
 	obliv size_t blockid = index / ram->elementsperblock;
 	obliv size_t subblockid = index % ram->elementsperblock;
 
@@ -106,11 +126,19 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		ram->stashi[0] = blockid;
 	}
 
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("BEGIN FUNCTION APPLICATION %lld\n", current_timestamp());
+#endif
+
 	ocCopy(&ram->memblockcpy, ram->blocktemp, ram->stash);
 
 	for (uint32_t jj = 0; jj < ram->elementsperblock; jj ++) {
 		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
 	}
+
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("END FUNCTION APPLICATION %lld\n", current_timestamp());
+#endif
 
 	scanwrom_write_with_blockvector(ram->wrom, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->blocktemp, ram->stash);
 
@@ -118,6 +146,10 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		ram->progress++;
 		if (ram->progress == ram->period) floram_refresh(ram);
 	}
+
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("END APPLY %lld\n\n", current_timestamp());
+#endif
 }
 
 void writer_function(OcCopy * cpy, void * oram_block, void * ext_block) obliv {

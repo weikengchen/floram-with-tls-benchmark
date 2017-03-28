@@ -59,6 +59,11 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			expansion_stride = BLOCKSIZE;
 		}
 
+#ifdef PROFILE_SCHEDULING
+		#pragma omp single nowait
+		printf("START FSS OFFLINE LEVEL 0 %lld\n", current_timestamp());
+#endif
+
 		#pragma omp for
 		for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
 			offline_prf_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
@@ -84,9 +89,19 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
 		}
 
+#ifdef PROFILE_SCHEDULING
+		#pragma omp single nowait
+		printf("END FSS OFFLINE LEVEL 0 %lld\n", current_timestamp());
+#endif
+
 		for (thislevel = bpo->startlevel +1; thislevel < bpo->endlevel; thislevel++) {
 			#pragma omp single
 			omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
+
+#ifdef PROFILE_SCHEDULING
+			#pragma omp single nowait
+			printf("START FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
+#endif
 
 			thislevelblocks = nextlevelblocks;
 			nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
@@ -160,10 +175,20 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 					offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
 				}
 			}
+
+#ifdef PROFILE_SCHEDULING
+			#pragma omp single nowait
+			printf("END FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
+#endif
 		}
 
 		#pragma omp single
 		omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
+
+#ifdef PROFILE_SCHEDULING
+		#pragma omp single nowait
+		printf("START FSS LEVEL %d %lld\n", thislevel,current_timestamp());
+#endif
 
 		thislevelblocks = nextlevelblocks;
 
@@ -259,6 +284,11 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 				}
 			}
 		}
+
+#ifdef PROFILE_SCHEDULING
+		#pragma omp single nowait
+		printf("END FSS LEVEL %d %lld\n", thislevel,current_timestamp());
+#endif
 	}
 
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {

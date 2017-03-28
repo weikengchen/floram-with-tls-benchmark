@@ -5,6 +5,7 @@
 #include "bitpropagate.oh"
 #include "bitpropagate.h"
 #include "floram_util.oh"
+#include "../ackutil.h"
 #include <obliv.h>
 #include <copy.oh>
 
@@ -33,6 +34,10 @@ struct scanwrom {
 
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("BEGIN ROM READ %lld\n", current_timestamp());
+#endif
+
 	~obliv() {
 		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->memblocksize, rom->blockcount);
 		memset(rom->ivtemp, 0, BLOCKSIZE * sizeof(obliv uint8_t));
@@ -62,6 +67,10 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 	#endif
 
 	ocCopyN(&ocCopyChar, data, rom->blocktemp, rom->memblocksize);
+
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("END ROM READ %lld\n", current_timestamp());
+#endif
 
 }
 
@@ -161,6 +170,10 @@ void scanwrom_write(scanwrom* rom, obliv uint8_t* data, size_t index) {
 }
 
 void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_delta, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("BEGIN WOM WRITE %lld\n", current_timestamp());
+#endif
+
 	~obliv(en) {
 		memset(rom->blocktemp, 0, rom->memblocksize*sizeof(obliv uint8_t));
 		obliv if (en) {
@@ -178,6 +191,10 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 
 		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, bitvector, rom->local_blocktemp, rom->memblocksize, rom->blockcount);
 	}
+
+#ifdef PROFILE_SCHEDULING
+	~obliv() printf("END WOM WRITE %lld\n", current_timestamp());
+#endif
 }
 
 void scanwrom_read_xor_shares(uint8_t * data, scanwrom* rom, size_t index, size_t len) {

@@ -52,6 +52,9 @@ void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, Pro
 }
 
 void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS ONLINE %lld\n", current_timestamp());
+#endif
 
 	obliv uint32_t levelindex;
 	obliv size_t index = *indexp;
@@ -124,6 +127,10 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 	for (size_t ii = 1; ii < bp->blockmultiple; ii++) {
 		online_prf_double(&bp->activeblock_A[BLOCKSIZE * ii], &bp->activeblock_B[BLOCKSIZE * ii], &bp->activeblock_A[BLOCKSIZE * (ii-1)], &bp->activeblock_B[BLOCKSIZE * (ii-1)], bp->keyL, bp->keyL);
 	}
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS ONLINE %lld\n", current_timestamp());
+#endif
 }
 
 void bitpropagator_getblockvector(obliv uint8_t * activeblock_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index) {
@@ -131,6 +138,9 @@ void bitpropagator_getblockvector(obliv uint8_t * activeblock_delta, uint8_t * l
 }
 
 void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator * bp, obliv size_t index, facb_fn cbfn, void* cbpass) {
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS SETUP %lld\n", current_timestamp());
+#endif
 
 	//Collect a set of random blocks for the top level
 	get_random_bytes(bp->toplevel_local, ((1ll << bp->startlevel) + 1) * BLOCKSIZE);
@@ -154,6 +164,10 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 	for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)(&bp->toplevel_local[ii * BLOCKSIZE]))[jj], ((obliv uint64_t *)(&bp->blocktemp_B[ii * BLOCKSIZE]))[jj], 2);
 
 	ocCopyN(&ocCopyChar, bp->activeblock_B, &bp->toplevel[(1ll << bp->startlevel)*BLOCKSIZE], BLOCKSIZE);
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS SETUP %lld\n", current_timestamp());
+#endif
 
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
 

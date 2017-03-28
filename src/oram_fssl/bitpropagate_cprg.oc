@@ -22,6 +22,9 @@ struct bitpropagator_cprg {
 };
 
 void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t * indexp) {
+#ifdef PROFILE_SCHEDULING
+	printf("START FSS CPRG ONLINE %lld\n", current_timestamp());
+#endif
 
 	obliv uint32_t levelindex;
 	obliv size_t index = *indexp;
@@ -61,6 +64,10 @@ void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8
 	}
 
 	ocFromSharedCharN(ocCurrentProto(), active_block_delta, bp->L_local, BLOCKSIZE*bp->blockmultiple);
+
+#ifdef PROFILE_SCHEDULING
+	printf("END FSS CPRG ONLINE %lld\n", current_timestamp());
+#endif
 }
 
 void bitpropagator_cprg_getblockvector(obliv uint8_t * active_block_delta, uint8_t * local_output, bool * local_bit_output, bitpropagator_cprg * bp, obliv size_t index) {

@@ -2,8 +2,6 @@
 #define SCANROM_H
 #include "floram.h"
 
-//#define SCANROM_DISABLE_ENCRYPTION
-
 typedef void (* duplexer_fn)(void *, void *);
 
 void scanrom_read_with_bitvector_offline(uint8_t * data, uint8_t * local_data, bool * bitvector, size_t fullblocksize, size_t blockcount);
