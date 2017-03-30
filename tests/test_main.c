@@ -83,6 +83,7 @@ int main(int argc,char* argv[])
 	}
 
 	ProtocolDesc pd;
+	if (strstr(get_test_name(), "benchmark") != NULL) transportEnableProfiling(true);
 	ocTestUtilTcpOrDie(&pd,is_server,remote_host,port);
 	setCurrentParty(&pd,is_server?1:2);
 
