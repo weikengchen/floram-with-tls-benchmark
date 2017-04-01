@@ -2,16 +2,23 @@
 
 double lap;
 
-void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port)
-{
+void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port, bool isProfiled) {
 	if(isServer) {
-		if(protocolAcceptTcp2P(pd,port)!=0) {
+		int res;
+		if (isProfiled) res = protocolAcceptTcp2PProfiled(pd,port);
+		else res = protocolAcceptTcp2P(pd,port);
+		if(res!=0) {
 			fprintf(stderr,"TCP accept failed\n");
 			exit(1);
 		}
-	} else if (protocolConnectTcp2P(pd,remote_host,port)!=0) {
-		fprintf(stderr,"TCP connect failed\n");
-		exit(1);
+	} else {
+		int res;
+		if (isProfiled) res = protocolConnectTcp2PProfiled(pd,remote_host,port);
+		else res = protocolConnectTcp2P(pd,remote_host,port);
+		if (res!=0) {
+			fprintf(stderr,"TCP connect failed\n");
+			exit(1);
+		}
 	}
 }	
 
@@ -83,8 +90,7 @@ int main(int argc,char* argv[])
 	}
 
 	ProtocolDesc pd;
-	if (strstr(get_test_name(), "benchmark") != NULL) transportEnableProfiling(true);
-	ocTestUtilTcpOrDie(&pd,is_server,remote_host,port);
+	ocTestUtilTcpOrDie(&pd,is_server,remote_host,port,(strstr(get_test_name(), "benchmark") != NULL));
 	setCurrentParty(&pd,is_server?1:2);
 
 	lap = (double)current_timestamp()/1000000;

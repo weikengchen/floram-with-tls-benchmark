@@ -45,7 +45,7 @@ typedef struct args_t {
 	char **argv;
 } args_t;
 
-void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port);
+void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port, bool isProfiled);
 
 char* get_test_name();
 
