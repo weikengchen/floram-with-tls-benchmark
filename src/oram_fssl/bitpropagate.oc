@@ -23,6 +23,7 @@ struct bitpropagator {
 	obliv bool * advicebits;
 	obliv uint8_t * keyL;
 	obliv uint8_t * keyR;
+	ProtocolDesc * pd2;
 	omp_lock_t * locks;
 	bitpropagator_offline * bpo;
 };
@@ -46,6 +47,9 @@ void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, Pro
 		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 2);
 	
 		bitpropagator_offline_push_Z(bpo, Z_local, advicebit_local_l, advicebit_local_r, ii);
+
+		//Other threads may depend on the fact that we've pushed successfully
+		if (pd != NULL) oflush(pd);
 	}
 
 	free(Z_local);
@@ -173,10 +177,7 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 
 #ifdef _OPENMP
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
-	ProtocolDesc pd2;
-	splitProtocol(&pd2, ocCurrentProto());
-	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, &pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
-	cleanupProtocol(&pd2);
+	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, bp->pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
 #else 
 	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, NULL, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
 #endif
@@ -237,6 +238,11 @@ bitpropagator * bitpropagator_new(size_t size, size_t blockmultiple, uint32_t st
 		omp_set_lock(&bp->locks[ii]);
 	}
 
+#ifdef _OPENMP
+	bp->pd2 = calloc(1, sizeof(ProtocolDesc));
+	ocSplitProto(bp->pd2, ocCurrentProto());
+#endif
+
 	return bp;
 }
 
@@ -254,6 +260,11 @@ void bitpropagator_free(bitpropagator * bp) {
 	free(bp->keyL); free(bp->keyR);
 	free(bp->advicebits);
 	bitpropagator_offline_free(bp->bpo);
+
+#ifdef _OPENMP
+	ocCleanupProto(bp->pd2);
+	free(bp->pd2);
+#endif
 
 	for (int ii = 0; ii < (bp->endlevel - bp->startlevel); ii++) {
 		omp_destroy_lock(&bp->locks[ii]);

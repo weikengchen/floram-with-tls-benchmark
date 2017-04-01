@@ -86,6 +86,9 @@ void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	}
 	input->found=found;
 
+	// this protocol may not do anything else for a while, but other threads could be waiting for it
+	if (pd != NULL) oflush(pd);
+
 #ifdef PROFILE_SCHEDULING
 	printf("END STASH SCAN %lld\n", current_timestamp());
 #endif

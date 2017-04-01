@@ -18,6 +18,7 @@ struct bitpropagator_cprg {
 	uint8_t * L_local;
 	uint8_t * R_local;
 	uint8_t * Z_local;
+	ProtocolDesc * pd2;
 	bitpropagator_cprg_offline * bpo;
 };
 
@@ -56,6 +57,9 @@ void bitpropagator_cprg_traverselevels(obliv uint8_t * active_block_delta, uint8
 		revealOblivBool(&advicebit_R_local, bp->advicebits[1], 1);
 		for( size_t jj=0; jj< BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)bp->Z_local)[jj], ((obliv uint64_t *)bp->Z)[jj], 1);
 
+		//make sure both parties have transmitted everything before we start the offline phase.
+		oflush(ocCurrentProto());
+
 		if (ii < bp->endlevel) {
 			bitpropagator_cprg_offline_process_round(bp->L_local, bp->R_local, bp->Z_local, advicebit_L_local, advicebit_R_local, bp->bpo);	
 		} else {
@@ -78,10 +82,7 @@ void bitpropagator_cprg_getblockvector_with_callback(obliv uint8_t * active_bloc
 
 #ifdef _OPENMP
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
-	ProtocolDesc pd2;
-	splitProtocol(&pd2, ocCurrentProto());
-	bitpropagator_cprg_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, &pd2, bitpropagator_cprg_traverselevels, cbfn, cbpass);
-	cleanupProtocol(&pd2);
+	bitpropagator_cprg_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, bp->pd2, bitpropagator_cprg_traverselevels, cbfn, cbpass);
 #else 
 	bitpropagator_cprg_offline_parallelizer(bp, &index, active_block_delta, local_output, local_bit_output, NULL, bitpropagator_cprg_traverselevels, cbfn, cbpass);
 #endif
@@ -123,6 +124,11 @@ bitpropagator_cprg * bitpropagator_cprg_new(size_t size, size_t blockmultiple) {
 	free(keyL);
 	free(keyR);
 
+#ifdef _OPENMP
+	bp->pd2 = calloc(1,sizeof(ProtocolDesc));
+	ocSplitProto(bp->pd2, ocCurrentProto());
+#endif
+
 	return bp;
 }
 
@@ -135,5 +141,9 @@ void bitpropagator_cprg_free(bitpropagator_cprg * bp) {
 	free(bp->R_local);
 	free(bp->advicebits);
 	bitpropagator_cprg_offline_free(bp->bpo);
+#ifdef _OPENMP
+	ocCleanupProto(bp->pd2);
+	free(bp->pd2);
+#endif
 	free(bp);
 }
