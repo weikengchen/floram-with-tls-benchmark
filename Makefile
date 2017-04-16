@@ -1,3 +1,6 @@
+CC ?= gcc
+CPP ?= cpp
+AR ?= ar
 OBLIVCC = $(OBLIVC_PATH)/bin/oblivcc
 OBLIVCH = $(OBLIVC_PATH)/src/ext/oblivc
 OBLIVCA = $(OBLIVC_PATH)/_build/libobliv.a
@@ -31,29 +34,29 @@ $(TEST_BINS:%=$(TEST_OUT_PATH)/%): $(TEST_OUT_PATH)/%: $(TEST_PATH)/%.oo $(TEST_
 
 $(ACKLIB): $(OBJS:%=$(SRC_PATH)/%)
 	mkdir -p $(LIB_OUT_PATH)
-	ar rcs $@ $^
+	$(AR) rcs $@ $^
 
 -include $(patsubst %.oo,%.od,$(OBJS:.o=.d))
 
 %.o: %.c
-	gcc -c $(CFLAGS) $*.c -o $*.o -I $(OBLIVCH)
-	cpp -MM $(CFLAGS) $*.c -I $(OBLIVCH) > $*.d
+	$(CC) -c $(CFLAGS) $*.c -o $*.o -I $(OBLIVCH)
+	$(CPP) -MM $(CFLAGS) $*.c -I $(OBLIVCH) > $*.d
 
 %.sqrt.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_SQRT $*.oc -o $*.sqrt.oo
-	cpp -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_SQRT $*.oc -MT $*.sqrt.oo > $*.sqrt.od
+	$(CPP) -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_SQRT $*.oc -MT $*.sqrt.oo > $*.sqrt.od
 
 %.circuit.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_CIRCUIT $*.oc -o $*.circuit.oo
-	cpp -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_CIRCUIT $*.oc -MT $*.circuit.oo > $*.circuit.od
+	$(CPP) -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_CIRCUIT $*.oc -MT $*.circuit.oo > $*.circuit.od
 
 %.linear.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_LINEAR $*.oc -o $*.linear.oo
-	cpp -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_LINEAR $*.oc -MT $*.linear.oo > $*.linear.od
+	$(CPP) -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_LINEAR $*.oc -MT $*.linear.oo > $*.linear.od
 
 %.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) $*.oc -o $*.oo
-	cpp -MM $(CFLAGS) $*.oc -MT $*.oo > $*.od
+	$(CPP) -MM $(CFLAGS) $*.oc -MT $*.oo > $*.od
 
 clean:
 	rm -f $(OBJS:%=$(SRC_PATH)/%) $(patsubst %.oo,$(SRC_PATH)/%.od,$(patsubst %.o,$(SRC_PATH)/%.d,$(OBJS))) $(ACKLIB)
