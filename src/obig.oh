@@ -32,10 +32,17 @@ void obig_one(obig* x) obliv;
 void obig_negone(obig* x) obliv;
 void obig_import_onative(obig* x, obliv uint64_t y) obliv;
 void obig_import_onative_signed(obig* x, obliv int64_t y) obliv;
+void obig_import_pointed_be(obig* x, uint8_t* p, size_t s) obliv;
+void obig_import_pointed_le(obig* x, uint8_t* p, size_t s) obliv;
 void obig_import_pointed(obig* x, uint8_t* p, size_t s) obliv;
 void obig_import_opointed(obig* x, obliv uint8_t* p, size_t s) obliv;
+void obig_import_opointed_be(obig* x, obliv uint8_t* p, size_t s) obliv;
+void obig_import_opointed_le(obig* x, obliv uint8_t* p, size_t s) obliv;
 obliv uint64_t obig_export_onative(obig x) obliv;
 obliv int64_t obig_export_onative_signed(obig x) obliv;
+void obig_export_opointed(obliv uint8_t* p, size_t s, obig* x) obliv;
+void obig_export_opointed_be(obliv uint8_t* p, size_t s, obig* x) obliv;
+void obig_export_opointed_le(obliv uint8_t* p, size_t s, obig* x) obliv;
 
 /* comparators */
 
