@@ -34,7 +34,7 @@ struct scanwrom {
 
 
 void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN ROM READ %lld\n", current_timestamp());
 #endif
 
@@ -42,36 +42,35 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 		scanrom_read_with_bitvector_offline(rom->local_blocktemp, rom->local_data, bitvector, rom->memblocksize, rom->blockcount);
 		memset(rom->ivtemp, 0, BLOCKSIZE * sizeof(obliv uint8_t));
 		ocFromSharedCharN(ocCurrentProto(), rom->blocktemp, rom->local_blocktemp, rom->memblocksize);
+
+#ifndef SCANROM_DISABLE_ENCRYPTION
+
+#ifdef ORAM_PROFILE_SCHEDULING
+		printf("BEGIN ROM DECRYPT %lld\n", current_timestamp());
+#endif
+
+		for (size_t ii = 0; ii < rom->memblocksize/BLOCKSIZE; ii += 1) {
+			be64enc(&rom->ivtemp[BLOCKSIZE - sizeof(size_t)], index*rom->blockmultiple + ii);
+			oaes_128_from_expanded_double(&rom->blocktemp[rom->memblocksize + ii*BLOCKSIZE], &rom->blocktemp[2*rom->memblocksize + ii*BLOCKSIZE],
+										rom->halfkey_a, rom->halfkey_b, rom->ivtemp, rom->ivtemp);
+		}
+		
+		for (size_t ii = 0; ii < rom->memblocksize; ii ++) {
+			rom->blocktemp[ii] ^= rom->blocktemp[rom->memblocksize + ii] ^ rom->blocktemp[2*rom->memblocksize + ii];
+		}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+		printf("END ROM DECRYPT %lld\n", current_timestamp());
+#endif
+
+#endif
 	}
-
-	oaes_ctx * ctx;
-
-	//two extra expansions are unnecessary. We should generate the context once and reuse it.
-
-	#ifndef SCANROM_DISABLE_ENCRYPTION
-
-	be64enc(&rom->ivtemp[BLOCKSIZE - sizeof(size_t)], index*rom->blockmultiple);
-	~obliv() ctx = oaes_128_ctx_ctr_new(rom->halfkey_a, rom->ivtemp);
-	for (size_t ii = 0; ii < rom->blockmultiple; ii++) {
-		oaes_128_encdec(&rom->blocktemp[rom->memblocksize + BLOCKSIZE*ii], ctx, &rom->blocktemp[BLOCKSIZE*ii]);
-	}
-	~obliv() {
-		oaes_128_ctx_free(ctx);	
-		ctx = oaes_128_ctx_ctr_new(rom->halfkey_b, rom->ivtemp);
-	}
-	for (size_t ii = 0; ii < rom->blockmultiple; ii++) {
-		oaes_128_encdec(&rom->blocktemp[BLOCKSIZE*ii], ctx, &rom->blocktemp[rom->memblocksize + BLOCKSIZE*ii]);
-	}
-	~obliv() oaes_128_ctx_free(ctx);
-
-	#endif
 
 	ocCopyN(&ocCopyChar, data, rom->blocktemp, rom->memblocksize);
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("END ROM READ %lld\n", current_timestamp());
 #endif
-
 }
 
 void scanrom_write_xor_shares(scanrom* rom, obliv uint8_t * data, size_t index, size_t len) {
@@ -98,6 +97,8 @@ void scanrom_set_key(scanrom* rom, uint8_t* key_local) {
 	memcpy(rom->local_halfkey, key_local, KEYSIZE);
 	feedOblivCharArray(rom->halfkey_a, rom->local_halfkey, KEYSIZE, 1);
 	feedOblivCharArray(rom->halfkey_b, rom->local_halfkey, KEYSIZE, 2);
+	oaes_128_expandkey(rom->halfkey_a);
+	oaes_128_expandkey(rom->halfkey_b);
 }
 
 void scanrom_import_from_scanwrom(scanrom * rom, scanwrom * wrom) {
@@ -136,10 +137,11 @@ scanrom* scanrom_new(size_t memblocksize, size_t n, void* key_local) {
 	floram_zpma(&rom->local_data, 16, n * memblocksize);
 	rom->local_halfkey = malloc(KEYSIZE);
 	floram_pma(&rom->local_blocktemp, 16, memblocksize);
-	rom->blocktemp = calloc(2*memblocksize, sizeof(obliv uint8_t));
+	rom->blocktemp = calloc(3*memblocksize, sizeof(obliv uint8_t));
 	rom->ivtemp = calloc(BLOCKSIZE, sizeof(obliv uint8_t));
-	rom->halfkey_a = calloc(KEYSIZE, sizeof(obliv uint8_t));
-	rom->halfkey_b = calloc(KEYSIZE, sizeof(obliv uint8_t));
+	//These will double for both the expanded and non-expanded forms
+	rom->halfkey_a = calloc(KEYSIZE * 11, sizeof(obliv uint8_t));
+	rom->halfkey_b = calloc(KEYSIZE * 11, sizeof(obliv uint8_t));
 	scanrom_set_key(rom, key_local);
 	return rom;
 }
@@ -170,7 +172,7 @@ void scanwrom_write(scanwrom* rom, obliv uint8_t* data, size_t index) {
 }
 
 void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block_delta, uint8_t * blockvector, bool * bitvector, obliv uint8_t * old_data, obliv uint8_t * new_data) obliv {
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN WOM WRITE %lld\n", current_timestamp());
 #endif
 
@@ -192,7 +194,7 @@ void scanwrom_write_with_blockvector(scanwrom* rom, obliv uint8_t * active_block
 		scanwrom_write_with_blockvector_offline(rom->local_data, blockvector, bitvector, rom->local_blocktemp, rom->memblocksize, rom->blockcount);
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("END WOM WRITE %lld\n", current_timestamp());
 #endif
 }

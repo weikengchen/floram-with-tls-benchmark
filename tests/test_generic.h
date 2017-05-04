@@ -40,6 +40,8 @@ Options:\n\
   -c \x1b[4mADDRESSS\x1b[0m \n\t\trun as client and connect to \x1b[4mADDRESS\x1b[0m\n\n\
   -p \x1b[4mNUMBER\x1b[0m \n\t\tlisten or connect on port \x1b[4mNUMBER\x1b[0m\n\n"
 
+//#define ORAM_PROFILE_SCHEDULING
+
 typedef struct args_t {
 	int argc;
 	char **argv;

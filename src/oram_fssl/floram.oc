@@ -42,7 +42,7 @@ typedef struct facb_pass {
 } facb_pass;
 
 void floram_refresh(floram* ram) {
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("BEGIN REFRESH %lld\n", current_timestamp());
 #endif
 
@@ -54,7 +54,7 @@ void floram_refresh(floram* ram) {
 		ram->stashi[ii] = -1;
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("END REFRESH %lld\n", current_timestamp());
 #endif
 }
@@ -62,7 +62,7 @@ void floram_refresh(floram* ram) {
 void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	if (pd != NULL) ocSetCurrentProto(pd);
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("BEGIN STASH SCAN %lld\n", current_timestamp());
 #endif
 
@@ -89,12 +89,16 @@ void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 	// this protocol may not do anything else for a while, but other threads could be waiting for it
 	if (pd != NULL) oflush(pd);
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("END STASH SCAN %lld\n", current_timestamp());
 #endif
 }
 
 void floram_read(void* data, floram* ram, obliv size_t index) obliv {
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("BEGIN READ %lld\n", current_timestamp());
+#endif
+
 	obliv size_t blockid = index / ram->elementsperblock;
 	obliv size_t subblockid = index % ram->elementsperblock;
 
@@ -110,10 +114,14 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 	for (size_t ii = 0; ii < ram->elementsperblock; ii ++) {
 		obliv if (subblockid == ii) ocCopy(ram->cpy, data, element(ram->cpy, ram->stash, ii));
 	}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("END READ %lld\n\n", current_timestamp());
+#endif
 }
 
 void floram_apply(floram* ram, void* data, floram_block_access_function fn, obliv size_t index) obliv {
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN APPLY %lld\n", current_timestamp());
 #endif
 
@@ -129,7 +137,7 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		ram->stashi[0] = blockid;
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN FUNCTION APPLICATION %lld\n", current_timestamp());
 #endif
 
@@ -139,7 +147,7 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		obliv if (subblockid == jj) fn(ram->cpy, element(ram->cpy, ram->stash, jj), data);
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("END FUNCTION APPLICATION %lld\n", current_timestamp());
 #endif
 
@@ -150,7 +158,7 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 		if (ram->progress == ram->period) floram_refresh(ram);
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("END APPLY %lld\n\n", current_timestamp());
 #endif
 }

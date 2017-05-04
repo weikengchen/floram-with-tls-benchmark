@@ -96,7 +96,9 @@ void test_main(void*varg) {
 		}
 	}
 
+	#ifndef ORAM_PROFILE_SCHEDULING
 	fprintf(stdout, "# ORAM ACCESS (WRITE) (element count, element size, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+	#endif
 
 	OcCopy cpy = ocCopyIntN(elsz);
 
@@ -107,7 +109,9 @@ void test_main(void*varg) {
 
 	oram * o = oram_new(ORAM_TYPE_AUTO, &cpy, elct);
 
+	#ifndef ORAM_PROFILE_SCHEDULING
 	fprintf(stdout, "%lld,%lld", elct, elsz);
+	#endif
 
 	for (int ii = 0; ii < samples; ii++) {
 		uint32_t index_raw = ocBroadcastInt(rand() % elct, 2);
@@ -120,8 +124,10 @@ void test_main(void*varg) {
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
 		runbytes += tcp2PBytesSent(ocCurrentProto());
+		#ifndef ORAM_PROFILE_SCHEDULING
 		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 		fflush(stdout);
+		#endif
 		tally += runtime;
 		tallygates += rungates;
 		tallybytes += runbytes;
@@ -129,7 +135,9 @@ void test_main(void*varg) {
 
 	free(input);
 	oram_free(o);
+	#ifndef ORAM_PROFILE_SCHEDULING
 	fprintf(stdout, "\n");
+	#endif
 	fprintf(stderr, "ORAM Write (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
 
 }

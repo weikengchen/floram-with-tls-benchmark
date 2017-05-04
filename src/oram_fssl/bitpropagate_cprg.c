@@ -44,7 +44,7 @@ void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_o
 	bpo->thislevelblocks = 1;
 	bpo->nextlevelblocks = 2;
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 
@@ -77,7 +77,7 @@ void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_o
 
 	bpo->lba[0] = bpo->lda2[0] & 1;
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 }
@@ -88,7 +88,7 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 	bpo->nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - bpo->thislevel -1)) - 1) / (1ll<<(bpo->endlevel - bpo->thislevel -1));
 	if (bpo->thislevel == bpo->endlevel -1) bpo->nextlevelblocks = bpo->size;
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 
@@ -187,7 +187,7 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 		((uint64_t *)accumulator_R)[jj] = accR.data[jj];
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 }
@@ -196,7 +196,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 	bpo->thislevel += 1;
 	bpo->thislevelblocks = bpo->nextlevelblocks;
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("START FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 
@@ -331,7 +331,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 		}
 	}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif
 }

@@ -59,7 +59,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			expansion_stride = BLOCKSIZE;
 		}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 		#pragma omp single nowait
 		printf("START FSS OFFLINE LEVEL 0 %lld\n", current_timestamp());
 #endif
@@ -89,7 +89,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
 		}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 		#pragma omp single nowait
 		printf("END FSS OFFLINE LEVEL 0 %lld\n", current_timestamp());
 #endif
@@ -98,7 +98,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			#pragma omp single
 			omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 			#pragma omp single nowait
 			printf("START FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
@@ -176,7 +176,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 				}
 			}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 			#pragma omp single nowait
 			printf("END FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
@@ -185,7 +185,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		#pragma omp single
 		omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 		#pragma omp single nowait
 		printf("START FSS LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
@@ -285,7 +285,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			}
 		}
 
-#ifdef PROFILE_SCHEDULING
+#ifdef ORAM_PROFILE_SCHEDULING
 		#pragma omp single nowait
 		printf("END FSS LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
