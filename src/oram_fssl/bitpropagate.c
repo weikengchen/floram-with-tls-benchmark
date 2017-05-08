@@ -64,9 +64,9 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		printf("START FSS OFFLINE LEVEL 0 %lld\n", current_timestamp());
 #endif
 
-		#pragma omp for
+		#pragma omp for schedule(guided)
 		for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
-			offline_prf_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
+			offline_prg_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
 							&b2[(ii*2+4)*expansion_stride], &b2[(ii*2+5)*expansion_stride], &b2[(ii*2+6)*expansion_stride], &b2[(ii*2+7)*expansion_stride],
 							&a2[ii*BLOCKSIZE],  &a2[ii*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE],
 							&a2[(ii+2)*BLOCKSIZE], &a2[(ii+2)*BLOCKSIZE],&a2[(ii+3)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE],
@@ -81,10 +81,10 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		#pragma omp single
 		for (size_t ii = 4*(nextlevelblocks/8); ii < thislevelblocks; ii++) {
 			if ((ii+1)*2 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
-				offline_prf(&b2[(ii*2+1)*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyR);
+				offline_prg(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
+				offline_prg(&b2[(ii*2+1)*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyR);
 			} else if (ii*2+1 <= nextlevelblocks) {
-				offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
+				offline_prg(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
 			}
 			a_bits[ii] = a2[ii*BLOCKSIZE] & 1;
 		}
@@ -122,7 +122,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 				expansion_stride = BLOCKSIZE;
 			}
 
-			#pragma omp for
+			#pragma omp for schedule(guided)
 			for (size_t ii = 0; ii < 4*(nextlevelblocks/8); ii+=4) {
 				a_bits[ii] = (a2[ii*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_l);
 				a_bits[ii+1] = (a2[(ii+1)*BLOCKSIZE] & 1) ^ (b_bits[ii/2] & advicebit_r);
@@ -144,7 +144,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 					}
 				}
 
-				offline_prf_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
+				offline_prg_oct(&b2[ii*2*expansion_stride], &b2[(ii*2+1)*expansion_stride], &b2[(ii*2+2)*expansion_stride], &b2[(ii*2+3)*expansion_stride],
 								&b2[(ii*2+4)*expansion_stride], &b2[(ii*2+5)*expansion_stride], &b2[(ii*2+6)*expansion_stride], &b2[(ii*2+7)*expansion_stride],
 								&a2[ii*BLOCKSIZE],  &a2[ii*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE], &a2[(ii+1)*BLOCKSIZE],
 								&a2[(ii+2)*BLOCKSIZE],  &a2[(ii+2)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE], &a2[(ii+3)*BLOCKSIZE],
@@ -169,10 +169,10 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 				}
 			
 				if ((ii+1)*2 <= nextlevelblocks) {
-					offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
-					offline_prf(&b2[(ii*2+1)*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyR);
+					offline_prg(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
+					offline_prg(&b2[(ii*2+1)*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyR);
 				} else if (ii*2+1 <= nextlevelblocks) {
-					offline_prf(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
+					offline_prg(&b2[ii*2*expansion_stride], &a2[ii*BLOCKSIZE], bpo->keyL);
 				}
 			}
 
@@ -242,9 +242,9 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			for (size_t ii = 0; ii < 8*(thislevelblocks/8); ii+=8)  {
 				for (size_t jj = 1; jj < bpo->blockmultiple; jj++) {
 					// Note to self: this is ridiculous. Define a macro.
-					// Further note to self: actually, the non-encapsulation of offline_prf_oct and offline_prf
+					// Further note to self: actually, the non-encapsulation of offline_prg_oct and offline_prg
 					// is just as ridiculous, if not more so. There has to be a better way. TODO: find it.
-					offline_prf_oct(
+					offline_prg_oct(
 						&local_output[(ii+0) * (BLOCKSIZE*bpo->blockmultiple) + (jj * BLOCKSIZE)],
 						&local_output[(ii+1) * (BLOCKSIZE*bpo->blockmultiple) + (jj * BLOCKSIZE)],
 						&local_output[(ii+2) * (BLOCKSIZE*bpo->blockmultiple) + (jj * BLOCKSIZE)],
@@ -276,7 +276,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			#pragma omp single
 			for (size_t ii = 8*(thislevelblocks/8); ii < thislevelblocks ; ii++) {
 				for (size_t jj = 1; jj < bpo->blockmultiple; jj++) {
-					offline_prf(
+					offline_prg(
 						&local_output[(ii) * (BLOCKSIZE*bpo->blockmultiple) + (jj * BLOCKSIZE)],
 						&local_output[(ii) * (BLOCKSIZE*bpo->blockmultiple) + ((jj-1) * BLOCKSIZE)],
 						bpo->keyL
@@ -339,8 +339,9 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t blockmulti
 	bpo->advicebits_r = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->level_bits = malloc(size * sizeof(bool));
 
-	bpo->keyL = offline_prf_keyschedule(keyL);
-	bpo->keyR = offline_prf_keyschedule(keyR); 
+	offline_prg_init();
+	bpo->keyL = offline_prg_keyschedule(keyL);
+	bpo->keyR = offline_prg_keyschedule(keyR); 
 
 	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
 		omp_init_lock(&bpo->locks[ii]);

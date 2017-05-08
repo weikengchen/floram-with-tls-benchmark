@@ -2,9 +2,6 @@
 
 #include <omp.h>
 
-#include <wmmintrin.h>
-#include <tmmintrin.h>
-
 void get_random_bytes(void *buf, size_t bytes) {
 	//only supported on recent linuxes, unfortunately.
 	//getrandom(buf, bytes, 0);
@@ -27,19 +24,29 @@ int floram_zpma(void** dst, size_t alignment, size_t size) {
    return res;
 }
 
+#ifdef __AES__
+
+#include <wmmintrin.h>
+#include <tmmintrin.h>
+
 #define KE(NK,OK,RND) NK = OK;	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
     NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
 	OK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
 
-void * offline_prf_keyschedule(uint8_t * src) {
-#define KE2(NK,OK,RND) NK = OK;	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
+#define KE2(NK,OK,RND) NK = OK; \
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));  \
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));  \
+    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));  \
+    NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
 
+void offline_prg_init() {
+    // Do nothing
+    return;
+}
+
+void * offline_prg_keyschedule(uint8_t * src) {
 	__m128i * r = malloc(11*sizeof(__m128i));
 
     r[0] = _mm_load_si128((__m128i *) src);
@@ -58,7 +65,7 @@ void * offline_prf_keyschedule(uint8_t * src) {
 	return r;
 }
 
-void offline_prf(uint8_t * dest, uint8_t * src, void * ri) {
+void offline_prg(uint8_t * dest, uint8_t * src, void * ri) {
 	__m128i or, mr;
 	__m128i * r = ri;
 
@@ -82,7 +89,7 @@ void offline_prf(uint8_t * dest, uint8_t * src, void * ri) {
 
 }
 
-void offline_prf_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4,
+void offline_prg_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4,
 						uint8_t * dest5, uint8_t * dest6, uint8_t * dest7, uint8_t * dest8, 
 						uint8_t * src1, uint8_t * src2, uint8_t * src3, uint8_t * src4,
 						uint8_t * src5, uint8_t * src6, uint8_t * src7, uint8_t * src8,
@@ -224,17 +231,7 @@ void offline_prf_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t 
     *mr8 = _mm_xor_si128(*mr8, _mm_load_si128((__m128i *) src8));
 }
 
-void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
-	offline_expand_from(dest, src, 0, n);
-}
-
 void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
-#define KE2(NK,OK,RND) NK = OK;	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-    NK = _mm_xor_si128(NK, _mm_slli_si128(NK, 4));	\
-	NK = _mm_xor_si128(NK, _mm_shuffle_epi32(_mm_aeskeygenassist_si128(OK, RND), 0xff));
-
     // this version handles the case when n!=2 using a loop
 
     __m128i seed;
@@ -356,8 +353,75 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 	    _mm_storeu_si128((__m128i*) pp, mr);
 
 	}
-
-
-
 }
 
+#else //__AES__
+
+#include "aes_gladman/aes.h"
+
+#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
+
+void offline_prg_init() {
+    aes_init();
+}
+
+void * offline_prg_keyschedule(uint8_t * src) {
+    uint8_t * r = malloc(11*16);
+
+    aes_encrypt_ctx cx = {0};
+    aes_encrypt_key128(src, &cx);
+    memcpy(r, cx.ks, 11*16);
+    return r;
+}
+
+void offline_prg(uint8_t * dest, uint8_t * src, void * ri) {
+    aes_encrypt_ctx cx = {0};
+    memcpy(cx.ks, ri, 11*16);
+    cx.inf.l = 0;
+    cx.inf.b[0] = 10 * 16;
+    aes_encrypt(src, dest, &cx);
+    #pragma omp simd
+    for (uint8_t ii = 0; ii < 2; ii++) {
+        ((uint64_t *) dest)[ii] ^= ((uint64_t *) src)[ii];
+    }
+}
+
+
+void offline_prg_oct(uint8_t * dest1, uint8_t * dest2, uint8_t * dest3, uint8_t * dest4,
+                        uint8_t * dest5, uint8_t * dest6, uint8_t * dest7, uint8_t * dest8, 
+                        uint8_t * src1, uint8_t * src2, uint8_t * src3, uint8_t * src4,
+                        uint8_t * src5, uint8_t * src6, uint8_t * src7, uint8_t * src8,
+                        void * ri1, void * ri2 , void * ri3 , void * ri4,
+                        void * ri5, void * ri6 , void * ri7 , void * ri8
+                    ) {
+    offline_prg(dest1, src1, ri1);
+    offline_prg(dest2, src2, ri2);
+    offline_prg(dest3, src3, ri3);
+    offline_prg(dest4, src4, ri4);
+    offline_prg(dest5, src5, ri5);
+    offline_prg(dest6, src6, ri6);
+    offline_prg(dest7, src7, ri7);
+    offline_prg(dest8, src8, ri8);
+}
+
+void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
+
+    uint8_t * key = offline_prg_keyschedule(src);
+    aes_encrypt_ctx cx = {0};
+    memcpy(cx.ks, key, 11*16);
+    cx.inf.l = 0;
+    cx.inf.b[0] = 10 * 16;
+    free(key);
+
+    #pragma omp parallel for
+    for(size_t li=0; li<n; li++) {
+        uint64_t iv[2] = {0,htonll(li+i)};
+        aes_encrypt(iv,&dest[li*16],&cx);
+    }
+}
+
+#endif //__AES__
+
+void offline_expand(uint8_t * dest, uint8_t * src, size_t n) {
+    offline_expand_from(dest, src, 0, n);
+}

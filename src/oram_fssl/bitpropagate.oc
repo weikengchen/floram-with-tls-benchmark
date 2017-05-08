@@ -72,8 +72,8 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 		obliv uint8_t * Z = &bp->Z[(ii - bp->startlevel - 1)*BLOCKSIZE];
 
 		//first expand our active blocks into two blocks (L/R)
-		online_prf_double(bp->expanded_A, &bp->expanded_A[BLOCKSIZE], bp->activeblock_A, bp->activeblock_A, bp->keyL, bp->keyR);
-		online_prf_double(bp->expanded_B, &bp->expanded_B[BLOCKSIZE], bp->activeblock_B, bp->activeblock_B, bp->keyL, bp->keyR);
+		online_prg_double(bp->expanded_A, &bp->expanded_A[BLOCKSIZE], bp->activeblock_A, bp->activeblock_A, bp->keyL, bp->keyR);
+		online_prg_double(bp->expanded_B, &bp->expanded_B[BLOCKSIZE], bp->activeblock_B, bp->activeblock_B, bp->keyL, bp->keyR);
 
 		obliv if (levelindex == 0) {
 			//copy the branch to be kept
@@ -129,7 +129,7 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 	}
 
 	for (size_t ii = 1; ii < bp->blockmultiple; ii++) {
-		online_prf_double(&bp->activeblock_A[BLOCKSIZE * ii], &bp->activeblock_B[BLOCKSIZE * ii], &bp->activeblock_A[BLOCKSIZE * (ii-1)], &bp->activeblock_B[BLOCKSIZE * (ii-1)], bp->keyL, bp->keyL);
+		online_prg_double(&bp->activeblock_A[BLOCKSIZE * ii], &bp->activeblock_B[BLOCKSIZE * ii], &bp->activeblock_A[BLOCKSIZE * (ii-1)], &bp->activeblock_B[BLOCKSIZE * (ii-1)], bp->keyL, bp->keyL);
 	}
 
 #ifdef ORAM_PROFILE_SCHEDULING
@@ -226,7 +226,8 @@ bitpropagator * bitpropagator_new(size_t size, size_t blockmultiple, uint32_t st
 		for (size_t ii=0; ii< KEYSIZE/sizeof(uint64_t);ii++) ((uint64_t *)keyR)[ii] = ocBroadcastLLong(NULL,1);
 	}
 
-	online_prf_keyschedule_double(&bp->keyL, &bp->keyR, keyL, keyR);
+	offline_prg_init();
+	online_prg_keyschedule_double(&bp->keyL, &bp->keyR, keyL, keyR);
 	bp->bpo = bitpropagator_offline_new(size, blockmultiple, bp->startlevel, keyL, keyR);
 
 	free(keyL);
