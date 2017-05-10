@@ -1,6 +1,4 @@
-#include <openssl/conf.h>
-#include <openssl/evp.h>
-#include <openssl/err.h>
+#include <gcrypt.h>
 
 #include <obliv.oh>
 #include "oaes.oh"
@@ -25,12 +23,19 @@ struct option* get_long_options() {
 
 void print_supplementary_help() {}
 
-void handleErrors(void) {
-	ERR_print_errors_fp(stderr);
-	abort();
-}
+GCRY_THREAD_OPTION_PTHREAD_IMPL;
 
 void test_main(void*varg) {
+
+	if (!gcry_control(GCRYCTL_INITIALIZATION_FINISHED_P)) { 
+		gcry_control(GCRYCTL_SET_THREAD_CBS, &gcry_threads_pthread);
+    	if(!gcry_check_version(NULL)) {
+    		fprintf(stderr,"libgcrypt init failed\n");
+			exit(1);
+		}
+		gcry_control (GCRYCTL_DISABLE_SECMEM, 0);
+		gcry_control (GCRYCTL_INITIALIZATION_FINISHED, 0);
+	}
 
 	/* test vectors in this file are taken from http://csrc.nist.gov/groups/STM/cavp/documents/aes/AESAVS.pdf */
 
@@ -151,25 +156,16 @@ void test_main(void*varg) {
 			revealOblivInt(&iv_raw[ii*sizeof(uint32_t)], iv[ii*sizeof(uint32_t)], 0);
 		}
 
-		// OpenSSL setup
-		ERR_load_crypto_strings();
-		OpenSSL_add_all_algorithms();
-		OPENSSL_config(NULL);
-		EVP_CIPHER_CTX *ctx;
-		if(!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
-		if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, key_raw, iv_raw)) handleErrors();
-		if(1 != EVP_CIPHER_CTX_set_padding(ctx, 0)) handleErrors();
+		// gcrypt setup
+		gcry_cipher_hd_t handle;
+		gcry_cipher_open(&handle, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 0);
+		gcry_cipher_setkey(handle, key_raw, 16);
+		gcry_cipher_setctr(handle, iv_raw, 16);
 
-		int len;
-		for (int ii = 0; ii < BLOCKCOUNT; ii ++) if(1 != EVP_EncryptUpdate(ctx, &expected_output[16*ii], &len, &input_raw[16*ii], 16)) handleErrors();
+		gcry_cipher_encrypt(handle, expected_output, 16*BLOCKCOUNT, input_raw, 16*BLOCKCOUNT);
 
-		// OpenSSL Cleanup
-		EVP_CIPHER_CTX_free(ctx);
-		CONF_modules_unload(1);
-		EVP_cleanup();
-		CRYPTO_cleanup_all_ex_data();
-		ERR_remove_state(0);
-		ERR_free_strings();
+		// gcrypt cleanup
+		gcry_cipher_close(handle);
 
 		oaes_ctx * ctx2 = oaes_128_ctx_ctr_new(key, iv);
 		for (int ii = 0; ii < BLOCKCOUNT; ii++) oaes_128_encdec(&output[16*ii], ctx2, &input[16*ii]);
@@ -223,25 +219,16 @@ void test_main(void*varg) {
 			revealOblivInt(&iv_raw[ii*sizeof(uint32_t)], iv[ii*sizeof(uint32_t)], 0);
 		}
 
-		// OpenSSL setup
-		ERR_load_crypto_strings();
-		OpenSSL_add_all_algorithms();
-		OPENSSL_config(NULL);
-		EVP_CIPHER_CTX *ctx;
-		if(!(ctx = EVP_CIPHER_CTX_new())) handleErrors();
-		if(1 != EVP_EncryptInit_ex(ctx, EVP_aes_128_ctr(), NULL, key_raw, iv_raw)) handleErrors();
-		if(1 != EVP_CIPHER_CTX_set_padding(ctx, 0)) handleErrors();
+		// gcrypt setup
+		gcry_cipher_hd_t handle;
+		gcry_cipher_open(&handle, GCRY_CIPHER_AES128, GCRY_CIPHER_MODE_CTR, 0);
+		gcry_cipher_setkey(handle, key_raw, 16);
+		gcry_cipher_setctr(handle, iv_raw, 16);
 
-		int len;
-		for (int ii = 0; ii < BLOCKCOUNT; ii ++) if(1 != EVP_EncryptUpdate(ctx, &expected_output[16*ii], &len, &input_raw[16*ii], 16)) handleErrors();
+		gcry_cipher_encrypt(handle, expected_output, 16*BLOCKCOUNT, input_raw, 16*BLOCKCOUNT);
 
-		// OpenSSL Cleanup
-		EVP_CIPHER_CTX_free(ctx);
-		CONF_modules_unload(1);
-		EVP_cleanup();
-		CRYPTO_cleanup_all_ex_data();
-		ERR_remove_state(0);
-		ERR_free_strings();
+		// gcrypt cleanup
+		gcry_cipher_close(handle);
 
 		oaes_ctx * ctx2 = oaes_128_ctx_ctr_new(key, iv);
 		for (int ii = 0; ii < BLOCKCOUNT/2; ii++) oaes_128_encdec_double(&output[32*ii], &output[32*ii+16], ctx2, &input[32*ii], &input[32*ii+16]);

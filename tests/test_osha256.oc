@@ -1,5 +1,5 @@
 #include <obliv.oh>
-#include "openssl/sha.h"
+#include <gcrypt.h>
 
 #include "osha256.oh"
 #include "test_generic.h"

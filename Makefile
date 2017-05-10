@@ -5,6 +5,7 @@ OBLIVCC = $(OBLIVC_PATH)/bin/oblivcc
 OBLIVCH = $(OBLIVC_PATH)/src/ext/oblivc
 OBLIVCA = $(OBLIVC_PATH)/_build/libobliv.a
 CFLAGS+= -O3 -march=native -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp
+LDFLAGS += -lm -lgomp -lgcrypt
 
 SRC_PATH=src/
 LIB_OUT_PATH=build/lib/
@@ -24,7 +25,7 @@ TEST_DEPS=test_main.o
 TEST_BINS = test_obig test_osha256 test_osha512 test_osalsa test_ochacha test_oaes\
 		test_oqueue test_oram test_oscrypt test_ograph test_omatch test_osearch\
 		bench_oram_write bench_oram_read bench_oram_init bench_oscrypt bench_bfs bench_bs\
-		bench_gs bench_rp bench_oaes bench_oqueue
+		bench_gs bench_rp bench_oaes bench_oqueue bench_waksman
 
 default: $(ACKLIB) tests
 
@@ -32,7 +33,7 @@ tests: $(TEST_BINS:%=$(TEST_OUT_PATH)/%)
 
 $(TEST_BINS:%=$(TEST_OUT_PATH)/%): $(TEST_OUT_PATH)/%: $(TEST_PATH)/%.oo $(TEST_DEPS:%=$(TEST_PATH)/%) $(ACKLIB)
 	mkdir -p $(TEST_OUT_PATH)
-	$(OBLIVCC) -o $@ $(OBLIVCA) $^ -lm -lssl -lcrypto -lgomp
+	$(OBLIVCC) -o $@ $(OBLIVCA) $^ $(LDFLAGS)
 
 $(ACKLIB): $(OBJS:%=$(SRC_PATH)/%)
 	mkdir -p $(LIB_OUT_PATH)

@@ -1,0 +1,113 @@
+#include <obliv.oh>
+#include "shuffle.oh"
+#include <copy.oh>
+#include "test_generic.h"
+
+static const char TESTNAME[] = "waksman_network_benchmark";
+
+#define TEXT_HELP_SUPPLEMENTARY "\
+  -e \x1b[4mNUMBER\x1b[0m, --element-count=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs of \x1b[4mNUMBER\x1b[0m elements\n\n\
+  -s \x1b[4mNUMBER\x1b[0m, --element-size=\x1b[4mNUMBER\x1b[0m \n\t\tuse ORAMs with elements containing \x1b[4mNUMBER\x1b[0m 32-bit words\n\n\
+  -i \x1b[4mNUMBER\x1b[0m, --samples=\x1b[4mNUMBER\x1b[0m \n\t\trun \x1b[4mNUMBER\x1b[0m iterations of the benchmark\n\n"
+
+static const char options_string[] = "e:s:i:";
+static struct option long_options[] = {
+	{"element-count", required_argument, NULL, 'e'},
+	{"element-size", required_argument, NULL, 's'},
+	{"samples", required_argument, NULL, 'i'},
+	{0, 0, 0, 0}
+};
+
+char* get_test_name() {
+	return TESTNAME;
+}
+
+char* get_supplementary_options_string() {
+	return options_string;
+}
+
+struct option* get_long_options() {
+	return long_options;
+}
+
+void print_supplementary_help() {
+	fprintf(stderr, TEXT_HELP_SUPPLEMENTARY);
+}
+
+void test_main(void*varg) {
+
+	size_t elct = 4;
+	size_t elsz = 1;
+	int samples = 1;
+
+	args_t * args_pass = varg;
+	int arg;
+	optind = 0; // this allows us to getopt a second time
+	while ((arg = getopt_long(args_pass->argc, args_pass->argv, options_string, long_options, NULL)) != -1) {
+		if (arg == 'e') {
+			elct = atoll(optarg);
+			if (elct <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 's') {
+			elsz = atoll(optarg);
+			if (elsz <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == 'i') {
+			samples = atoi(optarg);
+			if (samples <= 0) {
+				fprintf (stderr, "Argument for -%c must be positive.\n", arg);
+				return;
+			}
+		} else if (arg == '?' || arg == ':') {
+			if (optopt == 'e' || optopt == 's' || optopt == 'i') {
+				fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+				return;
+			} else {
+				fprintf (stderr, "Option -%c not recognized.\n", optopt);
+				return;
+			}
+		} else {
+			abort();
+		}
+	}
+
+	fprintf(stdout, "# WAKSMAN (element count, element size, sample 1 microseconds, sample 1 gates, sample 1 bytes, ...)\n");
+
+	OcCopy cpy = ocCopyIntN(elsz);
+
+	uint64_t tally = 0;
+	uint64_t tallygates = 0;
+	uint64_t tallybytes = 0;
+
+	OcCopy cpy = ocCopyIntN(elsz);
+	obliv uint32_t * data = calloc(elsz * elct, sizeof(obliv uint32_t));
+	for (int kk = 0; kk < elsz*elct; kk++) data[kk] = feedOblivInt(rand(), 1);
+
+	fprintf(stdout, "%lld,%lld", elct, elsz);
+
+	for (int ii = 0; ii < samples; ii++) {
+		OcPermNetwork w = ocPermNetworkRandom(elct);
+		int64_t runtime = -current_timestamp();
+		int64_t rungates = -yaoGateCount();
+		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+		ocPermNetworkApply(&w,&cpy,data);
+		runtime += current_timestamp();
+		rungates += yaoGateCount();
+		runbytes += tcp2PBytesSent(ocCurrentProto());
+		ocPermNetworkCleanup(&w);
+		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
+		fflush(stdout);
+		tally += runtime;
+		tallygates += rungates;
+		tallybytes += runbytes;
+	}
+
+	free(data);
+	fprintf(stdout, "\n");
+	fprintf(stderr, "Waksman (count:%lld, size: %lld): %llu microseconds avg, %llu gates avg, %llu bytes avg\n", elct, elsz, tally / samples, tallygates/samples, tallybytes/samples);
+
+}

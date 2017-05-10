@@ -37,7 +37,7 @@ Features
 Installing
 =====
 
-1. You must first build [obliv-c](https://github.com/samee/obliv-c/), though it need not be installed in any particular location. In addition to obliv-c, you will need to install the package `openssl-dev` (or your distribution's equivalent). This is necessary only for test cases for SHA256, SHA512, and AES.
+1. You must first build [obliv-c](https://github.com/samee/obliv-c/), though it need not be installed in any particular location.
 
 2. To compile ACK, set the path to obliv-c's main project directory via `export OBLIVC_PATH=<path to obliv-c>`, then run `make`.
 
