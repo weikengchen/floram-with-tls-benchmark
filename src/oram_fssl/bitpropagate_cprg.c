@@ -111,7 +111,8 @@ void bitpropagator_cprg_offline_process_round(uint8_t * accumulator_L, uint8_t *
 		expansion_stride = BLOCKSIZE;
 	}
 
-	#pragma omp parallel for reduction(^:accL,accR)
+	floram_set_procs_for_data_size(BLOCKSIZE * (bpo->nextlevelblocks + bpo->thislevelblocks));
+	#pragma omp parallel for reduction(^:accL,accR) schedule(guided)
 	for (size_t ii = 0; ii < 4*(bpo->nextlevelblocks/8); ii+=4) {
 		bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
 		bpo->lba[ii+1] = (bpo->lda2[(ii+1)*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_r);
@@ -212,10 +213,12 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 
 	block_t acc = {0};
 
+	floram_set_procs_for_data_size(BLOCKSIZE * bpo->thislevelblocks * bpo->blockmultiple);
+
 	if (bpo->thislevel%2==0) {
 		local_output = bpo->ldb2;
 
-		#pragma omp parallel for reduction(^:acc)
+		#pragma omp parallel for reduction(^:acc) schedule(guided)
 		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {
 				bpo->lba[ii] = (bpo->lda2[ii*BLOCKSIZE] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
@@ -243,7 +246,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 	} else {
 		local_output = bpo->lda2;
 
-		#pragma omp parallel for reduction(^:acc)
+		#pragma omp parallel for reduction(^:acc) schedule(guided)
 		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {
 				bpo->lba[ii] = (bpo->lda2[ii*(BLOCKSIZE*bpo->blockmultiple)] & 1) ^ (bpo->lbb[ii/2] & advicebit_l);
@@ -273,7 +276,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 	for (size_t jj = 1; jj < bpo->blockmultiple; jj++) {
 		for (size_t ii = 0; ii < BLOCKSIZE/sizeof(uint64_t); ii++) acc.data[ii] = 0;
 
-		#pragma omp parallel for reduction(^:acc)
+		#pragma omp parallel for reduction(^:acc) schedule(guided)
 		for (size_t ii = 0; ii < 8*(bpo->thislevelblocks/8); ii+=8)  {
 			offline_prg_oct(
 				&local_output[(ii+0) * (BLOCKSIZE*bpo->blockmultiple) + (jj * BLOCKSIZE)],

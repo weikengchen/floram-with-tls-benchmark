@@ -24,6 +24,14 @@ int floram_zpma(void** dst, size_t alignment, size_t size) {
    return res;
 }
 
+void floram_set_procs_for_data_size(size_t dsize) {
+#ifndef FLORAM_DISABLE_AUTO_THREAD_COUNT
+    size_t recommended_cores = (dsize + CACHE_PER_CORE - 1) / CACHE_PER_CORE;
+    size_t actual_cores = MIN(omp_get_num_procs(), MAX(1, recommended_cores));
+    omp_set_num_threads(actual_cores);
+#endif
+}
+
 #ifdef __AES__
 
 #include <wmmintrin.h>

@@ -11,6 +11,7 @@ void scanrom_read_with_bitvector_offline(uint8_t * data, uint8_t * local_data, b
 	uint64_t ** sums;
 	size_t threadcount;
 
+	floram_set_procs_for_data_size(memblocksize * blockcount);
 	#pragma omp parallel 
 	{
 		threadcount = omp_get_num_threads();
@@ -53,6 +54,7 @@ void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t i
 void scanrom_encrypt_offline(uint8_t * out, uint8_t * in, uint8_t* key, size_t index, size_t blockmultiple, size_t blockcount) {
 	offline_expand_from(out, key, index*blockmultiple, blockcount * blockmultiple);
 	if (in != NULL) {
+		floram_set_procs_for_data_size(BLOCKSIZE * blockmultiple * blockcount);
 		#pragma omp parallel for simd schedule(guided)
 		for (size_t ii = 0; ii < blockcount * blockmultiple * BLOCKSIZE / sizeof(uint64_t); ii++) {
 			((uint64_t *)out)[ii] ^= ((uint64_t *)in)[ii];
@@ -66,6 +68,7 @@ void scanwrom_write_with_blockvector_offline(uint8_t * local_data, uint8_t * blo
 	uint64_t * b = blockvector;
 	uint64_t * z = Zblock;
 
+	floram_set_procs_for_data_size(memblocksize * blockcount);
 	#pragma omp parallel for schedule(guided)
 	for (size_t ii = 0; ii< blockcount; ii++) {
 		#pragma omp simd aligned(d,b,bitvector,z:16)
