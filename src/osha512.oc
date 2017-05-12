@@ -117,7 +117,7 @@ void oSHA512_Update(oSHA512_CTX *ctx, obliv const uint8_t * data, size_t len) {
 		return;
 
 	/* Number of bytes left in the buffer from previous updates. */
-	uint64_t r = (ctx->count >> 3) & 0x3f;
+	uint64_t r = (ctx->count >> 3) & 0x7f;
 	uint64_t completed = 0;
 
 	/* Update number of bits. */
@@ -157,16 +157,16 @@ void oSHA512_Pad(oSHA512_CTX * ctx) {
 	obliv uint8_t pad_data[144];
 	uint64_t r, plen;
 	
-	r = (ctx->count >> 3) & 0x3f;
-	plen = (r < OSHA512_BLOCK - sizeof(ctx->count)) ? ((OSHA512_BLOCK - sizeof(ctx->count)) - r) : (2 * OSHA512_BLOCK - sizeof(ctx->count) - r);
+	r = (ctx->count >> 3) & 0x7f;
+	plen = (r < OSHA512_BLOCK - 2*sizeof(ctx->count)) ? ((OSHA512_BLOCK - 2*sizeof(ctx->count)) - r) : (2 * OSHA512_BLOCK - 2*sizeof(ctx->count) - r);
 	pad_data[0] = 0x80;
-	for (int ii = 1; ii < plen; ii++) {
+	for (int ii = 1; ii < plen+sizeof(ctx->count); ii++) {
 		pad_data[ii] = 0;
 	}
 
-	be64enc(&pad_data[plen], ctx->count);
+	be64enc(&pad_data[plen+sizeof(ctx->count)], ctx->count);
 
-	oSHA512_Update(ctx, pad_data, (size_t)(plen + sizeof(ctx->count)));
+	oSHA512_Update(ctx, pad_data, (size_t)(plen + 2*sizeof(ctx->count)));
 }
 
 void oSHA512_Final(obliv uint8_t digest[OSHA512_DIGEST_LENGTH], oSHA512_CTX * ctx) {
