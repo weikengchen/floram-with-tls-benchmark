@@ -125,14 +125,48 @@ void obig_import_onative_signed(obig* x, obliv int64_t y) obliv {
 	}
 }
 
-void obig_import_pointed(obig* x, uint8_t* p, size_t s) obliv {
+void obig_import_pointed_le(obig* x, uint8_t* p, size_t s) obliv {
 	for (size_t ii = 0; ii < x->digits; ii++) {
 		if (ii < s) {
-			if (IS_BIG_ENDIAN) {
-				x->data[x->digits - 1 - ii] = p[ii];
-			} else {
-				x->data[ii] = p[ii];
-			}
+			x->data[ii] = p[ii];
+		} else {
+			x->data[ii] = 0;
+		}
+	}
+}
+
+void obig_import_pointed_be(obig* x, uint8_t* p, size_t s) obliv {
+	for (size_t ii = 0; ii < x->digits; ii++) {
+		if (ii < s) {
+			x->data[x->digits - 1 - ii] = p[ii];
+		} else {
+			x->data[ii] = 0;
+		}
+	}
+}
+
+void obig_import_pointed(obig* x, uint8_t* p, size_t s) obliv {
+	if (IS_BIG_ENDIAN) {
+		obig_import_pointed_be(x, p, s);
+	} else {
+		obig_import_pointed_le(x, p, s);
+	}
+}
+
+void obig_import_opointed_le(obig* x, obliv uint8_t* p, size_t s) obliv {
+	for (size_t ii = 0; ii < x->digits; ii++) {
+		if (ii < s) {
+			x->data[ii] = p[ii];
+		} else {
+			x->data[ii] = 0;
+		}
+	}
+}
+
+void obig_import_opointed_be(obig* x, obliv uint8_t* p, size_t s) obliv {
+	for (size_t ii = 0; ii < x->digits; ii++) {
+		if (ii < s) {
+			x->data[x->digits - 1 - ii] = p[ii];
 		} else {
 			x->data[ii] = 0;
 		}
@@ -140,16 +174,10 @@ void obig_import_pointed(obig* x, uint8_t* p, size_t s) obliv {
 }
 
 void obig_import_opointed(obig* x, obliv uint8_t* p, size_t s) obliv {
-	for (size_t ii = 0; ii < x->digits; ii++) {
-		if (ii < s) {
-			if (IS_BIG_ENDIAN) {
-				x->data[x->digits - 1 - ii] = p[ii];
-			} else {
-				x->data[ii] = p[ii];
-			}
-		} else {
-			x->data[ii] = 0;
-		}
+	if (IS_BIG_ENDIAN) {
+		obig_import_opointed_be(x, p, s);
+	} else {
+		obig_import_opointed_le(x, p, s);
 	}
 }
 
@@ -173,6 +201,34 @@ obliv int64_t obig_export_onative_signed(obig x) obliv {
 		}
 	}
 	return result;
+}
+
+void obig_export_opointed_le(obliv uint8_t* p, size_t s, obig* x) obliv {
+	for (size_t ii = 0; ii < s; ii++) {
+		if (ii < x->digits) {
+			p[ii] = x->data[ii];
+		} else {
+			p[ii] = 0;
+		}
+	}
+}
+
+void obig_export_opointed_be(obliv uint8_t* p, size_t s, obig* x) obliv {
+	for (size_t ii = 0; ii < s; ii++) {
+		if (ii < x->digits) {
+			p[s - 1 - ii] = x->data[ii];
+		} else {
+			p[s - 1 - ii] = 0;
+		}
+	}
+}
+
+void obig_export_opointed(obliv uint8_t* p, size_t s, obig* x) obliv {
+	if (IS_BIG_ENDIAN) {
+		obig_export_opointed_be(p, s, x);
+	} else {
+		obig_export_opointed_le(p, s, x);
+	}
 }
 
 /* comparators */
@@ -749,44 +805,45 @@ void obig_dec_signed(obig* out, obig x) obliv {
 
 
 
-obliv uint8_t karatsuba_add(obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z,size_t n) obliv {
-	obliv uint8_t rem = 0;
+obliv uint8_t karatsuba_add(obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z,size_t n) {
+	obliv uint16_t rem = 0;
 	for (size_t ii = 0; ii < n; ii ++) {
-		obliv uint16_t eresult = x[ii] + y[ii] + rem;
-		z[ii] = eresult;
-		rem = eresult >> 8;
+		rem += x[ii] + y[ii];
+		z[ii] = rem;
+		rem >>= 8;
 	}
 	return rem;
 }
 
 obliv uint8_t karatsuba_aadd(obliv uint8_t *x,obliv uint8_t *z,size_t n) obliv {
-	obliv uint8_t rem = 0;
+	obliv uint16_t rem = 0;
 	for (size_t ii = 0; ii < n; ii ++) {
-		obliv uint16_t eresult = z[ii] + x[ii] + rem;
-		z[ii] = eresult;
-		rem = eresult >> 8;
+		rem += z[ii] + x[ii];
+		z[ii] = rem;
+		rem >>= 8;
 	}
 	return rem;
 }
 
-obliv uint8_t karatsuba_asub(obliv uint8_t *y,obliv uint8_t *z,size_t n) obliv {
-	obliv uint8_t rem = 0;
+obliv uint8_t karatsuba_asub(obliv uint8_t *y,obliv uint8_t *z,size_t n) {
+	obliv uint16_t rem = 0;
 	for (size_t ii = 0; ii < n; ii ++) {
-		obliv uint16_t eresult = z[ii] - y[ii] - rem;
-		z[ii] = eresult;
-		rem = (eresult >> 8) & 1;
+		rem = z[ii] - y[ii] - rem;
+		z[ii] = rem;
+		rem >>= 8;
+		rem &= 1;
 	}
 	return rem;
 }
 
-void karatsuba_comba(size_t n,obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z) obliv {
+void karatsuba_comba(size_t n,obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z) {
 	obliv uint32_t temp = 0;
 	for (size_t ii = 0; ii < n*2; ii++) {
 		size_t bo = MIN(ii, n-1);
 		size_t ao = ii - bo;
 
 		for (size_t jj = 0; jj < MIN(n-ao, bo+1); jj++) {
-			temp = temp + x[ao+jj] * y[bo-jj];
+			temp += x[ao+jj] * y[bo-jj];
 		}
 		z[ii] = temp;
 		temp >>= 8;
@@ -794,7 +851,7 @@ void karatsuba_comba(size_t n,obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z
 }
 
 #define COMBA_THRESHOLD 1
-void karatsuba(size_t n,obliv uint8_t *t,obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z) obliv {
+void karatsuba(size_t n,obliv uint8_t *t,obliv uint8_t *x,obliv uint8_t *y,obliv uint8_t *z) {
 	/* This function is an implimentation of the Karatsuba-Comba multiplication method,
 	adapted from the MIRACL multiprecision library */
 
@@ -864,13 +921,9 @@ void obig_mul(obig* out, obig x, obig y) obliv {
 			y2 = y.data;
 		}
 
-		if (out->digits < indigits * 2) {
-			z = calloc(indigits * 2, sizeof(obliv uint8_t));
-		} else {
-			z = out->data;
-		}
+		z = calloc(indigits * 2, sizeof(obliv uint8_t));
 
-		obliv if (en) karatsuba(indigits,temp, x2, y2, z);
+		karatsuba(indigits,temp, x2, y2, z);
 
 		if (x.digits < indigits) {
 			free(x2);
@@ -878,17 +931,15 @@ void obig_mul(obig* out, obig x, obig y) obliv {
 		if (y.digits < indigits) {
 			free(y2);
 		}
-		if (out->digits < indigits * 2) {
+		
+		obliv if (en) {
 			for (size_t ii = 0; ii < out->digits; ii++) {
-				out->data[ii] = z[ii];
-			}
-			free(z);
-		} else {
-			for (size_t ii = indigits * 2; ii < out->digits; ii++) {
-				out->data[ii] = 0;
+				if (ii < indigits*2) out->data[ii] = z[ii];
+				else out->data[ii] = 0;
 			}
 		}
 
+		free(z);
 		free(temp);
 	}
 }
@@ -925,7 +976,7 @@ void obig_mul_signed(obig * out, obig x, obig y) obliv {
 
 
 
-obliv size_t knuth_d_count_leading_zeros(obliv uint8_t * x, size_t n) obliv {
+obliv size_t knuth_d_count_leading_zeros(obliv uint8_t * x, size_t n) {
 	obliv size_t result = 0;
 	obliv bool found_one = false;
 	for (size_t ii = 0; ii < n; ii++) {
@@ -941,7 +992,7 @@ obliv size_t knuth_d_count_leading_zeros(obliv uint8_t * x, size_t n) obliv {
 	return result;
 }
 
-void knuth_d(obliv uint8_t *u, obliv uint8_t *v, obliv uint8_t *q, size_t n, size_t m) obliv {
+void knuth_d(obliv uint8_t *u, obliv uint8_t *v, obliv uint8_t *q, size_t n, size_t m) {
 	/* this is a straightforward implementation of Knuth's Algorithm D,
 	as described in The Art of Computer Programming Vol 2, Section 4.3.1
 
@@ -1007,7 +1058,7 @@ void knuth_d(obliv uint8_t *u, obliv uint8_t *v, obliv uint8_t *q, size_t n, siz
 	}
 }
 
-void knuth_d_1(obliv uint8_t *u, obliv uint8_t *v, obliv uint8_t *q, obliv uint8_t * r, size_t m) obliv {
+void knuth_d_1(obliv uint8_t *u, obliv uint8_t *v, obliv uint8_t *q, obliv uint8_t * r, size_t m) {
 	obliv int16_t carry = 0;                            
 	for (int64_t jj = m - 1; jj >= 0; jj--) {    
 		q[jj] = ((carry << 8) + u[jj])/v[0];      
@@ -1036,55 +1087,44 @@ obliv bool obig_div_mod(obig* q, obig* r, obig x, obig y) obliv {
 			obig_init(vref, n);
 		}
 
-		if (q != NULL && q->digits > m) {
-			q2 = q->data;
+		q2 = calloc(m + 1, sizeof(obliv uint8_t));
+	
+		if (n > 1) {
+			// Normalize inputs (Knuth D1)
+			obliv size_t normalize_amount = knuth_d_count_leading_zeros(y.data, n);
+			success = normalize_amount < (n * 8);
+
+			obig_shl_onative(uref, x, normalize_amount);
+			obig_shl_onative(vref, y, normalize_amount);
+
+			knuth_d(u.data, v.data, q2, n, m);
+
+			// Unnormalize output (Knuth D7)
+			if (r != NULL) obliv if (en) obig_shr_onative(r, u, normalize_amount);
 		} else {
-			q2 = calloc(m + 1, sizeof(obliv uint8_t));
-		}
-	}
+			obliv uint8_t rtemp;
+			r2 = &rtemp;
 
-	if (n > 1) {
-		// Normalize inputs (Knuth D1)
-		obliv size_t normalize_amount = knuth_d_count_leading_zeros(y.data, n);
-		success = normalize_amount < (n * 8);
+			success = y.data[0] > 0;
+			knuth_d_1(x.data, y.data, q2, r2, m);
 
-		obig_shl_onative(uref, x, normalize_amount);
-		obig_shl_onative(vref, y, normalize_amount);
-
-		knuth_d(u.data, v.data, q2, n, m);
-
-		// Unnormalize output (Knuth D7)
-		if (r != NULL) obig_shr_onative(r, u, normalize_amount);
-	} else {
-		obliv uint8_t rtemp;
-		if (r != NULL) r2 = r->data;
-		else r2 = &rtemp;
-
-		success = y.data[0] > 0;
-		knuth_d_1(x.data, y.data, q2, r2, m);
-
-		if (r != NULL) {
-			for (size_t ii = 1; ii < r->digits; ii++) {
-				r->data[ii] = 0;
+			if (r != NULL) {
+				obliv if (en) {
+						r->data[0]=rtemp;
+					for (size_t ii = 1; ii < r->digits; ii++) {
+						r->data[ii] = 0;
+					}
+				}	
 			}
 		}
-	}
 
-	~obliv (en) {
 		if (q != NULL) {
-			if (q2 == q->data) {
-				for (size_t ii = m + 2; ii < q->digits; ii++) {
-					q->data[ii] = 0;
-				}
-			} else {
-				for (size_t ii = 0; ii < q->digits; ii++) {
-					q->data[ii] = q2[ii];
-				}
-				free(q2);
+			for (size_t ii = 0; ii < q->digits; ii++) {
+				if (ii < m + 1) q->data[ii] = q2[ii];
+				else q->data[ii] = 0;
 			}
-		} else {
-			free(q2);
 		}
+		free(q2);
 		
 		if (n > 1) {
 			obig_free(&u);

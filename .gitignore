@@ -1,5 +1,6 @@
 *.od
 *.d
 *.o
+*.a
 *.oo
 build
