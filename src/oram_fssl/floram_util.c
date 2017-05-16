@@ -262,7 +262,8 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
 
 	__m128i mask = _mm_set_epi64((__m64)0x08090a0b0c0d0e0fULL, (__m64)0x0001020304050607ULL );
 
-    #pragma omp parallel for
+    floram_set_procs_for_data_size(n*BLOCKSIZE);
+    #pragma omp parallel for schedule(guided)
 	for(size_t li=0; li<n-n%4; li+=4) {
         __m128i mr1, mr2, mr3, mr4;
 
@@ -421,7 +422,8 @@ void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n) {
     cx.inf.b[0] = 10 * 16;
     free(key);
 
-    #pragma omp parallel for
+    floram_set_procs_for_data_size(n*BLOCKSIZE);
+    #pragma omp parallel for schedule(guided)
     for(size_t li=0; li<n; li++) {
         uint64_t iv[2] = {0,htonll(li+i)};
         aes_encrypt(iv,&dest[li*16],&cx);

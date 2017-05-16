@@ -213,11 +213,10 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 
 	block_t acc = {0};
 
-	floram_set_procs_for_data_size(BLOCKSIZE * bpo->thislevelblocks * bpo->blockmultiple);
-
 	if (bpo->thislevel%2==0) {
 		local_output = bpo->ldb2;
 
+		floram_set_procs_for_data_size(BLOCKSIZE * bpo->thislevelblocks * 2);
 		#pragma omp parallel for reduction(^:acc) schedule(guided)
 		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {
@@ -246,6 +245,7 @@ void bitpropagator_cprg_offline_finalize(uint8_t * accumulator, uint8_t * z, boo
 	} else {
 		local_output = bpo->lda2;
 
+		floram_set_procs_for_data_size(BLOCKSIZE * bpo->thislevelblocks);
 		#pragma omp parallel for reduction(^:acc) schedule(guided)
 		for (size_t ii = 0; ii < bpo->thislevelblocks; ii++) {
 			if (ii%2 == 0) {

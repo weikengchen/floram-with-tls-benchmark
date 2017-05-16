@@ -239,7 +239,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		if (b == local_output) memcpy(b_bits, a_bits, thislevelblocks*sizeof(bool));
 
 		if (bpo->blockmultiple > 1) {
-			#pragma omp for
+			#pragma omp for schedule(guided)
 			for (size_t ii = 0; ii < 8*(thislevelblocks/8); ii+=8)  {
 				for (size_t jj = 1; jj < bpo->blockmultiple; jj++) {
 					// Note to self: this is ridiculous. Define a macro.
