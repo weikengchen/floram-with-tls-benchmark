@@ -47,7 +47,7 @@ $(ACKLIB): $(OBJS:%=$(SRC_PATH)/%)
 
 %.fssl.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_FSSL $*.oc -o $*.sqrt.oo
-	cpp -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_FSSL $*.oc -MT $*.sqrt.oo > $*.sqrt.od
+	$(CPP) -MM $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_FSSL $*.oc -MT $*.sqrt.oo > $*.sqrt.od
 
 %.sqrt.oo: %.oc
 	$(OBLIVCC) -c $(CFLAGS) -DORAM_OVERRIDE=ORAM_TYPE_SQRT $*.oc -o $*.sqrt.oo

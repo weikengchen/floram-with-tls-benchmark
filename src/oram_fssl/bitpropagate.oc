@@ -2,7 +2,6 @@
 #include "bitpropagate.h"
 #include "floram_util.oh"
 #include "ackutil.h"
-#include <omp.h>
 #include <obliv.h>
 
 struct bitpropagator {
@@ -24,7 +23,7 @@ struct bitpropagator {
 	obliv uint8_t * keyL;
 	obliv uint8_t * keyR;
 	ProtocolDesc * pd2;
-	omp_lock_t * locks;
+	uint32_t readycount;
 	bitpropagator_offline * bpo;
 };
 
@@ -32,24 +31,29 @@ void bitpropagator_Z_pusher(bitpropagator * bp, bitpropagator_offline * bpo, Pro
 
 	if (pd != NULL) ocSetCurrentProto(pd);
 
+	uint32_t readycount_cache = 0;
+
 	bool advicebit_local_l, advicebit_local_r;
 	uint8_t * Z_local = malloc(BLOCKSIZE);
 
 	for (size_t ii = bp->startlevel+1; ii <= bp->endlevel; ii++) {
 		size_t thislevel = ii- bp->startlevel -1;
-		omp_set_lock(&bp->locks[thislevel]);
 
-		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)Z_local)[jj], ((obliv uint64_t *)(&bp->Z[thislevel*BLOCKSIZE]))[jj], 1);
-		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 1);
-		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 1);
+		if (readycount_cache < thislevel + 1) {
+			while ((readycount_cache = floram_atomic_read(&bp->readycount)) < thislevel + 1) floram_usleep(SLEEP_TIME);
+		}
+
 		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)Z_local)[jj], ((obliv uint64_t *)(&bp->Z[thislevel*BLOCKSIZE]))[jj], 2);
 		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 2);
 		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 2);
-	
-		bitpropagator_offline_push_Z(bpo, Z_local, advicebit_local_l, advicebit_local_r, ii);
+		for (size_t jj = 0; jj < BLOCKSIZE/sizeof(uint64_t); jj++) revealOblivLLong(&((uint64_t *)Z_local)[jj], ((obliv uint64_t *)(&bp->Z[thislevel*BLOCKSIZE]))[jj], 1);
+		revealOblivBool(&advicebit_local_l, bp->advicebits[thislevel*2+0], 1);
+		revealOblivBool(&advicebit_local_r, bp->advicebits[thislevel*2+1], 1);
 
 		//Other threads may depend on the fact that we've pushed successfully
-		if (pd != NULL) oflush(pd);
+		oflush(ocCurrentProto());
+
+		bitpropagator_offline_push_Z(bpo, Z_local, advicebit_local_l, advicebit_local_r, ii);
 	}
 
 	free(Z_local);
@@ -97,7 +101,8 @@ void bitpropagator_traverselevels(bitpropagator * bp, obliv size_t * indexp) {
 
 		bitpropagator_getadvice(&bp->advicebits[(ii - bp->startlevel - 1)*2], bp->expanded_A, bp->expanded_B, levelindex);
 
-		omp_unset_lock(&bp->locks[ii - bp->startlevel - 1]);
+		oflush(ocCurrentProto());
+		floram_atomic_inc(&bp->readycount);
 
 		control_bit_A_next = control_bit_A;
 		control_bit_B_next = control_bit_B;		
@@ -174,6 +179,7 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 #endif
 
 	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
+	bp->readycount = 0;
 
 #ifdef _OPENMP
 	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
@@ -233,11 +239,7 @@ bitpropagator * bitpropagator_new(size_t size, size_t blockmultiple, uint32_t st
 	free(keyL);
 	free(keyR);
 
-	bp->locks = malloc((bp->endlevel - bp->startlevel) * sizeof(omp_lock_t));
-	for (size_t ii = 0; ii < bp->endlevel - bp->startlevel; ii++) {
-		omp_init_lock(&bp->locks[ii]);
-		omp_set_lock(&bp->locks[ii]);
-	}
+	bp->readycount = 0;
 
 #ifdef _OPENMP
 	bp->pd2 = calloc(1, sizeof(ProtocolDesc));
@@ -266,11 +268,6 @@ void bitpropagator_free(bitpropagator * bp) {
 	ocCleanupProto(bp->pd2);
 	free(bp->pd2);
 #endif
-
-	for (int ii = 0; ii < (bp->endlevel - bp->startlevel); ii++) {
-		omp_destroy_lock(&bp->locks[ii]);
-	}
-	free(bp->locks);
 
 	online_expand_deinit();
 	free(bp);

@@ -15,21 +15,19 @@ struct bitpropagator_offline {
 	void * level_bits;
 	void * keyL;
 	void * keyR;
-	omp_lock_t * locks;
+	uint32_t readycount;
 };
 
 void bitpropagator_offline_start(bitpropagator_offline * bpo, uint8_t * blocks) {
 	memcpy(bpo->level_data, blocks, (1ll<<bpo->startlevel) * BLOCKSIZE);
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_set_lock(&bpo->locks[ii]);
-	}
+	bpo->readycount = 0;
 }
 
 void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, uint8_t * Z, bool advicebit_l, bool advicebit_r, size_t level) {
 	memcpy(&bpo->Z[(level- bpo->startlevel - 1)*BLOCKSIZE], Z, BLOCKSIZE);
 	bpo->advicebits_l[level- bpo->startlevel - 1] = advicebit_l;
 	bpo->advicebits_r[level- bpo->startlevel - 1] = advicebit_r;
-	omp_unset_lock(&bpo->locks[level- bpo->startlevel - 1]);
+	floram_atomic_inc(&bpo->readycount);
 }
 
 void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_bit_output, bitpropagator_offline * bpo) {	
@@ -41,6 +39,7 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		size_t thislevelblocks = (1ll<<bpo->startlevel);
 		size_t nextlevelblocks = (bpo->size + (1ll<<(bpo->endlevel - thislevel -1)) - 1) / (1ll<<(bpo->endlevel - thislevel -1));
 		size_t expansion_stride;
+		uint32_t readycount_cache=0;
 
 		uint64_t* a = (uint64_t *)bpo->level_data;
 		uint8_t* a2 = (uint8_t *)bpo->level_data;
@@ -96,8 +95,9 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 #endif
 
 		for (thislevel = bpo->startlevel +1; thislevel < bpo->endlevel; thislevel++) {
-			#pragma omp single
-			omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
+			if (readycount_cache < thislevel - bpo->startlevel) {
+				while ((readycount_cache = floram_atomic_read(&bpo->readycount)) < thislevel - bpo->startlevel) floram_usleep(SLEEP_TIME);
+			}
 
 #ifdef ORAM_PROFILE_SCHEDULING
 			#pragma omp single nowait
@@ -178,13 +178,12 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 			}
 
 #ifdef ORAM_PROFILE_SCHEDULING
-			#pragma omp single nowait
-			printf("END FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
+		#pragma omp single nowait
+		printf("END FSS OFFLINE LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
 		}
 
-		#pragma omp single
-		omp_set_lock(&bpo->locks[thislevel- bpo->startlevel -1 ]);
+		while (floram_atomic_read(&bpo->readycount) < thislevel - bpo->startlevel) floram_usleep(SLEEP_TIME);
 
 #ifdef ORAM_PROFILE_SCHEDULING
 		#pragma omp single nowait
@@ -291,10 +290,6 @@ void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_
 		printf("END FSS LEVEL %d %lld\n", thislevel,current_timestamp());
 #endif
 	}
-
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_unset_lock(&bpo->locks[ii]);
-	}
 }
 
 void bitpropagator_offline_parallelizer(void* bp, bitpropagator_offline * bpo, void* indexp, void * local_output, void * local_bit_output, void* pd, bp_traverser_fn fn, bp_pusher_fn fn2, facb_fn cbfn, void* cbpass) {
@@ -335,7 +330,6 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t blockmulti
 	bpo->endlevel = LOG2LL(size) + (((1 << LOG2LL(size)) < size)? 1:0);
 	posix_memalign(&bpo->level_data,16,(1ll<<bpo->endlevel) * BLOCKSIZE);
 	posix_memalign(&bpo->Z,16,(bpo->endlevel - bpo->startlevel) * BLOCKSIZE);
-	bpo->locks = malloc((bpo->endlevel - bpo->startlevel) * sizeof(omp_lock_t));
 	bpo->advicebits_l = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->advicebits_r = malloc((bpo->endlevel - bpo->startlevel) * sizeof(bool));
 	bpo->level_bits = malloc(size * sizeof(bool));
@@ -344,16 +338,10 @@ bitpropagator_offline * bitpropagator_offline_new(size_t size, size_t blockmulti
 	bpo->keyL = offline_prg_keyschedule(keyL);
 	bpo->keyR = offline_prg_keyschedule(keyR); 
 
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_init_lock(&bpo->locks[ii]);
-	}
 	return bpo;
 }
 
 void bitpropagator_offline_free(bitpropagator_offline * bpo) {
-	for (int ii = 0; ii < (bpo->endlevel - bpo->startlevel); ii++) {
-		omp_destroy_lock(&bpo->locks[ii]);
-	}
 	free(bpo->level_data);
 	free(bpo->level_bits);
 	free(bpo->advicebits_l);
@@ -361,6 +349,5 @@ void bitpropagator_offline_free(bitpropagator_offline * bpo) {
 	free(bpo->Z);
 	free(bpo->keyL);
 	free(bpo->keyR);
-	free(bpo->locks);
 	free(bpo);
 }

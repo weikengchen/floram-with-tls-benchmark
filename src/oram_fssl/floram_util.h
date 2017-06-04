@@ -18,6 +18,11 @@ void get_random_bytes(void *buf, size_t bytes);
 int floram_pma(void** dst, size_t alignment, size_t size);
 int floram_zpma(void** dst, size_t alignment, size_t size);
 
+uint32_t floram_atomic_read(uint32_t *);
+void floram_atomic_inc(uint32_t *);
+
+int floram_usleep(uint64_t x);
+
 void offline_expand(uint8_t * dest, uint8_t * src, size_t n);
 void offline_expand_from(uint8_t * dest, uint8_t * src, size_t i, size_t n);
 

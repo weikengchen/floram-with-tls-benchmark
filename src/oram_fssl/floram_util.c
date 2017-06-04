@@ -1,6 +1,7 @@
 #include "floram_util.h"
 
 #include <omp.h>
+#include <unistd.h>
 
 void get_random_bytes(void *buf, size_t bytes) {
 	//only supported on recent linuxes, unfortunately.
@@ -23,6 +24,19 @@ int floram_zpma(void** dst, size_t alignment, size_t size) {
    memset(*dst, 0, size);
    return res;
 }
+
+uint32_t floram_atomic_read(uint32_t * x) {
+    return __atomic_load_n(x, __ATOMIC_RELAXED);
+}
+
+void floram_atomic_inc(uint32_t * x) {
+    return __atomic_fetch_add(x, 1, __ATOMIC_RELAXED);
+}
+
+int floram_usleep(uint64_t x) {
+    return usleep(x);
+}
+
 
 void floram_set_procs_for_data_size(size_t dsize) {
 #ifndef FLORAM_DISABLE_AUTO_THREAD_COUNT
