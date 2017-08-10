@@ -94,6 +94,39 @@ void floram_scan_callback(facb_pass * input, ProtocolDesc *pd) {
 #endif
 }
 
+void floram_scan_callback_ro(facb_pass * input, ProtocolDesc *pd) {
+	if (pd != NULL) ocSetCurrentProto(pd);
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("BEGIN STASH SCAN %lld\n", current_timestamp());
+#endif
+
+	floram * ram = input->ram;
+	obliv size_t blockid = input->blockid;
+	obliv bool found = false;
+	if (ram->progress > 0) {
+		obliv if(ram->stashi[0] != -1) {
+			ocCopy(&ram->memblockcpy, element(&ram->memblockcpy, ram->stash, ram->progress), ram->stash);
+			ram->stashi[ram->progress] = ram->stashi[0];
+		}
+		ram->stashi[0] = -1;
+		for (size_t ii = 1; ii <= ram->progress; ii ++) {
+			obliv if (blockid == ram->stashi[ii]) {
+				ocCopy(&ram->memblockcpy, ram->stash, element(&ram->memblockcpy, ram->stash, ii));
+				found = true;
+			}
+		}
+	}
+	input->found=found;
+
+	// this protocol may not do anything else for a while, but other threads could be waiting for it
+	oflush(ocCurrentProto());
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	printf("END STASH SCAN %lld\n", current_timestamp());
+#endif
+}
+
 void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 #ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN READ %lld\n", current_timestamp());
@@ -104,7 +137,7 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 
 	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
 
-	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, floram_scan_callback, &facb_data);
+	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, floram_scan_callback_ro, &facb_data);
 
 	obliv if (facb_data.found == false) {
 		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);

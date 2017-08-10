@@ -39,7 +39,7 @@ $(ACKLIB): $(OBJS:%=$(SRC_PATH)/%)
 	mkdir -p $(LIB_OUT_PATH)
 	$(AR) rcs $@ $^
 
--include $(patsubst %.oo,%.od,$(OBJS:.o=.d))
+-include $($(patsubst %.oo,%.od,$(OBJS:.o=.d)):%=$(SRC_PATH)/%) $(TEST_BINS:%=$(TEST_PATH)/%.od)
 
 %.o: %.c
 	$(CC) -c $(CFLAGS) $*.c -o $*.o -I $(OBLIVCH)
