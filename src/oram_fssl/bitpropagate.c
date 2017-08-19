@@ -32,7 +32,7 @@ void bitpropagator_offline_push_Z(bitpropagator_offline * bpo, uint8_t * Z, bool
 
 void bitpropagator_offline_readblockvector(uint8_t * local_output, bool * local_bit_output, bitpropagator_offline * bpo) {	
 
-	floram_set_procs_for_data_size(BLOCKSIZE * (1ll<<bpo->endlevel + 1ll<<(bpo->endlevel-1)));
+	floram_set_procs_for_data_size(BLOCKSIZE * ((1ll<<bpo->endlevel) + (1ll<<(bpo->endlevel-1))));
 	#pragma omp parallel
 	{
 		size_t thislevel = bpo->startlevel;
