@@ -16,15 +16,14 @@ CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo 
 FSSL_ORAM_DEPS=bitpropagate.oo bitpropagate.o bitpropagate_cprg.oo bitpropagate_cprg.o floram_util.oo floram_util.o scanrom.oo scanrom.o floram.oo\
 		aes_gladman/aeskey.o aes_gladman/aestab.o aes_gladman/aescrypt.o
 ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) $(FSSL_ORAM_DEPS:%=oram_fssl/%) oram.oo
-OBJS=$(DEPS) $(ORAM_DEPS) obig.oo ochacha.oo ograph.oo omatch.oo oqueue.oo\
-		osalsa.oo oscrypt.oo osearch.oo osha256.oo osha512.oo osort.oo oaes.oo
+OBJS=$(DEPS) $(ORAM_DEPS) omatch.oo oqueue.oo osearch.oo osort.oo oaes.oo
 
 TEST_PATH=tests/
 TEST_OUT_PATH=build/tests/
 TEST_DEPS=test_main.o
-TEST_BINS = test_obig test_osha256 test_osha512 test_osalsa test_ochacha test_oaes\
-		test_oqueue test_oram test_oscrypt test_ograph test_omatch test_osearch\
-		bench_oram_write bench_oram_read bench_oram_init bench_oscrypt bench_bfs bench_bs\
+TEST_BINS = test_oaes\
+		test_oqueue test_oram test_omatch test_osearch\
+		bench_oram_write bench_oram_read bench_oram_init bench_bs\
 		bench_gs bench_rp bench_oaes bench_oqueue bench_waksman
 
 default: $(ACKLIB) tests
