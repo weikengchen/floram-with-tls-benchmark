@@ -41,6 +41,12 @@ Project Organization
 Source for this project is divided into two directories: `src` contains code for the primary library, while `tests` contains code for tests and benchmarks. The library will be compiled to `build/lib/liback.a`, and all testing and benchmarking binaries are found in `build/tests`.
 
 
+Reproducing Results
+=====
+
+For the purpose of reproducing the results we report in our paper, we provide a suite of benchmark scripts in the `tools/bench` directory. Each script must be executed on one machine as a server, and on another as a client. Scripts will run as server by default, and will output data and summaries to the `benchmark_results` directory. Adding the `-c <address>` flag will cause the script to run as a client and connect to the specified server.
+
+
 Running Tests and Benchmarks Manually
 =====
 
