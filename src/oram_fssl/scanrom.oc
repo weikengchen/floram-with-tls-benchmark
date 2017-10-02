@@ -2,8 +2,8 @@
 #include "scanrom.h"
 #include "../oaes.oh"
 #include "endian.oh"
-#include "bitpropagate.oh"
-#include "bitpropagate.h"
+#include "fss.oh"
+#include "fss.h"
 #include "floram_util.oh"
 #include "../ackutil.h"
 #include <obliv.h>

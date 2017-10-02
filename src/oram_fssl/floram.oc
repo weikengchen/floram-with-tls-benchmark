@@ -1,8 +1,8 @@
 #include "floram.oh"
 #include "floram_util.oh"
 #include "scanrom.oh"
-#include "bitpropagate.oh"
-#include "bitpropagate_cprg.oh"
+#include "fss.oh"
+#include "fss_cprg.oh"
 #include "ackutil.h"
 #include <obliv.h>
 #include <copy.oh>
@@ -13,8 +13,8 @@ struct floram {
 	size_t memblocksize;
 	scanwrom* wrom;
 	scanrom* rom;
-	void* bitpropagator;
-	void* bitpropagator_smaller;
+	void* fss;
+	void* fss_smaller;
 	obliv uint8_t* stash;
 	obliv int32_t* stashi;
 	obliv uint8_t* activeblock_delta;
@@ -30,9 +30,9 @@ struct floram {
 	uint32_t blockmultiple;
 	uint32_t elementsperblock;
 	bool cprg;
-	void (*bf)(void*);
-	void (*bgb)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t);
-	void (*bgbc)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t, facb_fn, void *);
+	void (*ff)(void*);
+	void (*fgb)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t);
+	void (*fgbc)(obliv uint8_t *, uint8_t *, bool *, void *, obliv size_t, facb_fn, void *);
 };
 
 typedef struct facb_pass {
@@ -138,7 +138,7 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 
 	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
 
-	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator_smaller, blockid/(BLOCKSIZE*8), floram_scan_callback_ro, &facb_data);
+	~obliv() ram->fgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->fss_smaller, blockid/(BLOCKSIZE*8), floram_scan_callback_ro, &facb_data);
 
 	obliv if (facb_data.found == false) {
 		scanrom_read_with_blockvector(ram->stash, ram->rom, blockid, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local);
@@ -164,7 +164,7 @@ void floram_apply(floram* ram, void* data, floram_block_access_function fn, obli
 
 	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
 
-	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, floram_scan_callback, &facb_data);
+	~obliv() ram->fgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->fss, blockid, floram_scan_callback, &facb_data);
 
 	obliv if (facb_data.found == false) {
 		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);
@@ -258,17 +258,17 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 	ram->memblockcpy=ocCopyCharN(ram->memblocksize);
 
 	if (cprg) {
-		ram->bgb = bitpropagator_cprg_getblockvector;
-		ram->bgbc = bitpropagator_cprg_getblockvector_with_callback;
-		ram->bf = bitpropagator_cprg_free;
-		ram->bitpropagator = bitpropagator_cprg_new(ram->blockcount, ram->blockmultiple);
-		ram->bitpropagator_smaller = bitpropagator_cprg_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1);
+		ram->fgb = fss_cprg_getblockvector;
+		ram->fgbc = fss_cprg_getblockvector_with_callback;
+		ram->ff = fss_cprg_free;
+		ram->fss = fss_cprg_new(ram->blockcount, ram->blockmultiple);
+		ram->fss_smaller = fss_cprg_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1);
 	} else {
-		ram->bgb = bitpropagator_getblockvector;
-		ram->bgbc = bitpropagator_getblockvector_with_callback;
-		ram->bf = bitpropagator_free;
-		ram->bitpropagator = bitpropagator_new(ram->blockcount, ram->blockmultiple,  MIN(5, LOG2LL(ram->blockcount)));
-		ram->bitpropagator_smaller = bitpropagator_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1, MIN(5, LOG2LL((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8))));
+		ram->fgb = fss_getblockvector;
+		ram->fgbc = fss_getblockvector_with_callback;
+		ram->ff = fss_free;
+		ram->fss = fss_new(ram->blockcount, ram->blockmultiple,  MIN(5, LOG2LL(ram->blockcount)));
+		ram->fss_smaller = fss_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1, MIN(5, LOG2LL((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8))));
 	}
 
 	floram_pma(&ram->blockvector_local, 16, ram->blockcount * ram->memblocksize);
@@ -345,8 +345,8 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 }
 
 void floram_free(floram* ram) {
-	ram->bf(ram->bitpropagator);
-	ram->bf(ram->bitpropagator_smaller);
+	ram->ff(ram->fss);
+	ram->ff(ram->fss_smaller);
 	scanrom_free(ram->rom);
 	scanwrom_free(ram->wrom);
 	free(ram->blocktemp);

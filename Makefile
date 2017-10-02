@@ -13,7 +13,7 @@ ACKLIB = $(LIB_OUT_PATH)/liback.a
 DEPS=ackutil.o endian.oo shuffle.oo waksman.o
 SQRT_ORAM_DEPS=decoder.oo sqrtoram.oo
 CKT_ORAM_DEPS=block.oo circuit_oram.oo linear_scan_oram.oo nonrecursive_oram.oo utils.oo
-FSSL_ORAM_DEPS=bitpropagate.oo bitpropagate.o bitpropagate_cprg.oo bitpropagate_cprg.o floram_util.oo floram_util.o scanrom.oo scanrom.o floram.oo\
+FSSL_ORAM_DEPS=fss.oo fss.o fss_cprg.oo fss_cprg.o floram_util.oo floram_util.o scanrom.oo scanrom.o floram.oo\
 		aes_gladman/aeskey.o aes_gladman/aestab.o aes_gladman/aescrypt.o
 ORAM_DEPS = $(SQRT_ORAM_DEPS:%=oram_sqrt/%)  $(CKT_ORAM_DEPS:%=oram_ckt/%) $(FSSL_ORAM_DEPS:%=oram_fssl/%) oram.oo
 OBJS=$(DEPS) $(ORAM_DEPS) obig.oo ochacha.oo ograph.oo omatch.oo oqueue.oo\
