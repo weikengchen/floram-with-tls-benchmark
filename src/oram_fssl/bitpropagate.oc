@@ -178,15 +178,21 @@ void bitpropagator_getblockvector_with_callback(obliv uint8_t * activeblock_delt
 	printf("END FSS SETUP %lld\n", current_timestamp());
 #endif
 
-	bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
-	bp->readycount = 0;
+	if (bp->endlevel > bp->startlevel) {
+			bitpropagator_offline_start(bp->bpo, bp->toplevel_local);
+		bp->readycount = 0;
 
 #ifdef _OPENMP
-	//This is a hack to work around the fact that openmp and obliv-c are incompatible.
-	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, bp->pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
+		//This is a hack to work around the fact that openmp and obliv-c are incompatible.
+		bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, bp->pd2, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
 #else 
-	bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, NULL, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
+		bitpropagator_offline_parallelizer(bp, bp->bpo, &index, local_output, local_bit_output, NULL, bitpropagator_traverselevels, bitpropagator_Z_pusher, cbfn, cbpass);
 #endif
+	} else if (*cbfn!=NULL) {
+		cbfn(cbpass, NULL);
+		memcpy(local_output, bp->toplevel_local, (1ll << bp->startlevel) * BLOCKSIZE);
+		for (size_t ii = 0; ii < (1ll << bp->startlevel); ii++) local_bit_output[ii] = bp->toplevel_local[ii * BLOCKSIZE] & 1;
+	}
 
 	//write output
 	ocCopyN(&ocCopyChar, activeblock_delta, bp->activeblock_A, BLOCKSIZE*bp->blockmultiple);

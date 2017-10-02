@@ -77,6 +77,12 @@ void bitpropagator_cprg_offline_start(uint8_t * local_output, bool * local_bit_o
 
 	bpo->lba[0] = bpo->lda2[0] & 1;
 
+	if (bpo->thislevel == bpo->endlevel) {
+		memcpy(bpo->ldb, bpo->lda, BLOCKSIZE*bpo->blockmultiple);
+		memcpy(accumulator_L, bpo->lda, BLOCKSIZE*bpo->blockmultiple);
+		memcpy(bpo->lbb, bpo->lba, sizeof(bool));
+	}
+
 #ifdef ORAM_PROFILE_SCHEDULING
 	printf("END FSS CPRG OFFLINE LEVEL %d %lld\n", bpo->thislevel,current_timestamp());
 #endif

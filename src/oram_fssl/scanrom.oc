@@ -33,7 +33,7 @@ struct scanwrom {
 
 
 
-void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
+void scanrom_read_with_bitvector(obliv uint8_t * data_output, scanrom * rom, obliv size_t index, bool * bitvector) obliv {
 #ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("BEGIN ROM READ %lld\n", current_timestamp());
 #endif
@@ -66,7 +66,66 @@ void scanrom_read_with_bitvector(obliv uint8_t * data, scanrom * rom, obliv size
 #endif
 	}
 
-	ocCopyN(&ocCopyChar, data, rom->blocktemp, rom->memblocksize);
+	ocCopyN(&ocCopyChar, data_output, rom->blocktemp, rom->memblocksize);
+
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("END ROM READ %lld\n", current_timestamp());
+#endif
+}
+
+/* the following function implements Yuval Ishai's suggested optimization for
+   truncating the last ayers of the FSS tree in the case of reading. We assume
+   that the blockvector is a factor of BLOCKSIZE smaller than it would be in
+   the usual case, and set both parties blockvectors to be equal except for a 
+   single bit
+   */
+void scanrom_read_with_blockvector(obliv uint8_t * data_output, scanrom * rom, obliv size_t index, obliv uint8_t * activeblock_delta, uint8_t * blockvector, bool * bitvector) obliv {
+#ifdef ORAM_PROFILE_SCHEDULING
+	~obliv() printf("BEGIN ROM READ %lld\n", current_timestamp());
+#endif
+
+	~obliv(en) {
+		memset(rom->blocktemp, 0, BLOCKSIZE*sizeof(obliv uint8_t));
+		obliv size_t index_maj = ((index % (BLOCKSIZE*8)) >> 3);
+		obliv size_t index_min = ((index % (BLOCKSIZE*8)) & 0x7);
+		for (size_t ii = 0; ii < BLOCKSIZE; ii++) {
+			rom->blocktemp[ii] = activeblock_delta[ii];
+			for (size_t jj = 0; jj < 8; jj++) {
+				obliv if ((ii == index_maj) & (jj == index_min)) ((obliv bool *) &rom->blocktemp[ii])[jj] ^= 1;
+			}
+		}
+
+		for (size_t ii = 0; ii < BLOCKSIZE/sizeof(uint64_t); ii++) revealOblivLLong(&((uint64_t *)rom->local_blocktemp)[ii], ((obliv uint64_t *)rom->blocktemp)[ii], 2);
+		for (size_t ii = 0; ii < BLOCKSIZE/sizeof(uint64_t); ii++) revealOblivLLong(&((uint64_t *)rom->local_blocktemp)[ii], ((obliv uint64_t *)rom->blocktemp)[ii], 1);
+
+		scanrom_read_with_blockvector_offline(rom->local_blocktemp, rom->local_data, bitvector, blockvector, rom->memblocksize, rom->blockcount);
+		memset(rom->ivtemp, 0, BLOCKSIZE * sizeof(obliv uint8_t));
+		ocFromSharedCharN(ocCurrentProto(), rom->blocktemp, rom->local_blocktemp, rom->memblocksize);
+
+#ifndef SCANROM_DISABLE_ENCRYPTION
+
+#ifdef ORAM_PROFILE_SCHEDULING
+		printf("BEGIN ROM DECRYPT %lld\n", current_timestamp());
+#endif
+
+		for (size_t ii = 0; ii < rom->memblocksize/BLOCKSIZE; ii += 1) {
+			be64enc(&rom->ivtemp[BLOCKSIZE - sizeof(size_t)], index*rom->blockmultiple + ii);
+			oaes_128_from_expanded_double(&rom->blocktemp[rom->memblocksize + ii*BLOCKSIZE], &rom->blocktemp[2*rom->memblocksize + ii*BLOCKSIZE],
+										rom->halfkey_a, rom->halfkey_b, rom->ivtemp, rom->ivtemp);
+		}
+		
+		for (size_t ii = 0; ii < rom->memblocksize; ii ++) {
+			rom->blocktemp[ii] ^= rom->blocktemp[rom->memblocksize + ii] ^ rom->blocktemp[2*rom->memblocksize + ii];
+		}
+
+#ifdef ORAM_PROFILE_SCHEDULING
+		printf("END ROM DECRYPT %lld\n", current_timestamp());
+#endif
+
+#endif
+	}
+
+	ocCopyN(&ocCopyChar, data_output, rom->blocktemp, rom->memblocksize);
 
 #ifdef ORAM_PROFILE_SCHEDULING
 	~obliv() printf("END ROM READ %lld\n", current_timestamp());

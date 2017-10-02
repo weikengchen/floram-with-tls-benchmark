@@ -14,6 +14,7 @@ struct floram {
 	scanwrom* wrom;
 	scanrom* rom;
 	void* bitpropagator;
+	void* bitpropagator_smaller;
 	obliv uint8_t* stash;
 	obliv int32_t* stashi;
 	obliv uint8_t* activeblock_delta;
@@ -137,10 +138,10 @@ void floram_read(void* data, floram* ram, obliv size_t index) obliv {
 
 	facb_pass facb_data = {.ram=ram, .blockid = blockid, .subblockid = subblockid, .found = false};
 
-	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator, blockid, floram_scan_callback_ro, &facb_data);
+	~obliv() ram->bgbc(ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local, ram->bitpropagator_smaller, blockid/(BLOCKSIZE*8), floram_scan_callback_ro, &facb_data);
 
 	obliv if (facb_data.found == false) {
-		scanrom_read_with_bitvector(ram->stash, ram->rom, blockid, ram->bitvector_local);
+		scanrom_read_with_blockvector(ram->stash, ram->rom, blockid, ram->activeblock_delta, ram->blockvector_local, ram->bitvector_local);
 	}
 	ram->stashi[0] = -1;
 
@@ -261,11 +262,13 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 		ram->bgbc = bitpropagator_cprg_getblockvector_with_callback;
 		ram->bf = bitpropagator_cprg_free;
 		ram->bitpropagator = bitpropagator_cprg_new(ram->blockcount, ram->blockmultiple);
+		ram->bitpropagator_smaller = bitpropagator_cprg_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1);
 	} else {
 		ram->bgb = bitpropagator_getblockvector;
 		ram->bgbc = bitpropagator_getblockvector_with_callback;
 		ram->bf = bitpropagator_free;
 		ram->bitpropagator = bitpropagator_new(ram->blockcount, ram->blockmultiple,  MIN(5, LOG2LL(ram->blockcount)));
+		ram->bitpropagator_smaller = bitpropagator_new((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8), 1, MIN(5, LOG2LL((ram->blockcount+(BLOCKSIZE*8)-1)/(BLOCKSIZE*8))));
 	}
 
 	floram_pma(&ram->blockvector_local, 16, ram->blockcount * ram->memblocksize);
@@ -343,6 +346,7 @@ floram* floram_new(OcCopy* cpy, void* data, size_t n, bool cprg, bool from_share
 
 void floram_free(floram* ram) {
 	ram->bf(ram->bitpropagator);
+	ram->bf(ram->bitpropagator_smaller);
 	scanrom_free(ram->rom);
 	scanwrom_free(ram->wrom);
 	free(ram->blocktemp);
