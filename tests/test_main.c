@@ -2,21 +2,20 @@
 
 double lap;
 
-void ocTestUtilTcpOrDie(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port, bool isProfiled) {
+void ocTestUtilTcpOrDieBuffered(ProtocolDesc* pd, bool isServer, const char* remote_host, const char* port, bool isProfiled, size_t first_party_send_buffer_size, size_t second_party_send_buffer_size) {
+	const char key[] = {0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF};
 	if(isServer) {
 		int res;
-		if (isProfiled) res = protocolAcceptTcp2PProfiled(pd,port);
-		else res = protocolAcceptTcp2P(pd,port);
+		res = protocolAcceptTLS2P(pd, port, key, isProfiled, first_party_send_buffer_size);
 		if(res!=0) {
-			fprintf(stderr,"TCP accept failed\n");
+			fprintf(stderr,"TLS accept failed\n");
 			exit(1);
 		}
 	} else {
 		int res;
-		if (isProfiled) res = protocolConnectTcp2PProfiled(pd,remote_host,port);
-		else res = protocolConnectTcp2P(pd,remote_host,port);
+		res = protocolConnectTLS2P(pd, remote_host, port, key, isProfiled, second_party_send_buffer_size);
 		if (res!=0) {
-			fprintf(stderr,"TCP connect failed\n");
+			fprintf(stderr,"TLS connect failed\n");
 			exit(1);
 		}
 	}
@@ -33,6 +32,14 @@ int main(int argc,char* argv[])
 	char* port = NULL;
 	bool is_server = true;
 
+	size_t first_party_send_buffer_size;
+	size_t second_party_send_buffer_size;
+
+	// by default, the second party's send buffer size is 0 (this is also for the most cases).
+	// by default, the first party's send buffer size is set to 1024 based on observation.
+	first_party_send_buffer_size = 1024;
+	second_party_send_buffer_size = 0;
+
 	args_t args_pass;
 	args_pass.argv = alloca(argc*sizeof(char*));
 	args_pass.argv[0] = alloca(strlen(argv[0])+1);
@@ -40,10 +47,10 @@ int main(int argc,char* argv[])
 	args_pass.argc = 1;
 
 	int arg;
-	char optstring[256] = ":hc:p:";
+	char optstring[256] = ":hc:p:y:z:";
 	char * supplementary_options = get_supplementary_options_string();
 	if (supplementary_options != NULL) {
-		snprintf(optstring, sizeof optstring, ":hc:p:%s", supplementary_options);
+		snprintf(optstring, sizeof optstring, ":hc:p:y:z:%s", supplementary_options);
 	}
 	while ((arg = getopt_long(argc, argv, optstring, get_long_options(), NULL)) != -1) {
 		switch (arg) {
@@ -59,6 +66,12 @@ int main(int argc,char* argv[])
 			case 'p':
 				port = alloca(strlen(optarg)+1);
 				strcpy(port,optarg);
+				break;
+			case 'y':
+				sscanf(optarg, "%zu", &first_party_send_buffer_size);
+				break;
+			case 'z':
+				sscanf(optarg, "%zu", &second_party_send_buffer_size);
 				break;
 			case '?':
 			case ':':
@@ -89,8 +102,11 @@ int main(int argc,char* argv[])
 		port = (char *) default_port;
 	}
 
+	printf("The first party's send buffer size is %zu.\n", first_party_send_buffer_size);
+        printf("The second party's send buffer size is %zu.\n", second_party_send_buffer_size);
+
 	ProtocolDesc pd;
-	ocTestUtilTcpOrDie(&pd,is_server,remote_host,port,(strstr(get_test_name(), "benchmark") != NULL));
+	ocTestUtilTcpOrDieBuffered(&pd,is_server,remote_host,port,(strstr(get_test_name(), "benchmark") != NULL), first_party_send_buffer_size, second_party_send_buffer_size);
 	setCurrentParty(&pd,is_server?1:2);
 
 	lap = (double)current_timestamp()/1000000;

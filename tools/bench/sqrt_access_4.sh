@@ -14,17 +14,30 @@ touch $RESULT_FILE
 set -e
 
 CLIENT=false
-BENCH_PROG="../../build/tests/bench_oram"
-BENCH_PROG_ARGS="-s 1 -o sqrt "
-ELCTS=(32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152 4194304)
-ITERS=(104 114 116 132 132 196 145 214 315 463 679 993 1450 2113 3074 4465 6478 9387)
+BENCH_PROG="../../build/tests/bench_oram_write"
+BENCH_PROG_ARGS="-s 1024 -o sqrt "
+ELCTS=(4096)
+ITERS=(214)
+# square-root ORAM has different worst-case and amortized overhead. 
+# The iterations should be a multiple of Sqrt(Elcts * log_2 (Elcts) - Elcts + 1) and plus 1. 
+# More details are in "Revisiting Square Root ORAM: Efficient Random Access in Multi-Party Computation", S&P'16.
 
-while getopts ":c:" opt; do
+# 4096 -> 214
+# 65536 -> 993
+# 1048576 -> 4465 (probably failed)
+
+while getopts ":c:y:z:" opt; do
 	case $opt in
 		c)
 			BENCH_PROG_ARGS+=" -c $OPTARG "
 			CLIENT=true
 			;;
+                y)
+                        BENCH_PROG_ARGS+=" -y $OPTARG "
+                        ;;
+                z)
+                        BENCH_PROG_ARGS+=" -z $OPTARG "
+                        ;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
 			exit 1

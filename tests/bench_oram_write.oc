@@ -119,11 +119,11 @@ void test_main(void*varg) {
 		for (int kk = 0; kk < elsz; kk++) input[kk] = feedOblivInt(rand(), 1);
 		int64_t runtime = -current_timestamp();
 		int64_t rungates = -yaoGateCount();
-		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+		int64_t runbytes = -tls2PBytesSent(ocCurrentProto());
 		oram_write(o, input, index);
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
-		runbytes += tcp2PBytesSent(ocCurrentProto());
+		runbytes += tls2PBytesSent(ocCurrentProto());
 		#ifndef ORAM_PROFILE_SCHEDULING
 		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 		fflush(stdout);
@@ -135,6 +135,9 @@ void test_main(void*varg) {
 
 	free(input);
 	oram_free(o);
+
+	oflush(ocCurrentProto());
+
 	#ifndef ORAM_PROFILE_SCHEDULING
 	fprintf(stdout, "\n");
 	#endif

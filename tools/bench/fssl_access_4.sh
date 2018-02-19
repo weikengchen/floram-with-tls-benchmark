@@ -15,16 +15,31 @@ set -e
 
 CLIENT=false
 BENCH_PROG="../../build/tests/bench_oram_write"
-BENCH_PROG_ARGS="-s 1 -o fssl "
-ELCTS=(67108864 134217728 268435456 536870912 1073741824 2147483648 4294967296)
-ITERS=(1024 1450 2048 2898 4096 5794 8192)
+BENCH_PROG_ARGS="-s 1024 -o fssl "
+#ELCTS=(67108864 134217728 268435456 536870912 1073741824 2147483648 4294967296)
+#ITERS=(1024 1450 2048 2898 4096 5794 8192)
+ELCTS=(1048576)
+ITERS=(128)
 
-while getopts ":c:" opt; do
+
+# The period is ceil(sqrt(ram->blockcount)/8)
+# for 4096 -> 8
+# for 65536 -> 32
+# for 1048576 -> 128
+
+
+while getopts ":c:y:z:" opt; do
 	case $opt in
 		c)
 			BENCH_PROG_ARGS+=" -c $OPTARG "
 			CLIENT=true
 			;;
+                y)
+                        BENCH_PROG_ARGS+=" -y $OPTARG "
+                        ;;
+                z)
+                        BENCH_PROG_ARGS+=" -z $OPTARG "
+                        ;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2
 			exit 1

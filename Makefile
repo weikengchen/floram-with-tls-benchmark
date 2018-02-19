@@ -4,8 +4,8 @@ AR ?= ar
 OBLIVCC = $(OBLIVC_PATH)/bin/oblivcc
 OBLIVCH = $(OBLIVC_PATH)/src/ext/oblivc
 OBLIVCA = $(OBLIVC_PATH)/_build/libobliv.a
-CFLAGS+= -O3 -march=native -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp
-LDFLAGS += -lm -lgomp -lgcrypt
+CFLAGS+= -O3 -march=native -I/usr/include -I . -I $(SRC_PATH) -std=c99 -fopenmp -D _Float128=double
+LDFLAGS += -lm -lgomp -lgcrypt -lssl -lcrypto -ltcmalloc
 
 SRC_PATH=src/
 LIB_OUT_PATH=build/lib/

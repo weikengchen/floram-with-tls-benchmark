@@ -14,16 +14,26 @@ touch $RESULT_FILE
 set -e
 
 CLIENT=false
-BENCH_PROG="../../build/tests/bench_oram"
-BENCH_PROG_ARGS="-s 1 -o circuit "
-ELCTS=(32 64 128 256 512 1024 2048 4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152 4194304 8388608 16777216 33554432 67108864)
-ITERS=(100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100 100)
+BENCH_PROG="../../build/tests/bench_oram_write"
+BENCH_PROG_ARGS="-s 4096 -o circuit "
+ELCTS=(16384)
+ITERS=(10)
+#ELCTS=(65536 65536 65536)
+#ITERS=(10 10 10)
+#ELCTS=(1048576)
+#ITERS=(100)
 
-while getopts ":c:" opt; do
+while getopts ":c:y:z:" opt; do
 	case $opt in
 		c)
 			BENCH_PROG_ARGS+=" -c $OPTARG "
 			CLIENT=true
+			;;
+		y)
+			BENCH_PROG_ARGS+=" -y $OPTARG "
+			;;
+		z)
+			BENCH_PROG_ARGS+=" -z $OPTARG "
 			;;
 		\?)
 			echo "Invalid option: -$OPTARG" >&2

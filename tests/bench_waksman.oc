@@ -93,11 +93,11 @@ void test_main(void*varg) {
 		OcPermNetwork w = ocPermNetworkRandom(elct);
 		int64_t runtime = -current_timestamp();
 		int64_t rungates = -yaoGateCount();
-		int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+		int64_t runbytes = -tls2PBytesSent(ocCurrentProto());
 		ocPermNetworkApply(&w,&cpy,data);
 		runtime += current_timestamp();
 		rungates += yaoGateCount();
-		runbytes += tcp2PBytesSent(ocCurrentProto());
+		runbytes += tls2PBytesSent(ocCurrentProto());
 		ocPermNetworkCleanup(&w);
 		fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 		fflush(stdout);

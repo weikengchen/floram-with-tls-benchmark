@@ -117,11 +117,11 @@ void test_main(void*varg) {
 			for (size_t ii = 0; ii < elct*elsz;ii++) input_raw[ii] = rand();
 			int64_t runtime = -current_timestamp();
 			int64_t rungates = -yaoGateCount();
-			int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+			int64_t runbytes = -tls2PBytesSent(ocCurrentProto());
 			oram * o = oram_from_shares(ORAM_TYPE_AUTO, &cpy, elct, input_raw);
 			runtime += current_timestamp();
 			rungates += yaoGateCount();
-			runbytes += tcp2PBytesSent(ocCurrentProto());
+			runbytes += tls2PBytesSent(ocCurrentProto());
 			fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 			fflush(stdout);
 			tally += runtime;
@@ -137,11 +137,11 @@ void test_main(void*varg) {
 			feedOblivIntArray(input, input_raw, elct * elsz, 1);
 			int64_t runtime = -current_timestamp();
 			int64_t rungates = -yaoGateCount();
-			int64_t runbytes = -tcp2PBytesSent(ocCurrentProto());
+			int64_t runbytes = -tls2PBytesSent(ocCurrentProto());
 			oram * o = oram_from_array(ORAM_TYPE_AUTO, &cpy, elct, input);
 			runtime += current_timestamp();
 			rungates += yaoGateCount();
-			runbytes += tcp2PBytesSent(ocCurrentProto());
+			runbytes += tls2PBytesSent(ocCurrentProto());
 			fprintf(stdout, ",%llu,%llu,%llu", runtime,rungates, runbytes);
 			fflush(stdout);
 			tally += runtime;
