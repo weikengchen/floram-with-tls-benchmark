@@ -263,24 +263,18 @@ OcSqrtOram* ocSqrtOramNewAux(OcCopy* cpy,void* data,int n,int period)
   ram->n=n;
   ram->cpy=cpy;
   ram->shuff = malloc(cpy->eltsize*n);
-  if(ram->shuff == NULL) printf("shuff is NULL");
   ocCopyN(cpy,ram->shuff,data,n);
   int i;
   ram->stash = calloc(period,cpy->eltsize);
-  if(ram->stash == NULL) printf("stash is NULL");
   ram->swapSpace = calloc(1,cpy->eltsize);
-  if(ram->swapSpace == NULL) printf("swapSpace is NULL");
   ram->shuffi = calloc(n,sizeof(obliv int));
-  if(ram->shuffi == NULL) printf("shuffi is NULL");
   ram->stashi = calloc(period,sizeof(obliv int));
-  if(ram->stashi == NULL) printf("stashi is NULL");
   for(i=0;i<n;++i) ram->shuffi[i]=i;
   { // Jack's fix for segfault during reinit with non-2^n sized orams.
     const int pkl = 3; // TODO tweak
     const int pk = (1<<pkl);
     int nn = (n+pk-1)/pk;
     ram->physicalTemp = calloc((n>nn*pk ? n : nn*pk),sizeof(obliv int));
-    if(ram->physicalTemp == NULL) printf("physicalTemp is NULL");
   }
   //ram->physicalTemp = calloc(n,sizeof(obliv int));
   ram->indexBits = indexBits(n);
