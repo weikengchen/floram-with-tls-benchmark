@@ -51,10 +51,15 @@ size_t waksmanSwitches(const unsigned arr[],unsigned n,bool output[])
 {
   if(n<=1) return 0;
   unsigned *inv = malloc(n*sizeof(*arr));
+  if(inv == NULL) printf("inv is NULL");
   unsigned *arr1 = malloc((n/2)*sizeof(*arr));
+  if(arr1 == NULL) printf("arr1 is NULL");
   unsigned *arr2 = malloc(((n+1)/2)*sizeof(*arr));
+  if(arr2 == NULL) printf("arr2 is NULL");
   bool* outputTail = malloc(((n-1)/2)*sizeof(bool));
+  if(outputTail == NULL) printf("outputTail is NULL");
   bool* set = calloc(n,sizeof(bool));
+  if(set == NULL) printf("set is NULL");
   unsigned i,j,used=0,nxtj;
   for(i=0;i<n;++i) inv[arr[i]]=i;
 
