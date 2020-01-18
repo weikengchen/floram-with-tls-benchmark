@@ -61,7 +61,15 @@ size_t waksmanSwitches(const unsigned arr[],unsigned n,bool output[])
   bool* set = calloc(n,sizeof(bool));
   if(set == NULL) printf("set is NULL");
   unsigned i,j,used=0,nxtj;
-  for(i=0;i<n;++i) inv[arr[i]]=i;
+  
+  printf("pass the first stage.\n");
+  
+  for(i=0;i<n;++i){
+  	if(arr[i] >= n || arr[i] < 0) printf("Detected an invalid index: %d\n", arr[i]);
+  	inv[arr[i]]=i;
+  }
+  
+  printf("set number in the inverse done.\n");
 
   i=n;
   // output head length == n/2
